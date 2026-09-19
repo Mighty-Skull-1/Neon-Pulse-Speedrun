@@ -2207,9 +2207,15 @@ function killPlayer(force = false) {
     }
 
     game.attempts++;
-    const stopwatch = document.getElementById('hud-stopwatch');
-    if (stopwatch) stopwatch.innerText = "00:00.000";
+    const prevTime = game.runTime;
     resetPlayerState();
+    if (game.isMultiplayer) {
+        game.runTime = prevTime;
+        showNotification("⚠️ CRASH PENALTY! SPRINT TO CATCH UP!");
+    } else {
+        const stopwatch = document.getElementById('hud-stopwatch');
+        if (stopwatch) stopwatch.innerText = "00:00.000";
+    }
 }
 
 function isCeilingOverhead() {
@@ -2523,6 +2529,11 @@ function updatePhysics(rawDt) {
     // Multiplayer State Broadcast (30Hz)
     if (game.isMultiplayer && typeof MP !== 'undefined') {
         MP.broadcastState();
+    }
+
+    // Live AI Rival Simulation
+    if (game.isMultiplayer && game.mpRival && game.mpRival.isAI && typeof updateAiRival === 'function') {
+        updateAiRival(dt);
     }
 
     // Live Race Delta HUD Badge (Multiplayer / Ghost)
@@ -2975,6 +2986,11 @@ function triggerVictory() {
         }
     }
     if (vicRank) vicRank.innerText = rank;
+
+    if (game.isMultiplayer) {
+        // Race finish is handled by MP.broadcastFinish / showPodium
+        return;
+    }
 
     const vicModal = document.getElementById('modal-victory');
     if (vicModal) vicModal.classList.remove('hidden');
@@ -4462,11 +4478,13 @@ function loadGhostChallenge(raw) {
 }
 
 // ============================================================================
-// 11D. LIVE 1V1 WebRTC MULTIPLAYER ENGINE (PeerJS)
+// 11D. LIVE 1V1 MULTIPLAYER ENGINE (Local Relay + WebRTC PeerJS + AI Rival)
 // ============================================================================
 const MP = {
     peer: null,
     conn: null,
+    channel: null,
+    clientId: 'CLIENT_' + Math.random().toString(36).substring(2, 9),
     isHost: false,
     roomCode: '',
     connected: false,
@@ -4474,6 +4492,112 @@ const MP = {
     lastBroadcast: 0,
     myFinishTime: null,
     rivalFinishTime: null,
+
+    peerConfig: {
+        debug: 0,
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+            ]
+        }
+    },
+
+    initChannel() {
+        if (typeof BroadcastChannel !== 'undefined' && !this.channel) {
+            try {
+                this.channel = new BroadcastChannel('neon_pulse_p2p_channel');
+                this.channel.onmessage = (event) => {
+                    this.handleBroadcastMessage(event.data);
+                };
+            } catch (e) {
+                console.warn('BroadcastChannel error:', e);
+            }
+        }
+    },
+
+    sendMsg(msg) {
+        msg.sender = this.clientId;
+        msg.roomCode = this.roomCode;
+        if (this.channel) {
+            try {
+                this.channel.postMessage(msg);
+            } catch(e) {}
+        }
+        if (this.conn && this.conn.open) {
+            try {
+                this.conn.send(msg);
+            } catch(e) {}
+        }
+    },
+
+    handleBroadcastMessage(data) {
+        if (!data || !data.roomCode || data.roomCode !== this.roomCode) return;
+        if (data.sender === this.clientId) return; // ignore own broadcast
+
+        if (data.type === 'JOIN_REQUEST' && this.isHost) {
+            this.connected = true;
+            game.isMultiplayer = true;
+            this.rivalData = {
+                tag: data.tag || 'RIVAL',
+                skin: data.skin || 'neon_rose',
+                x: 80,
+                y: 356,
+                renderX: 80,
+                renderY: 356,
+                vx: 320,
+                vy: 0,
+                s: 0,
+                g: 1
+            };
+            game.mpRival = this.rivalData;
+
+            // Acknowledge to client
+            this.sendMsg({
+                type: 'JOIN_ACCEPT',
+                tag: game.pilotTag,
+                skin: dailySystem.activeSkin
+            });
+
+            const hostStatus = document.getElementById('mp-opponent-status');
+            const btnStart = document.getElementById('btn-mp-start-race');
+            if (hostStatus) {
+                hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● ${data.tag || 'RIVAL'} CONNECTED!</span>`;
+            }
+            if (btnStart) {
+                btnStart.disabled = false;
+                btnStart.className = "mt-1 w-full py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg flex items-center justify-center gap-1.5 cursor-pointer";
+                btnStart.innerText = "🏁 START 1V1 RACE NOW!";
+            }
+            showNotification(`⚔️ ${data.tag || 'RIVAL'} JOINED YOUR ROOM!`);
+        } else if (data.type === 'JOIN_ACCEPT' && !this.isHost) {
+            this.connected = true;
+            game.isMultiplayer = true;
+            this.rivalData = {
+                tag: data.tag || 'HOST',
+                skin: data.skin || 'neon_cyan',
+                x: 80,
+                y: 356,
+                renderX: 80,
+                renderY: 356,
+                vx: 320,
+                vy: 0,
+                s: 0,
+                g: 1
+            };
+            game.mpRival = this.rivalData;
+            const joinStatus = document.getElementById('mp-join-status');
+            if (joinStatus) {
+                joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST (${data.tag || 'HOST'})!</span> Waiting for race start...`;
+            }
+            showNotification(`⚔️ CONNECTED TO ROOM ${this.roomCode}!`);
+        } else {
+            this.handleMessage(data);
+        }
+    },
 
     generateRoomCode() {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -4485,54 +4609,64 @@ const MP = {
     },
 
     createRoom() {
-        if (typeof Peer === 'undefined') {
-            showNotification("⚠️ WebRTC PEER ENGINE INITIALIZING...");
-            return;
-        }
         this.roomCode = this.generateRoomCode();
         this.isHost = true;
         this.resetMatch();
+        this.initChannel();
 
         const codeDisplay = document.getElementById('mp-room-code');
         const hostStatus = document.getElementById('mp-opponent-status');
         const btnStart = document.getElementById('btn-mp-start-race');
 
         if (codeDisplay) codeDisplay.innerText = this.roomCode;
-        if (hostStatus) hostStatus.innerText = "OPENING PEER CHANNEL...";
-
-        if (this.peer) {
-            try { this.peer.destroy(); } catch(e) {}
+        if (hostStatus) hostStatus.innerText = "WAITING FOR RIVAL TO CONNECT...";
+        if (btnStart) {
+            btnStart.disabled = true;
+            btnStart.className = "mt-1 w-full py-2.5 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5";
+            btnStart.innerText = "WAITING FOR OPPONENT TO CONNECT...";
         }
 
-        const peerId = `NEON-${this.roomCode}`;
-        try {
-            this.peer = new Peer(peerId, { debug: 0 });
-        } catch(e) {
-            this.peer = new Peer({ debug: 0 });
+        if (typeof Peer !== 'undefined') {
+            if (this.peer) {
+                try { this.peer.destroy(); } catch(e) {}
+            }
+
+            const peerId = `NEON-${this.roomCode}`;
+            try {
+                this.peer = new Peer(peerId, this.peerConfig);
+                this.peer.on('open', (id) => {
+                    if (codeDisplay) codeDisplay.innerText = this.roomCode;
+                    const netStatus = document.getElementById('mp-network-status');
+                    if (netStatus) {
+                        netStatus.innerHTML = `<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>ROOM ONLINE: ${this.roomCode}</span></span><span class="text-neutral-500">WebRTC + Local Relay</span>`;
+                    }
+                });
+
+                this.peer.on('connection', (c) => {
+                    this.conn = c;
+                    this.setupConnection();
+                    if (hostStatus) {
+                        hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● RIVAL CONNECTED!</span>`;
+                    }
+                    if (btnStart) {
+                        btnStart.disabled = false;
+                        btnStart.className = "mt-1 w-full py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg flex items-center justify-center gap-1.5 cursor-pointer";
+                        btnStart.innerText = "🏁 START 1V1 RACE NOW!";
+                    }
+                    showNotification("⚔️ RIVAL JOINED YOUR ROOM!");
+                });
+
+                this.peer.on('error', (err) => {
+                    if (err.type === 'unavailable-id') {
+                        this.createRoom();
+                    } else if (hostStatus && !this.connected) {
+                        hostStatus.innerText = `Room active (${this.roomCode}). Ready for rival...`;
+                    }
+                });
+            } catch(e) {
+                console.warn('Peer init error:', e);
+            }
         }
-
-        this.peer.on('open', (id) => {
-            if (codeDisplay) codeDisplay.innerText = this.roomCode;
-            if (hostStatus) hostStatus.innerText = "WAITING FOR RIVAL TO CONNECT...";
-        });
-
-        this.peer.on('connection', (c) => {
-            this.conn = c;
-            this.setupConnection();
-            if (hostStatus) {
-                hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● RIVAL CONNECTED!</span>`;
-            }
-            if (btnStart) {
-                btnStart.disabled = false;
-                btnStart.className = "mt-1 w-full py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg flex items-center justify-center gap-1.5 cursor-pointer";
-                btnStart.innerText = "🏁 START 1V1 RACE NOW!";
-            }
-            showNotification("⚔️ RIVAL JOINED YOUR ROOM!");
-        });
-
-        this.peer.on('error', (err) => {
-            if (hostStatus) hostStatus.innerText = `Network: ${err.type || 'Error'}. Retrying...`;
-        });
     },
 
     joinRoom(code) {
@@ -4540,30 +4674,50 @@ const MP = {
             showNotification("⚠️ ENTER A ROOM CODE");
             return;
         }
-        if (typeof Peer === 'undefined') {
-            showNotification("⚠️ WebRTC PEER ENGINE INITIALIZING...");
-            return;
-        }
         this.isHost = false;
         this.resetMatch();
         const joinStatus = document.getElementById('mp-join-status');
-        const cleanCode = code.toUpperCase().trim().replace('NEON-', '');
-        if (joinStatus) joinStatus.innerText = `Connecting to NEON-${cleanCode}...`;
 
-        if (this.peer) {
-            try { this.peer.destroy(); } catch(e) {}
+        let cleanCode = code.trim();
+        if (cleanCode.includes('race=') || cleanCode.includes('room=')) {
+            const m = cleanCode.match(/(?:race|room)=([A-Za-z0-9]+)/i);
+            if (m && m[1]) cleanCode = m[1];
         }
+        cleanCode = cleanCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+        this.roomCode = cleanCode;
 
-        this.peer = new Peer({ debug: 0 });
-        this.peer.on('open', () => {
-            const conn = this.peer.connect(`NEON-${cleanCode}`, { reliable: true });
-            this.conn = conn;
-            this.setupConnection();
+        if (joinStatus) joinStatus.innerText = `Connecting to Room ${cleanCode}...`;
+
+        this.initChannel();
+        // Send JOIN_REQUEST on BroadcastChannel (for instant multi-tab communication)
+        this.sendMsg({
+            type: 'JOIN_REQUEST',
+            roomCode: cleanCode,
+            tag: game.pilotTag,
+            skin: dailySystem.activeSkin
         });
 
-        this.peer.on('error', (err) => {
-            if (joinStatus) joinStatus.innerText = `Failed to connect: ${err.type || 'Not found'}`;
-        });
+        // Also initiate WebRTC connection if PeerJS is available
+        if (typeof Peer !== 'undefined') {
+            if (this.peer) {
+                try { this.peer.destroy(); } catch(e) {}
+            }
+            try {
+                this.peer = new Peer(this.peerConfig);
+                this.peer.on('open', () => {
+                    const conn = this.peer.connect(`NEON-${cleanCode}`, { reliable: true });
+                    this.conn = conn;
+                    this.setupConnection();
+                });
+                this.peer.on('error', (err) => {
+                    if (!this.connected && joinStatus) {
+                        joinStatus.innerText = `Searching relay & WebRTC... (${err.type || 'Retrying'})`;
+                    }
+                });
+            } catch(e) {
+                console.warn('Peer error:', e);
+            }
+        }
     },
 
     setupConnection() {
@@ -4588,10 +4742,91 @@ const MP = {
         });
 
         this.conn.on('close', () => {
-            this.connected = false;
-            game.isMultiplayer = false;
-            showNotification("⚠️ RIVAL DISCONNECTED");
+            if (!this.channel) {
+                this.connected = false;
+                game.isMultiplayer = false;
+                showNotification("⚠️ RIVAL DISCONNECTED");
+            }
         });
+    },
+
+    copyInviteLink() {
+        if (!this.roomCode) return;
+        const url = `${window.location.origin}${window.location.pathname}#race=${this.roomCode}`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(() => {
+                showNotification(`📋 INVITE LINK COPIED! SHARE WITH YOUR FRIEND`);
+            }).catch(() => {
+                prompt("Copy invite link:", url);
+            });
+        } else {
+            prompt("Copy invite link:", url);
+        }
+    },
+
+    spawnPracticeBot() {
+        this.connected = true;
+        game.isMultiplayer = true;
+        this.rivalData = {
+            isAI: true,
+            difficulty: 'EXPERT',
+            tag: '🤖 PRACTICE-BOT',
+            skin: 'neon_rose',
+            x: 80,
+            y: 356,
+            renderX: 80,
+            renderY: 356,
+            vx: 320,
+            vy: 0,
+            s: 0,
+            g: 1,
+            finishTime: null
+        };
+        game.mpRival = this.rivalData;
+
+        const hostStatus = document.getElementById('mp-opponent-status');
+        const btnStart = document.getElementById('btn-mp-start-race');
+        if (hostStatus) {
+            hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● PRACTICE BOT READY!</span>`;
+        }
+        if (btnStart) {
+            btnStart.disabled = false;
+            btnStart.className = "mt-1 w-full py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg flex items-center justify-center gap-1.5 cursor-pointer";
+            btnStart.innerText = "🏁 START 1V1 RACE NOW!";
+        }
+        showNotification("🤖 PRACTICE BOT LOADED IN ROOM!");
+    },
+
+    startAiRivalMatch(stageIdx, difficulty = 'EXPERT') {
+        const mpModal = document.getElementById('modal-multiplayer');
+        if (mpModal) mpModal.classList.add('hidden');
+
+        this.connected = true;
+        game.isMultiplayer = true;
+        this.resetMatch();
+
+        const botName = difficulty === 'DEMON' ? '⚡ DEMON-BOT' : difficulty === 'NOVICE' ? '🤖 CADET-AI' : '⚔️ CYBER-RIVAL';
+        this.rivalData = {
+            isAI: true,
+            difficulty: difficulty,
+            tag: botName,
+            skin: 'neon_rose',
+            x: 80,
+            y: 356,
+            renderX: 80,
+            renderY: 356,
+            vx: 320,
+            vy: 0,
+            s: 0,
+            g: 1,
+            finishTime: null
+        };
+        game.mpRival = this.rivalData;
+
+        const stageSelect = document.getElementById('mp-stage-select');
+        const finalStage = stageIdx !== undefined ? stageIdx : (stageSelect ? parseInt(stageSelect.value, 10) : 0);
+
+        this.startCountdown(finalStage);
     },
 
     handleMessage(data) {
@@ -4647,13 +4882,13 @@ const MP = {
     },
 
     broadcastState() {
-        if (!this.connected || !this.conn || !this.conn.open) return;
+        if (!this.connected) return;
         const now = (typeof performance !== 'undefined') ? performance.now() : Date.now();
         if (now - this.lastBroadcast < 33) return; // ~30Hz
         this.lastBroadcast = now;
 
         const p = game.player;
-        this.conn.send({
+        this.sendMsg({
             type: 'SYNC',
             x: Math.round(p.x),
             y: Math.round(p.y),
@@ -4669,22 +4904,35 @@ const MP = {
 
     broadcastFinish(time) {
         this.myFinishTime = time;
-        if (this.connected && this.conn && this.conn.open) {
-            this.conn.send({ type: 'FINISH', time: time });
-        }
+        this.sendMsg({ type: 'FINISH', time: time });
         if (this.rivalFinishTime !== null) {
-            setTimeout(() => this.showPodium(), 600);
+            setTimeout(() => this.showPodium(), 500);
+        } else if (game.mpRival && game.mpRival.isAI) {
+            const lvl = game.level;
+            const r = game.mpRival;
+            if (lvl && r && r.x < lvl.length) {
+                const remainingDist = Math.max(1, lvl.length - r.x);
+                const estTime = time + (remainingDist / Math.max(100, r.vx || 320));
+                setTimeout(() => {
+                    if (this.rivalFinishTime === null) {
+                        this.rivalFinishTime = estTime;
+                        this.showPodium();
+                    }
+                }, Math.min(2500, Math.max(500, (estTime - time) * 1000)));
+            } else {
+                setTimeout(() => this.showPodium(), 500);
+            }
         }
     },
 
     hostTriggerStart() {
-        if (!this.connected || !this.conn) {
+        if (!this.connected) {
             showNotification("⚠️ NO RIVAL CONNECTED YET");
             return;
         }
         const stageSelect = document.getElementById('mp-stage-select');
         const stageIdx = stageSelect ? parseInt(stageSelect.value, 10) : 0;
-        this.conn.send({ type: 'START_COUNTDOWN', stageIdx: stageIdx });
+        this.sendMsg({ type: 'START_COUNTDOWN', stageIdx: stageIdx });
         this.startCountdown(stageIdx);
     },
 
@@ -4698,6 +4946,17 @@ const MP = {
             startLevel(stageIdx);
         }
         setPause(true);
+
+        if (game.mpRival) {
+            game.mpRival.x = 80;
+            game.mpRival.y = 356;
+            game.mpRival.renderX = 80;
+            game.mpRival.renderY = 356;
+            game.mpRival.vx = (game.level && game.level.startSpeed) ? game.level.startSpeed : 320;
+            game.mpRival.vy = 0;
+            game.mpRival.s = 0;
+            game.mpRival.finishTime = null;
+        }
 
         let count = 3;
         const showCount = () => {
@@ -4737,7 +4996,7 @@ const MP = {
         if (subtitle) subtitle.innerText = iWon ? "YOU OUTPACED YOUR RIVAL" : "RIVAL WON THE SPRINT";
         if (myName) myName.innerText = game.pilotTag;
         if (myTime) myTime.innerText = formatTime(this.myFinishTime || 0);
-        if (rivalName) rivalName.innerText = (this.rivalData && this.rivalData.tag) || "RIVAL";
+        if (rivalName) rivalName.innerText = (this.rivalData && this.rivalData.tag) || (game.mpRival && game.mpRival.tag) || "RIVAL";
         if (rivalTime) rivalTime.innerText = formatTime(this.rivalFinishTime || 0);
 
         const diff = Math.abs((this.myFinishTime || 0) - (this.rivalFinishTime || 0));
@@ -4755,6 +5014,139 @@ const MP = {
     }
 };
 
+function updateAiRival(dt) {
+    if (!game.isMultiplayer || !game.mpRival || !game.mpRival.isAI) return;
+    const r = game.mpRival;
+    const lvl = game.level;
+    if (!lvl) return;
+    if (r.finishTime !== null) return;
+
+    // Base forward pacing
+    let targetSpeed = lvl.startSpeed || 320;
+    if (r.difficulty === 'NOVICE') {
+        targetSpeed *= 0.88;
+    } else if (r.difficulty === 'DEMON') {
+        targetSpeed *= 1.08;
+    } else {
+        // EXPERT: adaptive rubber-band
+        const delta = game.player.x - r.x;
+        if (delta > 180) {
+            targetSpeed += Math.min(75, delta * 0.15);
+        } else if (delta < -180) {
+            targetSpeed -= Math.min(50, -delta * 0.1);
+        }
+    }
+
+    r.vx += (targetSpeed - r.vx) * Math.min(1, dt * 4);
+    r.x += r.vx * dt;
+
+    // Vertical physics
+    r.vy = (r.vy || 0) + 1250 * dt;
+    r.y = (r.y || 356) + r.vy * dt;
+
+    // Find platform / floor under rival
+    let groundY = 356;
+    if (lvl.platforms) {
+        for (let i = 0; i < lvl.platforms.length; i++) {
+            const plat = lvl.platforms[i];
+            if (plat.phase && plat.phase !== 'NEUTRAL' && plat.phase !== game.phaseColor) continue;
+            if (r.x + 22 > plat.x && r.x < plat.x + plat.w) {
+                const pTop = plat.y - 44;
+                if (r.y >= pTop - 15 && r.y <= pTop + 25 && r.vy >= 0) {
+                    groundY = pTop;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (r.y >= groundY) {
+        r.y = groundY;
+        r.vy = 0;
+        r.isGrounded = true;
+    } else {
+        r.isGrounded = false;
+    }
+
+    // AI obstacle reactions
+    const lookahead = Math.max(90, r.vx * 0.3);
+
+    // 1. Lasers -> Slide
+    if (r.slideTimer && r.slideTimer > 0) {
+        r.slideTimer -= dt;
+        if (r.slideTimer <= 0) r.s = 0;
+    } else if (lvl.lasers) {
+        for (let i = 0; i < lvl.lasers.length; i++) {
+            const l = lvl.lasers[i];
+            if (l.x + l.w > r.x && l.x - r.x < lookahead) {
+                if (l.h <= 35 && l.y <= 360) {
+                    r.s = 1;
+                    r.slideTimer = 0.45;
+                    break;
+                }
+            }
+        }
+    }
+
+    // 2. Spikes -> Jump
+    if (r.isGrounded && lvl.spikes) {
+        for (let i = 0; i < lvl.spikes.length; i++) {
+            const s = lvl.spikes[i];
+            if (s.x > r.x && s.x - r.x < lookahead) {
+                if (!s.inverted && Math.abs((r.y + 44) - s.y) < 25) {
+                    r.vy = -450;
+                    r.isGrounded = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    // 3. Jump Rings
+    if (lvl.rings) {
+        for (let i = 0; i < lvl.rings.length; i++) {
+            const ring = lvl.rings[i];
+            if (ring.x > r.x && ring.x - r.x < 70 && Math.abs(r.y - ring.y) < 90) {
+                if (r.isGrounded || (r.vy > 0 && Math.abs(r.y - ring.y) < 50)) {
+                    r.vy = -480;
+                    break;
+                }
+            }
+        }
+    }
+
+    // 4. Trampolines / Springs
+    if (lvl.trampolines) {
+        for (let i = 0; i < lvl.trampolines.length; i++) {
+            const tp = lvl.trampolines[i];
+            if (r.x + 22 > tp.x && r.x < tp.x + tp.w && Math.abs((r.y + 44) - tp.y) < 20) {
+                r.vy = -620;
+                break;
+            }
+        }
+    }
+
+    // 5. Speed Pads
+    if (lvl.speedPads) {
+        for (let i = 0; i < lvl.speedPads.length; i++) {
+            const pad = lvl.speedPads[i];
+            if (r.x + 22 > pad.x && r.x < pad.x + pad.w && Math.abs((r.y + 44) - pad.y) < 25) {
+                r.vx += (pad.boostVx || 180);
+                break;
+            }
+        }
+    }
+
+    r.renderX = r.x;
+    r.renderY = r.y;
+
+    // Victory finish check
+    if (!game.isEndless && r.x >= lvl.length && r.finishTime === null) {
+        r.finishTime = game.runTime;
+        MP.handleMessage({ type: 'FINISH', time: r.finishTime });
+    }
+}
+
 function drawRivalRunner(ctx) {
     if (!game.isMultiplayer || !game.mpRival) return;
     const r = game.mpRival;
@@ -4763,11 +5155,15 @@ function drawRivalRunner(ctx) {
 
     ctx.save();
     ctx.translate(drawX + 11, drawY + (r.s ? 10 : 22));
-    ctx.globalAlpha = 0.85;
+    ctx.globalAlpha = 0.9;
 
-    ctx.strokeStyle = '#f43f5e';
-    ctx.fillStyle = '#e11d48';
-    ctx.shadowColor = '#f43f5e';
+    const isDemon = r.difficulty === 'DEMON';
+    const mainColor = isDemon ? '#f97316' : '#f43f5e';
+    const glowColor = isDemon ? '#ea580c' : '#e11d48';
+
+    ctx.strokeStyle = mainColor;
+    ctx.fillStyle = glowColor;
+    ctx.shadowColor = mainColor;
     ctx.shadowBlur = 14;
     ctx.lineWidth = 3.5;
     ctx.lineCap = 'round';
@@ -4797,9 +5193,9 @@ function drawRivalRunner(ctx) {
     }
 
     ctx.font = "bold 9px 'JetBrains Mono', monospace";
-    ctx.fillStyle = '#fda4af';
+    ctx.fillStyle = isDemon ? '#fdba74' : '#fda4af';
     ctx.textAlign = 'center';
-    if (ctx.fillText) ctx.fillText(`⚔️ ${r.tag || 'RIVAL'}`, 0, -28);
+    if (ctx.fillText) ctx.fillText(`${r.tag || 'RIVAL'}`, 0, -28);
 
     ctx.restore();
 }
@@ -4874,6 +5270,10 @@ function returnToMainMenu() {
     game.inMainMenu = true;
     game.isPaused = false;
     game.isEndless = false;
+    if (game.isMultiplayer && game.mpRival && game.mpRival.isAI) {
+        game.isMultiplayer = false;
+        game.mpRival = null;
+    }
     audio.stopMusic();
 
     const ingameHeader = document.getElementById('ingame-header');
@@ -5667,6 +6067,28 @@ bindClick('btn-copy-room-code', () => {
     }
 });
 
+bindClick('btn-copy-invite-link', () => {
+    if (typeof MP !== 'undefined') {
+        MP.copyInviteLink();
+    }
+});
+
+bindClick('btn-mp-quick-ai', () => {
+    const diffEl = document.getElementById('mp-ai-difficulty');
+    const diff = diffEl ? diffEl.value : 'EXPERT';
+    const stageSelect = document.getElementById('mp-stage-select');
+    const stageIdx = stageSelect ? parseInt(stageSelect.value, 10) : 0;
+    if (typeof MP !== 'undefined') {
+        MP.startAiRivalMatch(stageIdx, diff);
+    }
+});
+
+bindClick('btn-mp-spawn-ai-rival', () => {
+    if (typeof MP !== 'undefined') {
+        MP.spawnPracticeBot();
+    }
+});
+
 bindClick('btn-mp-start-race', () => {
     if (typeof MP !== 'undefined') MP.hostTriggerStart();
 });
@@ -5688,9 +6110,15 @@ bindClick('btn-victory-share-ghost', () => {
 });
 
 bindClick('btn-race-again', () => {
+    const modal = document.getElementById('modal-race-result');
+    if (modal) modal.classList.add('hidden');
     if (typeof MP !== 'undefined') {
-        if (MP.connected && MP.conn) MP.conn.send({ type: 'REMATCH' });
-        if (MP.isHost) MP.hostTriggerStart();
+        if (game.mpRival && game.mpRival.isAI) {
+            MP.startAiRivalMatch(game.currentLevelIdx, game.mpRival.difficulty || 'EXPERT');
+        } else {
+            if (MP.connected) MP.sendMsg({ type: 'REMATCH' });
+            if (MP.isHost) MP.hostTriggerStart();
+        }
     }
 });
 
@@ -5740,6 +6168,18 @@ window.onload = function() {
     if (typeof window !== 'undefined' && window.location && window.location.hash) {
         if (window.location.hash.includes('challenge=')) {
             loadGhostChallenge(window.location.hash);
+        } else if (window.location.hash.includes('race=') || window.location.hash.includes('room=')) {
+            const match = window.location.hash.match(/(?:race|room)=([A-Za-z0-9]+)/i);
+            if (match && match[1]) {
+                openMultiplayerModal();
+                const btnJoin = document.getElementById('btn-mp-join-mode');
+                if (btnJoin) btnJoin.click();
+                const input = document.getElementById('input-room-code');
+                if (input) input.value = match[1];
+                setTimeout(() => {
+                    if (typeof MP !== 'undefined') MP.joinRoom(match[1]);
+                }, 400);
+            }
         }
     }
 

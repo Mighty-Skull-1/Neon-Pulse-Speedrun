@@ -571,7 +571,31 @@
 
                 <!-- Tab 1 Panel: Live 1v1 Racing -->
                 <div id="mp-panel-live" class="flex flex-col gap-3">
-                    <!-- Host / Join Selector -->
+                    <!-- Instant 1v1 Match Card (Always playable immediately) -->
+                    <div class="bg-gradient-to-r from-rose-950/90 to-purple-950/90 border border-rose-500/60 rounded-lg p-3 flex flex-col gap-2 shadow-[0_0_20px_rgba(244,63,94,0.2)]">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-cyber font-bold text-rose-300 flex items-center gap-1.5">
+                                <span>⚡</span> INSTANT 1V1 VS AI RIVAL
+                            </span>
+                            <span class="text-[10px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded border border-rose-500/40 font-cyber">NO WAITING</span>
+                        </div>
+                        <p class="text-[11px] text-neutral-300">Race immediately against an adaptive Cyber Rival with live distance delta, opponent phantom, and podium finish!</p>
+                        <div class="flex gap-2 items-center">
+                            <select id="mp-ai-difficulty" class="bg-neutral-900 border border-neutral-700 text-rose-300 text-xs font-cyber rounded px-2 py-1.5 focus:outline-none">
+                                <option value="EXPERT">EXPERT (Adaptive)</option>
+                                <option value="NOVICE">NOVICE (Casual)</option>
+                                <option value="DEMON">DEMON (Aggressive)</option>
+                            </select>
+                            <button id="btn-mp-quick-ai" class="flex-1 py-1.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1 shadow-md cursor-pointer">
+                                <span>🏁</span> PLAY 1V1 NOW
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Online P2P Host / Join Selector -->
+                    <div class="flex items-center justify-between text-xs font-cyber text-neutral-400 mt-1">
+                        <span class="font-bold text-rose-400">ONLINE 1V1 P2P (RACE FRIENDS):</span>
+                    </div>
                     <div class="grid grid-cols-2 gap-2">
                         <button id="btn-mp-host-mode" class="py-2 px-3 bg-neutral-950 border border-rose-500 text-rose-300 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5">
                             <span>👑</span> HOST ROOM
@@ -585,10 +609,13 @@
                     <div id="mp-host-box" class="bg-neutral-950 p-3.5 rounded-lg border border-neutral-800 flex flex-col gap-2.5">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-cyber text-neutral-400">ROOM CODE:</span>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1.5">
                                 <span id="mp-room-code" class="text-base font-mono font-bold tracking-widest text-amber-400 bg-neutral-900 px-3 py-1 rounded border border-amber-500/60">GENERATING...</span>
-                                <button id="btn-copy-room-code" class="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-300 font-cyber text-xs rounded border border-neutral-700">
+                                <button id="btn-copy-room-code" class="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-300 font-cyber text-xs rounded border border-neutral-700" title="Copy Code">
                                     COPY
+                                </button>
+                                <button id="btn-copy-invite-link" class="px-2 py-1 bg-neutral-800 hover:bg-neutral-700 text-cyan-300 font-cyber text-xs rounded border border-neutral-700 flex items-center gap-1" title="Copy Direct Invite Link">
+                                    <span>🔗</span> LINK
                                 </button>
                             </div>
                         </div>
@@ -605,6 +632,10 @@
                             <span id="mp-opponent-status" class="font-cyber font-bold text-neutral-500">WAITING FOR RIVAL...</span>
                         </div>
 
+                        <button id="btn-mp-spawn-ai-rival" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-850 border border-neutral-700 hover:border-amber-500 text-amber-300 font-cyber text-xs rounded transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <span>🤖</span> SPAWN PRACTICE BOT RIVAL
+                        </button>
+
                         <button id="btn-mp-start-race" disabled class="mt-1 w-full py-2.5 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5">
                             WAITING FOR OPPONENT TO CONNECT...
                         </button>
@@ -612,14 +643,22 @@
 
                     <!-- Join Section -->
                     <div id="mp-join-box" class="hidden bg-neutral-950 p-3.5 rounded-lg border border-neutral-800 flex flex-col gap-2.5">
-                        <div class="text-xs font-cyber text-neutral-400">ENTER 4-LETTER ROOM CODE:</div>
+                        <div class="text-xs font-cyber text-neutral-400">ENTER 4-LETTER ROOM CODE OR INVITE LINK:</div>
                         <div class="flex gap-2">
-                            <input id="input-room-code" type="text" maxlength="8" placeholder="e.g. 4829" class="flex-1 bg-neutral-900 border border-neutral-700 text-amber-400 font-mono text-center tracking-widest uppercase text-base rounded px-3 py-1.5 focus:outline-none focus:border-cyan-400">
-                            <button id="btn-mp-connect" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-cyber font-bold text-xs rounded transition">
+                            <input id="input-room-code" type="text" maxlength="60" placeholder="e.g. 4829 or paste invite link" class="flex-1 bg-neutral-900 border border-neutral-700 text-amber-400 font-mono text-center tracking-wider text-sm rounded px-3 py-1.5 focus:outline-none focus:border-cyan-400">
+                            <button id="btn-mp-connect" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-cyber font-bold text-xs rounded transition cursor-pointer">
                                 CONNECT
                             </button>
                         </div>
                         <div id="mp-join-status" class="text-xs font-cyber text-neutral-500">Ready to connect to host room.</div>
+                    </div>
+
+                    <div id="mp-network-status" class="text-[11px] font-cyber text-neutral-500 flex items-center justify-between border-t border-neutral-900 pt-2">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>P2P ENGINE READY</span>
+                        </span>
+                        <span class="text-neutral-600">WebRTC + Local Relay</span>
                     </div>
                 </div>
 
