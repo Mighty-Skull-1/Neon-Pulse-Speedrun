@@ -6221,6 +6221,7 @@ bindClick('btn-main-stages', () => {
 });
 
 bindClick('btn-main-ranks', () => {
+    game.openedLeaderboardFrom = 'main';
     populateLeaderboard(game.currentLevelIdx);
     const lbModal = document.getElementById('modal-leaderboard');
     if (lbModal) lbModal.classList.remove('hidden');
@@ -6292,15 +6293,35 @@ bindClick('btn-menu', () => {
     if (menuModal) menuModal.classList.remove('hidden');
 });
 
-bindClick('btn-close-menu', () => {
+function closeMenuModal() {
     const menuModal = document.getElementById('modal-menu');
     if (menuModal) menuModal.classList.add('hidden');
     if (!game.inMainMenu) setPause(false);
-});
+}
+window.closeMenuModal = closeMenuModal;
+
+function closeLeaderboardModal() {
+    const lbModal = document.getElementById('modal-leaderboard');
+    if (lbModal) lbModal.classList.add('hidden');
+    if (game.openedLeaderboardFrom === 'victory') {
+        const vicModal = document.getElementById('modal-victory');
+        if (vicModal) vicModal.classList.remove('hidden');
+        game.openedLeaderboardFrom = null;
+    } else if (game.openedLeaderboardFrom === 'pause') {
+        const pauseModal = document.getElementById('modal-pause');
+        if (pauseModal) pauseModal.classList.remove('hidden');
+        game.openedLeaderboardFrom = null;
+    } else if (!game.inMainMenu) {
+        setPause(false);
+    }
+}
+window.closeLeaderboardModal = closeLeaderboardModal;
+window.returnToMainMenu = returnToMainMenu;
+
+bindClick('btn-close-menu', closeMenuModal);
 
 bindClick('btn-menu-back-main', () => {
-    const menuModal = document.getElementById('modal-menu');
-    if (menuModal) menuModal.classList.add('hidden');
+    closeMenuModal();
     returnToMainMenu();
 });
 
@@ -6318,23 +6339,33 @@ bindClick('btn-close-daily', () => {
 });
 
 bindClick('btn-leaderboard-open', () => {
+    game.openedLeaderboardFrom = 'inGame';
     setPause(true);
     populateLeaderboard(game.currentLevelIdx);
     const lbModal = document.getElementById('modal-leaderboard');
     if (lbModal) lbModal.classList.remove('hidden');
 });
 
-bindClick('btn-close-leaderboard', () => {
-    const lbModal = document.getElementById('modal-leaderboard');
-    if (lbModal) lbModal.classList.add('hidden');
-    if (!game.inMainMenu) setPause(false);
-});
+bindClick('btn-close-leaderboard', closeLeaderboardModal);
 
 bindClick('btn-leaderboard-back-main', () => {
     const lbModal = document.getElementById('modal-leaderboard');
     if (lbModal) lbModal.classList.add('hidden');
     returnToMainMenu();
 });
+
+const lbModalEl = document.getElementById('modal-leaderboard');
+if (lbModalEl) {
+    lbModalEl.addEventListener('click', (e) => {
+        if (e.target === lbModalEl) closeLeaderboardModal();
+    });
+}
+const menuModalEl = document.getElementById('modal-menu');
+if (menuModalEl) {
+    menuModalEl.addEventListener('click', (e) => {
+        if (e.target === menuModalEl) closeMenuModal();
+    });
+}
 
 const pauseBtn = document.getElementById('btn-pause');
 if (pauseBtn) {
@@ -6392,6 +6423,7 @@ bindClick('btn-victory-next', () => {
 });
 
 bindClick('btn-victory-ranks', () => {
+    game.openedLeaderboardFrom = 'victory';
     const vicModal = document.getElementById('modal-victory');
     if (vicModal) vicModal.classList.add('hidden');
     populateLeaderboard(game.currentLevelIdx);
