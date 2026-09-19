@@ -1917,8 +1917,137 @@ function getActiveSkinData() {
 }
 
 // ============================================================================
-// 5. LEADERBOARD & PB SYSTEM
+// 5. GLOBAL ONLINE LEADERBOARD (DREAMLO) & PB SYSTEM
 // ============================================================================
+
+const DreamloLB = {
+    publicCode: '6aaf1b678f40bb15a890552d',
+    privateCode: 'Ycm9wpmt4UC6haZYAdvOyg0kS9NSx9kUeC-5xlf6NCNw',
+    cachedEntries: null,
+    lastFetchTime: 0,
+    isFetching: false,
+    selectedFilter: 'ALL',
+
+    // Fetch scores from Dreamlo with HTTPS proxy bridge & caching
+    async fetchScores(forceRefresh = false) {
+        const now = Date.now();
+        if (!forceRefresh && this.cachedEntries && (now - this.lastFetchTime < 30000)) {
+            return this.cachedEntries;
+        }
+
+        this.isFetching = true;
+        const cacheBuster = `?t=${now}`;
+        const dreamloHttpUrl = `http://dreamlo.com/lb/${this.publicCode}/json${cacheBuster}`;
+        const dreamloHttpsUrl = `https://dreamlo.com/lb/${this.publicCode}/json${cacheBuster}`;
+
+        const endpoints = [];
+        if (typeof location !== 'undefined' && location.protocol === 'https:') {
+            endpoints.push(dreamloHttpsUrl);
+            endpoints.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(dreamloHttpUrl)}`);
+        } else {
+            endpoints.push(dreamloHttpUrl);
+            endpoints.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(dreamloHttpUrl)}`);
+        }
+
+        let rawData = null;
+        for (const url of endpoints) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
+                const resp = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (resp.ok) {
+                    const text = await resp.text();
+                    if (text && !text.includes('ERROR:SSL not enabled') && text.trim().startsWith('{')) {
+                        rawData = JSON.parse(text);
+                        break;
+                    }
+                }
+            } catch (err) {
+                // Continue to next endpoint
+            }
+        }
+
+        this.isFetching = false;
+        if (rawData && rawData.dreamlo && rawData.dreamlo.leaderboard) {
+            let entries = rawData.dreamlo.leaderboard.entry || [];
+            if (!Array.isArray(entries)) {
+                entries = [entries];
+            }
+            this.cachedEntries = entries.map(e => {
+                let time = parseFloat(e.seconds) || (parseFloat(e.score) / 1000) || 0;
+                let stageIdx = 0;
+                let ability = 'DASH';
+                let shards = 3;
+
+                if (e.text && e.text.includes('|')) {
+                    const parts = e.text.split('|');
+                    if (parts[0]) time = parseFloat(parts[0]) || time;
+                    if (parts[1] !== undefined) stageIdx = parseInt(parts[1], 10) || 0;
+                    if (parts[2]) ability = parts[2];
+                    if (parts[3] !== undefined) shards = parseInt(parts[3], 10) || 0;
+                }
+
+                let pilotName = e.name || 'ANON_PILOT';
+                const sIdx = pilotName.lastIndexOf('_S');
+                if (sIdx > 0 && sIdx === pilotName.length - 4) {
+                    pilotName = pilotName.substring(0, sIdx);
+                }
+
+                return {
+                    tag: pilotName,
+                    time: time,
+                    stageIdx: stageIdx,
+                    ability: ability,
+                    shards: shards,
+                    score: parseInt(e.score, 10) || 0,
+                    date: e.date || '',
+                    isOnline: true
+                };
+            });
+
+            this.cachedEntries.sort((a, b) => a.time - b.time);
+            this.lastFetchTime = now;
+            return this.cachedEntries;
+        }
+
+        return this.cachedEntries || [];
+    },
+
+    // Submit finished speedrun to global Dreamlo board
+    submitScore(stageIdx, time, shards, ability) {
+        if (!time || isNaN(time) || time <= 0) return;
+
+        const cleanTag = (game.pilotTag || 'PILOT').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12) || 'PILOT';
+        const entryName = `${cleanTag}_S${String(stageIdx + 1).padStart(2, '0')}`;
+        const scorePoints = Math.max(100, Math.round(1000000 - (time * 10000)));
+        const secondsInt = Math.max(1, Math.round(time));
+        const metaText = `${time.toFixed(3)}|${stageIdx}|${ability}|${shards}`;
+
+        const path = `${encodeURIComponent(entryName)}/${scorePoints}/${secondsInt}/${encodeURIComponent(metaText)}`;
+        const dreamloHttpUrl = `http://dreamlo.com/lb/${this.privateCode}/add/${path}`;
+
+        // 1. Image beacon (works across protocols passively)
+        try {
+            const img = new Image();
+            img.src = dreamloHttpUrl;
+        } catch(e) {}
+
+        // 2. Fetch submission with fallback
+        const targetUrl = (typeof location !== 'undefined' && location.protocol === 'https:')
+            ? `https://api.allorigins.win/raw?url=${encodeURIComponent(dreamloHttpUrl)}`
+            : dreamloHttpUrl;
+
+        fetch(targetUrl).then(res => {
+            if (res.ok) {
+                showNotification(`🌐 SPEEDRUN SUBMITTED TO GLOBAL BOARD!`);
+                DreamloLB.lastFetchTime = 0;
+            }
+        }).catch(() => {});
+    }
+};
+window.DreamloLB = DreamloLB;
+
 function getLeaderboard(levelIdx) {
     let localRecords = [];
     try {
@@ -1927,14 +2056,14 @@ function getLeaderboard(levelIdx) {
     } catch(e) {}
 
     const mockData = [
-        { rank: 1, tag: "CYBER_GHOST", time: 14.820 + (levelIdx * 0.5), ability: "DASH", shards: 3 },
-        { rank: 2, tag: "NEXUS_VIPER", time: 15.640 + (levelIdx * 0.5), ability: "DOUBLE_JUMP", shards: 3 },
-        { rank: 3, tag: "PULSE_RUNNER", time: 16.410 + (levelIdx * 0.5), ability: "CHRONO", shards: 2 }
+        { rank: 1, tag: "CYBER_GHOST", time: 14.820 + (levelIdx * 0.5), ability: "DASH", shards: 3, stageIdx: levelIdx },
+        { rank: 2, tag: "NEXUS_VIPER", time: 15.640 + (levelIdx * 0.5), ability: "DOUBLE_JUMP", shards: 3, stageIdx: levelIdx },
+        { rank: 3, tag: "PULSE_RUNNER", time: 16.410 + (levelIdx * 0.5), ability: "CHRONO", shards: 2, stageIdx: levelIdx }
     ];
 
     const combined = [...mockData, ...localRecords];
     combined.sort((a, b) => a.time - b.time);
-    return combined.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
+    return combined.map((entry, idx) => ({ ...entry, rank: idx + 1, stageIdx: levelIdx }));
 }
 
 function saveRunToLeaderboard(levelIdx, time, shards, ability) {
@@ -1949,42 +2078,190 @@ function saveRunToLeaderboard(levelIdx, time, shards, ability) {
         time: time,
         shards: shards,
         ability: ability,
+        stageIdx: levelIdx,
         date: Date.now()
     });
 
     try {
         localStorage.setItem(`neon_pulse_lb_${levelIdx}`, JSON.stringify(localRecords));
     } catch(e) {}
+
+    // Submit to online Dreamlo global leaderboard
+    if (typeof DreamloLB !== 'undefined') {
+        DreamloLB.submitScore(levelIdx, time, shards, ability);
+    }
 }
 
-function populateLeaderboard(levelIdx) {
+function renderLeaderboardRows(onlineScores, levelIdx, currentFilter) {
     const tbody = document.getElementById('leaderboard-table-body');
     if (!tbody) return;
     tbody.innerHTML = '';
-    const subtitle = document.getElementById('lb-stage-subtitle');
-    if (subtitle) subtitle.innerText = LEVELS[levelIdx].name + " // TIME TRIAL RECORDS";
 
-    const data = getLeaderboard(levelIdx);
-    data.forEach((row) => {
+    const liveBadge = document.getElementById('lb-live-badge');
+
+    // Gather local records
+    let localRecords = [];
+    if (currentFilter === 'ALL') {
+        const totalStages = typeof LEVELS !== 'undefined' ? LEVELS.length : 20;
+        for (let i = 0; i < totalStages; i++) {
+            try {
+                const s = localStorage.getItem(`neon_pulse_lb_${i}`);
+                if (s) {
+                    const parsed = JSON.parse(s);
+                    parsed.forEach(r => localRecords.push({ ...r, stageIdx: i }));
+                }
+            } catch(e) {}
+        }
+    } else {
+        const fIdx = parseInt(currentFilter, 10);
+        try {
+            const s = localStorage.getItem(`neon_pulse_lb_${fIdx}`);
+            if (s) {
+                const parsed = JSON.parse(s);
+                parsed.forEach(r => localRecords.push({ ...r, stageIdx: fIdx }));
+            }
+        } catch(e) {}
+    }
+
+    // Filter online scores
+    let displayList = [];
+    if (onlineScores && onlineScores.length > 0) {
+        if (currentFilter === 'ALL') {
+            displayList = [...onlineScores];
+        } else {
+            const fIdx = parseInt(currentFilter, 10);
+            displayList = onlineScores.filter(e => e.stageIdx === fIdx);
+        }
+    }
+
+    // Merge any unique local bests
+    if (localRecords.length > 0) {
+        localRecords.forEach(loc => {
+            const exists = displayList.some(d => d.tag === loc.tag && Math.abs(d.time - loc.time) < 0.05);
+            if (!exists) {
+                displayList.push(loc);
+            }
+        });
+    }
+
+    // Curated speedrun fallback if no runs recorded yet
+    if (displayList.length === 0) {
+        const fIdx = currentFilter === 'ALL' ? (typeof levelIdx !== 'undefined' ? levelIdx : 0) : parseInt(currentFilter, 10);
+        displayList = [
+            { tag: "CYBER_GHOST", time: 14.820 + (fIdx * 0.5), ability: "DASH", shards: 3, stageIdx: fIdx },
+            { tag: "NEXUS_VIPER", time: 15.640 + (fIdx * 0.5), ability: "DOUBLE_JUMP", shards: 3, stageIdx: fIdx },
+            { tag: "PULSE_RUNNER", time: 16.410 + (fIdx * 0.5), ability: "CHRONO", shards: 2, stageIdx: fIdx }
+        ];
+        if (liveBadge) {
+            liveBadge.className = "inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-500/50 text-amber-300 text-[9px] font-cyber";
+            liveBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> LOCAL`;
+        }
+    } else if (liveBadge) {
+        liveBadge.className = "inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-[9px] font-cyber";
+        liveBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LIVE`;
+    }
+
+    displayList.sort((a, b) => a.time - b.time);
+
+    displayList.forEach((row, idx) => {
+        const rank = idx + 1;
         const isPlayer = row.tag === game.pilotTag;
-        const tr = document.createElement('tr');
-        tr.className = `border-b border-neutral-800/40 hover:bg-neutral-800/40 ${isPlayer ? 'bg-cyan-950/40 text-cyan-300 font-bold' : 'text-neutral-300'}`;
-        
-        let rankBadge = `${row.rank}`;
-        if (row.rank === 1) rankBadge = `<span class="text-amber-400 font-bold">🥇 1</span>`;
-        else if (row.rank === 2) rankBadge = `<span class="text-neutral-300 font-bold">🥈 2</span>`;
-        else if (row.rank === 3) rankBadge = `<span class="text-amber-600 font-bold">🥉 3</span>`;
+        const stageIdx = (typeof row.stageIdx !== 'undefined') ? row.stageIdx : levelIdx;
+        const stageName = (typeof LEVELS !== 'undefined' && LEVELS[stageIdx]) ? LEVELS[stageIdx].name.split('//')[0].trim() : `S${stageIdx + 1}`;
 
+        let rankBadge = `${rank}`;
+        if (rank === 1) rankBadge = `<span class="text-amber-400 font-bold">🥇 1</span>`;
+        else if (rank === 2) rankBadge = `<span class="text-neutral-300 font-bold">🥈 2</span>`;
+        else if (rank === 3) rankBadge = `<span class="text-amber-600 font-bold">🥉 3</span>`;
+
+        const tr = document.createElement('tr');
+        tr.className = `border-b border-neutral-800/40 hover:bg-neutral-800/40 transition ${isPlayer ? 'bg-cyan-950/40 text-cyan-300 font-bold' : 'text-neutral-300'}`;
         tr.innerHTML = `
-            <td class="py-2 px-2">${rankBadge}</td>
+            <td class="py-2 px-2.5 font-cyber">${rankBadge}</td>
             <td class="py-2 px-2 font-cyber tracking-wider">${row.tag} ${isPlayer ? '<span class="text-[9px] bg-cyan-900/80 px-1 py-0.5 rounded text-cyan-200">YOU</span>' : ''}</td>
-            <td class="py-2 px-2 text-amber-400 font-mono">${formatTime(row.time)}</td>
-            <td class="py-2 px-2 text-[10px] text-neutral-400 font-cyber">${row.ability}</td>
-            <td class="py-2 px-2 text-pink-400 font-bold">${'◆'.repeat(row.shards || 0)}${'◇'.repeat(3 - (row.shards || 0))}</td>
+            <td class="py-2 px-2 text-[10px] text-neutral-400 font-cyber truncate max-w-[90px] sm:max-w-[120px]">${stageName}</td>
+            <td class="py-2 px-2 text-amber-400 font-mono font-bold">${formatTime(row.time)}</td>
+            <td class="py-2 px-2 text-[10px] text-neutral-400 font-cyber">${row.ability || 'DASH'}</td>
+            <td class="py-2 px-2 text-pink-400 font-bold">${'◆'.repeat(row.shards || 0)}${'◇'.repeat(Math.max(0, 3 - (row.shards || 0)))}</td>
         `;
         tbody.appendChild(tr);
     });
 }
+
+function populateLeaderboard(levelIdx) {
+    if (typeof levelIdx === 'undefined' && typeof game !== 'undefined') {
+        levelIdx = game.currentLevelIdx;
+    }
+    const tbody = document.getElementById('leaderboard-table-body');
+    if (!tbody) return;
+
+    // Populate stage filter dropdown if not yet populated
+    const filterSelect = document.getElementById('lb-stage-filter');
+    if (filterSelect && filterSelect.options.length <= 1 && typeof LEVELS !== 'undefined') {
+        LEVELS.forEach((lvl, idx) => {
+            const opt = document.createElement('option');
+            opt.value = String(idx);
+            opt.innerText = lvl.name;
+            filterSelect.appendChild(opt);
+        });
+    }
+
+    const currentFilter = DreamloLB.selectedFilter || 'ALL';
+    if (filterSelect && filterSelect.value !== currentFilter) {
+        filterSelect.value = currentFilter;
+    }
+
+    const subtitle = document.getElementById('lb-stage-subtitle');
+    if (subtitle) {
+        if (currentFilter === 'ALL') {
+            subtitle.innerText = "WORLDWIDE TIME TRIAL RANKINGS // ALL STAGES";
+        } else {
+            const fIdx = parseInt(currentFilter, 10);
+            const stageName = (typeof LEVELS !== 'undefined' && LEVELS[fIdx]) ? LEVELS[fIdx].name : `STAGE ${fIdx + 1}`;
+            subtitle.innerText = `${stageName} // GLOBAL TIME TRIAL RECORDS`;
+        }
+    }
+
+    // Show initial loading state if first time
+    if (DreamloLB.isFetching && (!DreamloLB.cachedEntries || DreamloLB.cachedEntries.length === 0)) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="py-8 text-center text-cyan-400 font-cyber text-xs tracking-wider animate-pulse">
+                    🛰️ CONNECTING TO GLOBAL SPEEDRUN NETWORK...
+                </td>
+            </tr>
+        `;
+    }
+
+    // Fetch live entries from Dreamlo
+    DreamloLB.fetchScores().then(onlineScores => {
+        renderLeaderboardRows(onlineScores, levelIdx, currentFilter);
+    }).catch(() => {
+        renderLeaderboardRows([], levelIdx, currentFilter);
+    });
+}
+window.populateLeaderboard = populateLeaderboard;
+
+function refreshLeaderboard() {
+    const liveBadge = document.getElementById('lb-live-badge');
+    if (liveBadge) {
+        liveBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-spin"></span> SYNCING...`;
+    }
+    showNotification("🔄 REFRESHING GLOBAL LEADERBOARD...");
+    DreamloLB.fetchScores(true).then(() => {
+        populateLeaderboard();
+        showNotification("✅ GLOBAL LEADERBOARD SYNCED");
+    }).catch(() => {
+        populateLeaderboard();
+    });
+}
+window.refreshLeaderboard = refreshLeaderboard;
+
+function onLeaderboardFilterChange(val) {
+    DreamloLB.selectedFilter = val;
+    populateLeaderboard();
+}
+window.onLeaderboardFilterChange = onLeaderboardFilterChange;
 
 // ============================================================================
 // 6. PARTICLES & VISUAL FX
