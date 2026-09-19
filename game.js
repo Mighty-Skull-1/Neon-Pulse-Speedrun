@@ -4493,6 +4493,39 @@ const MP = {
     myFinishTime: null,
     rivalFinishTime: null,
 
+    series: {
+        active: true,
+        bestOf: 3,
+        targetWins: 2,
+        currentRound: 1,
+        myScore: 0,
+        rivalScore: 0,
+        hostTrack: 0,
+        guestTrack: 0,
+        activeTrackIdx: 0,
+        chosenBy: 'HOST'
+    },
+
+    resetSeries() {
+        this.series.currentRound = 1;
+        this.series.myScore = 0;
+        this.series.rivalScore = 0;
+        this.updateHUDSeriesBadge();
+    },
+
+    updateHUDSeriesBadge() {
+        const badge = document.getElementById('hud-series-badge');
+        const score = document.getElementById('hud-series-score');
+        if (badge && score) {
+            if (game.isMultiplayer) {
+                badge.classList.remove('hidden');
+                score.innerText = `${this.series.myScore} - ${this.series.rivalScore} (R${this.series.currentRound}/3)`;
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+    },
+
     peerConfig: {
         debug: 0,
         config: {
@@ -4554,12 +4587,17 @@ const MP = {
                 g: 1
             };
             game.mpRival = this.rivalData;
+            if (data.trackIdx !== undefined) {
+                this.series.guestTrack = data.trackIdx;
+                this.updateRivalTrackDisplay(data.trackIdx);
+            }
 
             // Acknowledge to client
             this.sendMsg({
                 type: 'JOIN_ACCEPT',
                 tag: game.pilotTag,
-                skin: dailySystem.activeSkin
+                skin: dailySystem.activeSkin,
+                hostTrack: this.series.hostTrack
             });
 
             const hostStatus = document.getElementById('mp-opponent-status');
@@ -4570,7 +4608,7 @@ const MP = {
             if (btnStart) {
                 btnStart.disabled = false;
                 btnStart.className = "mt-1 w-full py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg flex items-center justify-center gap-1.5 cursor-pointer";
-                btnStart.innerText = "🏁 START 1V1 RACE NOW!";
+                btnStart.innerText = "🏁 START BEST OF 3 MATCH!";
             }
             showNotification(`⚔️ ${data.tag || 'RIVAL'} JOINED YOUR ROOM!`);
         } else if (data.type === 'JOIN_ACCEPT' && !this.isHost) {
@@ -4589,13 +4627,34 @@ const MP = {
                 g: 1
             };
             game.mpRival = this.rivalData;
-            const joinStatus = document.getElementById('mp-join-status');
-            if (joinStatus) {
-                joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST (${data.tag || 'HOST'})!</span> Waiting for race start...`;
+            if (data.hostTrack !== undefined) {
+                this.series.hostTrack = data.hostTrack;
+                this.updateHostTrackDisplay(data.hostTrack);
             }
+
+            const joinStatus = document.getElementById('mp-join-status');
+            const guestLobby = document.getElementById('mp-guest-lobby-view');
+            if (joinStatus) {
+                joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST (${data.tag || 'HOST'})!</span> Ready for Best of 3...`;
+            }
+            if (guestLobby) guestLobby.classList.remove('hidden');
             showNotification(`⚔️ CONNECTED TO ROOM ${this.roomCode}!`);
         } else {
             this.handleMessage(data);
+        }
+    },
+
+    updateRivalTrackDisplay(trackIdx) {
+        const rivalTrackDisplay = document.getElementById('mp-rival-track-display');
+        if (rivalTrackDisplay && LEVELS[trackIdx]) {
+            rivalTrackDisplay.innerText = LEVELS[trackIdx].name;
+        }
+    },
+
+    updateHostTrackDisplay(trackIdx) {
+        const hostTrackDisplay = document.getElementById('mp-guest-host-track-display');
+        if (hostTrackDisplay && LEVELS[trackIdx]) {
+            hostTrackDisplay.innerText = LEVELS[trackIdx].name;
         }
     },
 
@@ -4611,6 +4670,7 @@ const MP = {
     createRoom() {
         this.roomCode = this.generateRoomCode();
         this.isHost = true;
+        this.resetSeries();
         this.resetMatch();
         this.initChannel();
 
@@ -4625,6 +4685,9 @@ const MP = {
             btnStart.className = "mt-1 w-full py-2.5 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5";
             btnStart.innerText = "WAITING FOR OPPONENT TO CONNECT...";
         }
+
+        const stageSelect = document.getElementById('mp-stage-select');
+        if (stageSelect) this.series.hostTrack = parseInt(stageSelect.value || 0, 10);
 
         if (typeof Peer !== 'undefined') {
             if (this.peer) {
@@ -4651,7 +4714,7 @@ const MP = {
                     if (btnStart) {
                         btnStart.disabled = false;
                         btnStart.className = "mt-1 w-full py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg flex items-center justify-center gap-1.5 cursor-pointer";
-                        btnStart.innerText = "🏁 START 1V1 RACE NOW!";
+                        btnStart.innerText = "🏁 START BEST OF 3 MATCH!";
                     }
                     showNotification("⚔️ RIVAL JOINED YOUR ROOM!");
                 });
@@ -4675,6 +4738,7 @@ const MP = {
             return;
         }
         this.isHost = false;
+        this.resetSeries();
         this.resetMatch();
         const joinStatus = document.getElementById('mp-join-status');
 
@@ -4688,13 +4752,17 @@ const MP = {
 
         if (joinStatus) joinStatus.innerText = `Connecting to Room ${cleanCode}...`;
 
+        const guestSelect = document.getElementById('mp-guest-stage-select');
+        if (guestSelect) this.series.guestTrack = parseInt(guestSelect.value || 0, 10);
+
         this.initChannel();
         // Send JOIN_REQUEST on BroadcastChannel (for instant multi-tab communication)
         this.sendMsg({
             type: 'JOIN_REQUEST',
             roomCode: cleanCode,
             tag: game.pilotTag,
-            skin: dailySystem.activeSkin
+            skin: dailySystem.activeSkin,
+            trackIdx: this.series.guestTrack
         });
 
         // Also initiate WebRTC connection if PeerJS is available
@@ -4727,13 +4795,20 @@ const MP = {
             this.connected = true;
             game.isMultiplayer = true;
             const joinStatus = document.getElementById('mp-join-status');
+            const guestLobby = document.getElementById('mp-guest-lobby-view');
             if (joinStatus) {
-                joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST!</span> Waiting for race start...`;
+                joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST!</span> Ready for Best of 3...`;
             }
+            if (guestLobby) guestLobby.classList.remove('hidden');
+
+            const guestSelect = document.getElementById('mp-guest-stage-select');
+            if (guestSelect) this.series.guestTrack = parseInt(guestSelect.value || 0, 10);
+
             this.conn.send({
                 type: 'HANDSHAKE',
                 tag: game.pilotTag,
-                skin: dailySystem.activeSkin
+                skin: dailySystem.activeSkin,
+                trackIdx: this.isHost ? this.series.hostTrack : this.series.guestTrack
             });
         });
 
@@ -4783,6 +4858,8 @@ const MP = {
             finishTime: null
         };
         game.mpRival = this.rivalData;
+        this.series.guestTrack = Math.floor(Math.random() * LEVELS.length);
+        this.updateRivalTrackDisplay(this.series.guestTrack);
 
         const hostStatus = document.getElementById('mp-opponent-status');
         const btnStart = document.getElementById('btn-mp-start-race');
@@ -4792,7 +4869,7 @@ const MP = {
         if (btnStart) {
             btnStart.disabled = false;
             btnStart.className = "mt-1 w-full py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg flex items-center justify-center gap-1.5 cursor-pointer";
-            btnStart.innerText = "🏁 START 1V1 RACE NOW!";
+            btnStart.innerText = "🏁 START BEST OF 3 MATCH!";
         }
         showNotification("🤖 PRACTICE BOT LOADED IN ROOM!");
     },
@@ -4803,6 +4880,7 @@ const MP = {
 
         this.connected = true;
         game.isMultiplayer = true;
+        this.resetSeries();
         this.resetMatch();
 
         const botName = difficulty === 'DEMON' ? '⚡ DEMON-BOT' : difficulty === 'NOVICE' ? '🤖 CADET-AI' : '⚔️ CYBER-RIVAL';
@@ -4824,9 +4902,58 @@ const MP = {
         game.mpRival = this.rivalData;
 
         const stageSelect = document.getElementById('mp-stage-select');
-        const finalStage = stageIdx !== undefined ? stageIdx : (stageSelect ? parseInt(stageSelect.value, 10) : 0);
+        this.series.hostTrack = stageIdx !== undefined ? stageIdx : (stageSelect ? parseInt(stageSelect.value, 10) : 0);
+        this.series.guestTrack = Math.floor(Math.random() * LEVELS.length);
+        this.updateRivalTrackDisplay(this.series.guestTrack);
 
-        this.startCountdown(finalStage);
+        this.hostTriggerStartRound();
+    },
+
+    hostTriggerStart() {
+        this.resetSeries();
+        this.hostTriggerStartRound();
+    },
+
+    hostTriggerStartRound() {
+        if (!this.connected) {
+            showNotification("⚠️ NO RIVAL CONNECTED YET");
+            return;
+        }
+
+        const stageSelect = document.getElementById('mp-stage-select');
+        const hostTrack = stageSelect ? parseInt(stageSelect.value, 10) : this.series.hostTrack || 0;
+        this.series.hostTrack = hostTrack;
+
+        // If AI, AI randomly selects a track
+        let guestTrack = this.series.guestTrack || 0;
+        if (game.mpRival && game.mpRival.isAI) {
+            guestTrack = Math.floor(Math.random() * LEVELS.length);
+            this.series.guestTrack = guestTrack;
+        }
+
+        // 50/50 Coin Flip / Roulette Decision
+        const roll = Math.random() < 0.5;
+        const chosenTrack = roll ? hostTrack : guestTrack;
+        const chosenBy = roll 
+            ? (game.mpRival && game.mpRival.isAI ? 'YOUR' : 'HOST')
+            : (game.mpRival && game.mpRival.isAI ? 'AI RIVAL' : 'GUEST');
+
+        this.series.activeTrackIdx = chosenTrack;
+        this.series.chosenBy = chosenBy;
+
+        // Send synchronized 50/50 countdown instruction to peer
+        this.sendMsg({
+            type: 'START_ROUND_COUNTDOWN',
+            round: this.series.currentRound,
+            hostScore: this.series.myScore,
+            guestScore: this.series.rivalScore,
+            hostTrack: hostTrack,
+            guestTrack: guestTrack,
+            chosenTrack: chosenTrack,
+            chosenBy: chosenBy
+        });
+
+        this.playVisualCountdown(chosenTrack, chosenBy);
     },
 
     handleMessage(data) {
@@ -4846,9 +4973,42 @@ const MP = {
                 g: 1
             };
             game.mpRival = this.rivalData;
+            if (data.trackIdx !== undefined) {
+                if (this.isHost) {
+                    this.series.guestTrack = data.trackIdx;
+                    this.updateRivalTrackDisplay(data.trackIdx);
+                } else {
+                    this.series.hostTrack = data.trackIdx;
+                    this.updateHostTrackDisplay(data.trackIdx);
+                }
+            }
             showNotification(`⚔️ RIVAL IDENTIFIED: ${data.tag}!`);
-        } else if (data.type === 'START_COUNTDOWN') {
-            this.startCountdown(data.stageIdx !== undefined ? data.stageIdx : 0);
+        } else if (data.type === 'GUEST_TRACK_CHOICE') {
+            this.series.guestTrack = data.trackIdx;
+            this.updateRivalTrackDisplay(data.trackIdx);
+        } else if (data.type === 'HOST_TRACK_CHOICE') {
+            this.series.hostTrack = data.trackIdx;
+            this.updateHostTrackDisplay(data.trackIdx);
+        } else if (data.type === 'START_ROUND_COUNTDOWN') {
+            this.series.currentRound = data.round;
+            if (this.isHost) {
+                this.series.myScore = data.hostScore;
+                this.series.rivalScore = data.guestScore;
+            } else {
+                this.series.myScore = data.guestScore;
+                this.series.rivalScore = data.hostScore;
+            }
+            this.series.activeTrackIdx = data.chosenTrack;
+            this.playVisualCountdown(data.chosenTrack, data.chosenBy);
+        } else if (data.type === 'READY_NEXT_ROUND') {
+            if (this.isHost) {
+                this.hostTriggerStartRound();
+            }
+        } else if (data.type === 'READY_NEW_MATCH') {
+            if (this.isHost) {
+                this.resetSeries();
+                this.hostTriggerStartRound();
+            }
         } else if (data.type === 'SYNC') {
             if (!this.rivalData) {
                 this.rivalData = { tag: data.tag, skin: data.skin };
@@ -4871,12 +5031,6 @@ const MP = {
                 this.showPodium();
             } else {
                 showNotification(`⚠️ RIVAL FINISHED IN ${formatTime(data.time)}! RUN!`);
-            }
-        } else if (data.type === 'REMATCH') {
-            const resultModal = document.getElementById('modal-race-result');
-            if (resultModal) resultModal.classList.add('hidden');
-            if (this.isHost) {
-                this.hostTriggerStart();
             }
         }
     },
@@ -4925,26 +5079,15 @@ const MP = {
         }
     },
 
-    hostTriggerStart() {
-        if (!this.connected) {
-            showNotification("⚠️ NO RIVAL CONNECTED YET");
-            return;
-        }
-        const stageSelect = document.getElementById('mp-stage-select');
-        const stageIdx = stageSelect ? parseInt(stageSelect.value, 10) : 0;
-        this.sendMsg({ type: 'START_COUNTDOWN', stageIdx: stageIdx });
-        this.startCountdown(stageIdx);
-    },
-
-    startCountdown(stageIdx) {
+    playVisualCountdown(stageIdx, chosenBy) {
         const mpModal = document.getElementById('modal-multiplayer');
+        const resModal = document.getElementById('modal-race-result');
         if (mpModal) mpModal.classList.add('hidden');
+        if (resModal) resModal.classList.add('hidden');
 
-        if (stageIdx === -1) {
-            startEndlessMode();
-        } else {
-            startLevel(stageIdx);
-        }
+        this.resetMatch();
+        this.series.activeTrackIdx = stageIdx;
+        startLevel(stageIdx);
         setPause(true);
 
         if (game.mpRival) {
@@ -4958,20 +5101,95 @@ const MP = {
             game.mpRival.finishTime = null;
         }
 
-        let count = 3;
-        const showCount = () => {
-            if (count > 0) {
-                audio.playJump(false);
-                showNotification(`🚦 RACE COUNTDOWN: ${count}...`);
-                count--;
-                setTimeout(showCount, 1000);
-            } else {
-                audio.playBoostPad();
-                showNotification("🏁 GO! GO! GO!");
-                setPause(false);
+        const overlay = document.getElementById('overlay-race-countdown');
+        const roundBadge = document.getElementById('countdown-round-badge');
+        const hostTag = document.getElementById('countdown-host-tag');
+        const rivalTag = document.getElementById('countdown-rival-tag');
+        const rouletteTrack = document.getElementById('countdown-roulette-track');
+        const roulettePickBy = document.getElementById('countdown-roulette-pickby');
+        const bigNum = document.getElementById('countdown-big-num');
+        const subHint = document.getElementById('countdown-sub-hint');
+
+        if (overlay) overlay.classList.remove('hidden');
+        this.updateHUDSeriesBadge();
+
+        const isDecider = (this.series.currentRound === 3) || (this.series.myScore === 1 && this.series.rivalScore === 1);
+        if (roundBadge) {
+            roundBadge.innerText = isDecider ? '🔥 FINAL DECIDING ROUND 3' : `ROUND ${this.series.currentRound} OF 3`;
+            roundBadge.className = isDecider 
+                ? 'px-4 py-1 rounded-full bg-amber-950/90 border border-amber-500 text-amber-300 font-cyber font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(245,158,11,0.5)] animate-pulse'
+                : 'px-4 py-1 rounded-full bg-rose-950/90 border border-rose-500/80 text-rose-300 font-cyber font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(244,63,94,0.4)]';
+        }
+
+        if (hostTag) hostTag.innerText = `YOU [ ${this.series.myScore} ]`;
+        if (rivalTag) rivalTag.innerText = `[ ${this.series.rivalScore} ] ${(game.mpRival && game.mpRival.tag) || 'RIVAL'}`;
+
+        const trackName = (LEVELS[stageIdx] && LEVELS[stageIdx].name) || `STAGE ${stageIdx + 1}`;
+
+        // 1. Rapid 50/50 Roulette Animation (1 second)
+        let rouletteTicks = 0;
+        if (roulettePickBy) roulettePickBy.innerText = "🎲 50/50 COIN FLIP ROLLING...";
+        const rouletteInterval = setInterval(() => {
+            rouletteTicks++;
+            const randomLvl = LEVELS[Math.floor(Math.random() * LEVELS.length)];
+            if (rouletteTrack) rouletteTrack.innerText = randomLvl.name;
+            audio.playJump(false);
+            if (rouletteTicks >= 8) {
+                clearInterval(rouletteInterval);
+                if (rouletteTrack) {
+                    rouletteTrack.innerText = trackName;
+                    rouletteTrack.className = "text-xs font-cyber font-bold text-cyan-300 tracking-wide text-center drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]";
+                }
+                if (roulettePickBy) {
+                    roulettePickBy.innerHTML = `<span>SELECTED BY 50/50 FLIP: <span class="text-amber-400 font-bold">${chosenBy.toUpperCase()}'S CHOICE</span></span>`;
+                }
+                startCountTicks();
             }
+        }, 110);
+
+        // 2. Big 3 -> 2 -> 1 -> GO Numbers
+        const startCountTicks = () => {
+            let count = 3;
+            const updateCount = () => {
+                if (!bigNum) return;
+                if (count === 3) {
+                    audio.playJump(false);
+                    bigNum.innerText = "3";
+                    bigNum.className = "text-7xl font-cyber font-extrabold text-rose-500 tracking-wider scale-125 transition-transform duration-200 drop-shadow-[0_0_25px_rgba(244,63,94,0.9)]";
+                    if (subHint) subHint.innerText = "ON YOUR MARK...";
+                    setTimeout(() => bigNum.className = "text-7xl font-cyber font-extrabold text-rose-500 tracking-wider scale-100 transition-transform duration-200 drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]", 150);
+                    count--;
+                    setTimeout(updateCount, 1000);
+                } else if (count === 2) {
+                    audio.playJump(false);
+                    bigNum.innerText = "2";
+                    bigNum.className = "text-7xl font-cyber font-extrabold text-amber-400 tracking-wider scale-125 transition-transform duration-200 drop-shadow-[0_0_25px_rgba(245,158,11,0.9)]";
+                    if (subHint) subHint.innerText = "GET SET...";
+                    setTimeout(() => bigNum.className = "text-7xl font-cyber font-extrabold text-amber-400 tracking-wider scale-100 transition-transform duration-200 drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]", 150);
+                    count--;
+                    setTimeout(updateCount, 1000);
+                } else if (count === 1) {
+                    audio.playJump(false);
+                    bigNum.innerText = "1";
+                    bigNum.className = "text-7xl font-cyber font-extrabold text-yellow-300 tracking-wider scale-125 transition-transform duration-200 drop-shadow-[0_0_25px_rgba(253,224,71,0.9)]";
+                    if (subHint) subHint.innerText = "ENGAGE BOOSTERS!";
+                    setTimeout(() => bigNum.className = "text-7xl font-cyber font-extrabold text-yellow-300 tracking-wider scale-100 transition-transform duration-200 drop-shadow-[0_0_15px_rgba(253,224,71,0.6)]", 150);
+                    count--;
+                    setTimeout(updateCount, 1000);
+                } else {
+                    audio.playBoostPad();
+                    bigNum.innerText = "GO!";
+                    bigNum.className = "text-8xl font-cyber font-extrabold text-emerald-400 tracking-wider scale-130 transition-transform duration-200 drop-shadow-[0_0_35px_rgba(52,211,153,1)]";
+                    if (subHint) subHint.innerText = "SPRINT FOR THE FINISH!";
+                    setPause(false);
+                    showNotification("🏁 GO! SPRINT!");
+                    setTimeout(() => {
+                        if (overlay) overlay.classList.add('hidden');
+                    }, 500);
+                }
+            };
+            updateCount();
         };
-        showCount();
     },
 
     showPodium() {
@@ -4987,13 +5205,86 @@ const MP = {
         const rivalTime = document.getElementById('race-rival-time');
         const banner = document.getElementById('race-gap-banner');
 
-        const iWon = (this.myFinishTime || 999) <= (this.rivalFinishTime || 999);
-        if (icon) icon.innerText = iWon ? "🏆" : "🥈";
-        if (title) {
-            title.innerText = iWon ? "VICTORY!" : "DEFEAT!";
-            title.className = iWon ? "text-2xl font-cyber font-bold text-cyan-400 tracking-wider" : "text-2xl font-cyber font-bold text-rose-500 tracking-wider";
+        const roundStatus = document.getElementById('race-bo3-round-status');
+        const myScoreDisplay = document.getElementById('bo3-my-score-display');
+        const rivalScoreDisplay = document.getElementById('bo3-rival-score-display');
+        const seriesStatus = document.getElementById('race-bo3-series-status');
+        const btnNextRound = document.getElementById('btn-next-round');
+        const btnRaceAgain = document.getElementById('btn-race-again');
+
+        const iWonRound = (this.myFinishTime || 999) <= (this.rivalFinishTime || 999);
+        if (iWonRound) {
+            this.series.myScore++;
+        } else {
+            this.series.rivalScore++;
         }
-        if (subtitle) subtitle.innerText = iWon ? "YOU OUTPACED YOUR RIVAL" : "RIVAL WON THE SPRINT";
+
+        const currentRoundNum = this.series.currentRound;
+        const seriesWon = this.series.myScore >= 2;
+        const seriesLost = this.series.rivalScore >= 2;
+        const seriesOver = seriesWon || seriesLost;
+
+        if (myScoreDisplay) myScoreDisplay.innerText = `YOU: ${this.series.myScore}`;
+        if (rivalScoreDisplay) rivalScoreDisplay.innerText = `RIVAL: ${this.series.rivalScore}`;
+
+        // Update Bo3 Pips
+        const pipMe1 = document.getElementById('pip-me-1');
+        const pipMe2 = document.getElementById('pip-me-2');
+        const pipRival1 = document.getElementById('pip-rival-1');
+        const pipRival2 = document.getElementById('pip-rival-2');
+
+        if (pipMe1) pipMe1.className = this.series.myScore >= 1 ? "w-2.5 h-2.5 rounded-full bg-cyan-400 border border-cyan-300 shadow-[0_0_8px_rgba(6,182,212,1)]" : "w-2.5 h-2.5 rounded-full border border-cyan-400 bg-neutral-800";
+        if (pipMe2) pipMe2.className = this.series.myScore >= 2 ? "w-2.5 h-2.5 rounded-full bg-cyan-400 border border-cyan-300 shadow-[0_0_8px_rgba(6,182,212,1)]" : "w-2.5 h-2.5 rounded-full border border-cyan-400 bg-neutral-800";
+        if (pipRival1) pipRival1.className = this.series.rivalScore >= 1 ? "w-2.5 h-2.5 rounded-full bg-rose-500 border border-rose-400 shadow-[0_0_8px_rgba(244,63,94,1)]" : "w-2.5 h-2.5 rounded-full border border-rose-400 bg-neutral-800";
+        if (pipRival2) pipRival2.className = this.series.rivalScore >= 2 ? "w-2.5 h-2.5 rounded-full bg-rose-500 border border-rose-400 shadow-[0_0_8px_rgba(244,63,94,1)]" : "w-2.5 h-2.5 rounded-full border border-rose-400 bg-neutral-800";
+
+        if (roundStatus) roundStatus.innerText = `ROUND ${currentRoundNum} COMPLETE`;
+
+        if (seriesOver) {
+            if (seriesWon) {
+                if (icon) icon.innerText = "👑";
+                if (title) {
+                    title.innerText = `MATCH CHAMPION! (2 - ${this.series.rivalScore})`;
+                    title.className = "text-2xl font-cyber font-bold text-cyan-400 tracking-wider";
+                }
+                if (subtitle) subtitle.innerText = "SERIES VICTORY! YOU OUTPLAYED YOUR OPPONENT!";
+                if (seriesStatus) seriesStatus.innerText = `MATCH CONCLUDED — SERIES WON 2 - ${this.series.rivalScore}!`;
+            } else {
+                if (icon) icon.innerText = "🥈";
+                if (title) {
+                    title.innerText = `SERIES DEFEAT (${this.series.myScore} - 2)`;
+                    title.className = "text-2xl font-cyber font-bold text-rose-500 tracking-wider";
+                }
+                if (subtitle) subtitle.innerText = "OPPONENT SECURED 2 ROUND WINS";
+                if (seriesStatus) seriesStatus.innerText = `MATCH CONCLUDED — OPPONENT WON 2 - ${this.series.myScore}!`;
+            }
+            if (btnNextRound) btnNextRound.classList.add('hidden');
+            if (btnRaceAgain) {
+                btnRaceAgain.classList.remove('hidden');
+                btnRaceAgain.innerText = "🏆 PLAY NEW MATCH (BEST OF 3)";
+            }
+        } else {
+            // Series continues!
+            this.series.currentRound++;
+            const nextRound = this.series.currentRound;
+
+            if (icon) icon.innerText = iWonRound ? "🏆" : "🥈";
+            if (title) {
+                title.innerText = iWonRound ? `ROUND ${currentRoundNum} VICTORY!` : `ROUND ${currentRoundNum} DEFEAT!`;
+                title.className = iWonRound ? "text-2xl font-cyber font-bold text-cyan-400 tracking-wider" : "text-2xl font-cyber font-bold text-rose-500 tracking-wider";
+            }
+            if (subtitle) subtitle.innerText = `SERIES SCORE: ${this.series.myScore} - ${this.series.rivalScore} (FIRST TO 2 WINS)`;
+            if (seriesStatus) {
+                seriesStatus.innerText = nextRound === 3 ? "🔥 DECIDING ROUND 3 AHEAD! WINNER TAKES ALL!" : "ROUND 2 AHEAD — 50/50 ROULETTE TRACK ROLL!";
+            }
+
+            if (btnNextRound) {
+                btnNextRound.classList.remove('hidden');
+                btnNextRound.innerText = nextRound === 3 ? "🔥 START FINAL ROUND 3 (DECIDER)" : "🏁 START ROUND 2";
+            }
+            if (btnRaceAgain) btnRaceAgain.classList.add('hidden');
+        }
+
         if (myName) myName.innerText = game.pilotTag;
         if (myTime) myTime.innerText = formatTime(this.myFinishTime || 0);
         if (rivalName) rivalName.innerText = (this.rivalData && this.rivalData.tag) || (game.mpRival && game.mpRival.tag) || "RIVAL";
@@ -5001,10 +5292,11 @@ const MP = {
 
         const diff = Math.abs((this.myFinishTime || 0) - (this.rivalFinishTime || 0));
         if (banner) {
-            banner.innerText = iWon ? `DELTA: +${diff.toFixed(3)}s AHEAD` : `DELTA: -${diff.toFixed(3)}s BEHIND`;
-            banner.className = iWon ? "text-[11px] font-mono text-emerald-400 mt-1 font-bold" : "text-[11px] font-mono text-rose-400 mt-1 font-bold";
+            banner.innerText = iWonRound ? `DELTA: +${diff.toFixed(3)}s AHEAD` : `DELTA: -${diff.toFixed(3)}s BEHIND`;
+            banner.className = iWonRound ? "text-[11px] font-mono text-emerald-400 mt-1 font-bold" : "text-[11px] font-mono text-rose-400 mt-1 font-bold";
         }
 
+        this.updateHUDSeriesBadge();
         modal.classList.remove('hidden');
     },
 
@@ -5201,19 +5493,20 @@ function drawRivalRunner(ctx) {
 }
 
 function populateMultiplayerStageSelect() {
-    const select = document.getElementById('mp-stage-select');
-    if (!select) return;
-    select.innerHTML = '';
-    LEVELS.forEach((lvl, idx) => {
-        const opt = document.createElement('option');
-        opt.value = idx;
-        opt.innerText = lvl.name;
-        select.appendChild(opt);
+    const selects = [
+        document.getElementById('mp-stage-select'),
+        document.getElementById('mp-guest-stage-select')
+    ];
+    selects.forEach(select => {
+        if (!select) return;
+        select.innerHTML = '';
+        LEVELS.forEach((lvl, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.innerText = lvl.name;
+            select.appendChild(opt);
+        });
     });
-    const endlessOpt = document.createElement('option');
-    endlessOpt.value = -1;
-    endlessOpt.innerText = "⚡ ENDLESS MARATHON";
-    select.appendChild(endlessOpt);
 }
 
 // ============================================================================
@@ -5287,6 +5580,8 @@ function returnToMainMenu() {
     const modalRaceResult = document.getElementById('modal-race-result');
     const endlessBadge = document.getElementById('hud-endless-badge');
     const raceBadge = document.getElementById('hud-race-badge');
+    const seriesBadge = document.getElementById('hud-series-badge');
+    const countdownOverlay = document.getElementById('overlay-race-countdown');
 
     if (ingameHeader) ingameHeader.classList.add('hidden');
     if (pauseModal) pauseModal.classList.add('hidden');
@@ -5298,6 +5593,8 @@ function returnToMainMenu() {
     if (modalRaceResult) modalRaceResult.classList.add('hidden');
     if (endlessBadge) endlessBadge.classList.add('hidden');
     if (raceBadge) raceBadge.classList.add('hidden');
+    if (seriesBadge) seriesBadge.classList.add('hidden');
+    if (countdownOverlay) countdownOverlay.classList.add('hidden');
     if (mainMenu) mainMenu.classList.remove('hidden');
 
     const pilotDisplay = document.getElementById('main-pilot-display');
@@ -6090,7 +6387,9 @@ bindClick('btn-mp-spawn-ai-rival', () => {
 });
 
 bindClick('btn-mp-start-race', () => {
-    if (typeof MP !== 'undefined') MP.hostTriggerStart();
+    if (typeof MP !== 'undefined') {
+        MP.hostTriggerStart();
+    }
 });
 
 bindClick('btn-mp-connect', () => {
@@ -6109,18 +6408,62 @@ bindClick('btn-victory-share-ghost', () => {
     exportGhostRun();
 });
 
-bindClick('btn-race-again', () => {
+bindClick('btn-next-round', () => {
     const modal = document.getElementById('modal-race-result');
     if (modal) modal.classList.add('hidden');
     if (typeof MP !== 'undefined') {
         if (game.mpRival && game.mpRival.isAI) {
-            MP.startAiRivalMatch(game.currentLevelIdx, game.mpRival.difficulty || 'EXPERT');
+            MP.hostTriggerStartRound();
+        } else if (MP.isHost) {
+            MP.hostTriggerStartRound();
         } else {
-            if (MP.connected) MP.sendMsg({ type: 'REMATCH' });
-            if (MP.isHost) MP.hostTriggerStart();
+            MP.sendMsg({ type: 'READY_NEXT_ROUND' });
+            showNotification("⏳ WAITING FOR HOST TO START NEXT ROUND...");
         }
     }
 });
+
+bindClick('btn-race-again', () => {
+    const modal = document.getElementById('modal-race-result');
+    if (modal) modal.classList.add('hidden');
+    if (typeof MP !== 'undefined') {
+        MP.resetSeries();
+        if (game.mpRival && game.mpRival.isAI) {
+            MP.hostTriggerStartRound();
+        } else if (MP.isHost) {
+            MP.hostTriggerStartRound();
+        } else {
+            MP.sendMsg({ type: 'READY_NEW_MATCH' });
+            showNotification("⏳ WAITING FOR HOST TO START NEW MATCH...");
+        }
+    }
+});
+
+const hostStageSelect = document.getElementById('mp-stage-select');
+if (hostStageSelect) {
+    hostStageSelect.addEventListener('change', (e) => {
+        const trackIdx = parseInt(e.target.value, 10);
+        if (typeof MP !== 'undefined') {
+            MP.series.hostTrack = trackIdx;
+            if (MP.connected && (!game.mpRival || !game.mpRival.isAI)) {
+                MP.sendMsg({ type: 'HOST_TRACK_CHOICE', trackIdx });
+            }
+        }
+    });
+}
+
+const guestStageSelect = document.getElementById('mp-guest-stage-select');
+if (guestStageSelect) {
+    guestStageSelect.addEventListener('change', (e) => {
+        const trackIdx = parseInt(e.target.value, 10);
+        if (typeof MP !== 'undefined') {
+            MP.series.guestTrack = trackIdx;
+            if (MP.connected) {
+                MP.sendMsg({ type: 'GUEST_TRACK_CHOICE', trackIdx });
+            }
+        }
+    });
+}
 
 bindClick('btn-race-close', () => {
     const modal = document.getElementById('modal-race-result');

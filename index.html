@@ -64,6 +64,12 @@
                     <span id="hud-race-delta" class="text-[9px] font-mono font-bold text-white">+0.0m</span>
                 </div>
 
+                <!-- Live Best of 3 Series Badge -->
+                <div id="hud-series-badge" class="hidden flex items-center gap-1.5 bg-purple-950/80 px-2 py-1 rounded border border-purple-500/60 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
+                    <span class="text-[9px] text-purple-300 font-cyber font-bold">BO3</span>
+                    <span id="hud-series-score" class="text-[9px] font-mono font-bold text-white">0 - 0 (R1)</span>
+                </div>
+
                 <!-- Endless Distance Badge -->
                 <div id="hud-endless-badge" class="hidden flex items-center gap-1.5 bg-amber-950/80 px-2 py-1 rounded border border-amber-500/60 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
                     <span class="text-amber-400 text-xs">⚡</span>
@@ -150,6 +156,45 @@
 
             <!-- Dimension Warp Screen Flash Overlay -->
             <div id="warp-overlay" class="pointer-events-none absolute inset-0 z-20 opacity-0 bg-white transition-opacity duration-500"></div>
+
+            <!-- Best of 3 & 50/50 Countdown Overlay -->
+            <div id="overlay-race-countdown" class="hidden absolute inset-0 z-30 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none transition-all duration-300">
+                <div class="flex flex-col items-center gap-2 max-w-md w-full px-6">
+                    <div id="countdown-round-badge" class="px-4 py-1 rounded-full bg-rose-950/90 border border-rose-500/80 text-rose-300 font-cyber font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(244,63,94,0.4)]">
+                        ROUND 1 OF 3
+                    </div>
+                    <!-- Series Score Tracker -->
+                    <div id="countdown-series-score" class="flex items-center gap-4 text-xs font-cyber font-bold">
+                        <span class="text-cyan-400" id="countdown-host-tag">YOU [ 0 ]</span>
+                        <span class="text-neutral-500 font-mono">VS</span>
+                        <span class="text-rose-400" id="countdown-rival-tag">[ 0 ] RIVAL</span>
+                    </div>
+
+                    <!-- 50/50 Roulette Reveal Box -->
+                    <div id="countdown-roulette-box" class="w-full bg-neutral-900/90 border border-neutral-700 rounded-lg p-2.5 flex flex-col items-center gap-1 shadow-lg mt-1">
+                        <div class="text-[10px] font-cyber text-neutral-400 tracking-wider flex items-center gap-1">
+                            <span>🎲</span> 50/50 TRACK SELECTION
+                        </div>
+                        <div id="countdown-roulette-track" class="text-xs font-cyber font-bold text-amber-400 tracking-wide text-center">
+                            DECIDING TRACK...
+                        </div>
+                        <div id="countdown-roulette-pickby" class="text-[10px] font-cyber text-neutral-400">
+                            ROLLING HOST VS RIVAL PICK...
+                        </div>
+                    </div>
+
+                    <!-- Giant Glowing Countdown Number -->
+                    <div class="my-3 flex items-center justify-center h-28">
+                        <div id="countdown-big-num" class="text-7xl font-cyber font-extrabold text-rose-500 tracking-wider scale-100 transition-transform duration-200 drop-shadow-[0_0_25px_rgba(244,63,94,0.8)]">
+                            3
+                        </div>
+                    </div>
+
+                    <div id="countdown-sub-hint" class="text-[11px] font-cyber text-neutral-400 tracking-wider">
+                        GET READY TO SPRINT!
+                    </div>
+                </div>
+            </div>
 
             <!-- Mobile Virtual Touch Controls -->
             <div class="md:hidden absolute bottom-3 left-2 right-2 flex justify-between items-end z-20 pointer-events-none">
@@ -577,9 +622,9 @@
                             <span class="text-xs font-cyber font-bold text-rose-300 flex items-center gap-1.5">
                                 <span>⚡</span> INSTANT 1V1 VS AI RIVAL
                             </span>
-                            <span class="text-[10px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded border border-rose-500/40 font-cyber">NO WAITING</span>
+                            <span class="text-[10px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded border border-rose-500/40 font-cyber">BEST OF 3</span>
                         </div>
-                        <p class="text-[11px] text-neutral-300">Race immediately against an adaptive Cyber Rival with live distance delta, opponent phantom, and podium finish!</p>
+                        <p class="text-[11px] text-neutral-300">Race a Best-of-3 series against an adaptive Cyber Rival with 50/50 track roulette, live distance delta, and race podiums!</p>
                         <div class="flex gap-2 items-center">
                             <select id="mp-ai-difficulty" class="bg-neutral-900 border border-neutral-700 text-rose-300 text-xs font-cyber rounded px-2 py-1.5 focus:outline-none">
                                 <option value="EXPERT">EXPERT (Adaptive)</option>
@@ -620,11 +665,21 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-between border-t border-neutral-900 pt-2 text-xs">
-                            <span class="font-cyber text-neutral-400">TRACK SELECT:</span>
-                            <select id="mp-stage-select" class="bg-neutral-900 border border-neutral-700 text-cyan-300 text-xs font-cyber rounded px-2 py-1 focus:outline-none focus:border-cyan-400 max-w-[200px]">
-                                <!-- Populated dynamically -->
-                            </select>
+                        <!-- Host Track Pick & Rival Pick -->
+                        <div class="flex flex-col gap-1.5 border-t border-neutral-900 pt-2 text-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="font-cyber text-neutral-400">YOUR TRACK PICK:</span>
+                                <select id="mp-stage-select" class="bg-neutral-900 border border-neutral-700 text-cyan-300 text-xs font-cyber rounded px-2 py-1 focus:outline-none focus:border-cyan-400 max-w-[200px]">
+                                    <!-- Populated dynamically with 20 levels -->
+                                </select>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] font-cyber">
+                                <span class="text-neutral-400">RIVAL'S TRACK PICK:</span>
+                                <span id="mp-rival-track-display" class="text-amber-400 font-mono font-bold">WAITING FOR RIVAL...</span>
+                            </div>
+                            <div class="text-[10px] text-purple-300 font-cyber flex items-center gap-1 bg-purple-950/40 px-2 py-1 rounded border border-purple-500/30">
+                                <span>🎲</span> BEST OF 3: 50/50 ROULETTE DECIDES WHOSE TRACK IS RACED EACH ROUND
+                            </div>
                         </div>
 
                         <div class="flex items-center justify-between border-t border-neutral-900 pt-2 text-xs">
@@ -651,6 +706,23 @@
                             </button>
                         </div>
                         <div id="mp-join-status" class="text-xs font-cyber text-neutral-500">Ready to connect to host room.</div>
+
+                        <!-- Guest Track Selection View (Revealed when connected) -->
+                        <div id="mp-guest-lobby-view" class="hidden flex flex-col gap-1.5 border-t border-neutral-900 pt-2 text-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="font-cyber text-neutral-400">YOUR TRACK PICK:</span>
+                                <select id="mp-guest-stage-select" class="bg-neutral-900 border border-neutral-700 text-cyan-300 text-xs font-cyber rounded px-2 py-1 focus:outline-none focus:border-cyan-400 max-w-[200px]">
+                                    <!-- Populated dynamically with 20 levels -->
+                                </select>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] font-cyber">
+                                <span class="text-neutral-400">HOST'S TRACK PICK:</span>
+                                <span id="mp-guest-host-track-display" class="text-amber-400 font-mono font-bold">LEVEL 1: NEON OVERPASS</span>
+                            </div>
+                            <div class="text-[10px] text-purple-300 font-cyber flex items-center gap-1 bg-purple-950/40 px-2 py-1 rounded border border-purple-500/30">
+                                <span>🎲</span> BEST OF 3: 50/50 ROULETTE DECIDES WHOSE TRACK IS RACED EACH ROUND
+                            </div>
+                        </div>
                     </div>
 
                     <div id="mp-network-status" class="text-[11px] font-cyber text-neutral-500 flex items-center justify-between border-t border-neutral-900 pt-2">
@@ -687,6 +759,26 @@
                     <p id="race-result-subtitle" class="text-xs text-neutral-400 mt-0.5">YOU OUTPACED YOUR RIVAL</p>
                 </div>
 
+                <!-- Best of 3 Series Scoreboard Card -->
+                <div id="race-bo3-card" class="w-full bg-neutral-950 p-2.5 rounded-lg border border-purple-500/40 flex flex-col items-center gap-1">
+                    <div class="flex items-center justify-between w-full text-[11px] font-cyber px-2">
+                        <span class="text-purple-300 font-bold">BEST OF 3 SERIES</span>
+                        <span id="race-bo3-round-status" class="text-neutral-400 font-mono">ROUND 1 COMPLETE</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm font-cyber font-bold py-1">
+                        <span class="text-cyan-400" id="bo3-my-score-display">YOU: 0</span>
+                        <div class="flex items-center gap-1.5" id="bo3-pips-display">
+                            <span class="w-2.5 h-2.5 rounded-full border border-cyan-400 bg-neutral-800" id="pip-me-1"></span>
+                            <span class="w-2.5 h-2.5 rounded-full border border-cyan-400 bg-neutral-800" id="pip-me-2"></span>
+                            <span class="text-neutral-600 px-1 font-mono text-xs">VS</span>
+                            <span class="w-2.5 h-2.5 rounded-full border border-rose-400 bg-neutral-800" id="pip-rival-1"></span>
+                            <span class="w-2.5 h-2.5 rounded-full border border-rose-400 bg-neutral-800" id="pip-rival-2"></span>
+                        </div>
+                        <span class="text-rose-400" id="bo3-rival-score-display">RIVAL: 0</span>
+                    </div>
+                    <div id="race-bo3-series-status" class="text-[10px] font-cyber text-amber-400">FIRST TO 2 ROUND WINS TAKES THE SERIES</div>
+                </div>
+
                 <div class="w-full bg-neutral-950 p-3.5 rounded-lg border border-neutral-800 flex flex-col gap-2">
                     <div class="flex justify-between text-xs font-cyber border-b border-neutral-800 pb-1.5">
                         <span class="text-cyan-300 font-bold" id="race-my-name">YOU</span>
@@ -702,10 +794,13 @@
                 </div>
 
                 <div class="flex gap-2 w-full mt-1">
-                    <button id="btn-race-again" class="flex-1 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg">
-                        REMATCH / RACE AGAIN
+                    <button id="btn-next-round" class="flex-1 py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg cursor-pointer">
+                        🏁 NEXT ROUND (ROUND 2)
                     </button>
-                    <button id="btn-race-close" class="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-cyber text-xs rounded border border-neutral-700 transition">
+                    <button id="btn-race-again" class="hidden flex-1 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg cursor-pointer">
+                        🏆 NEW MATCH (BEST OF 3)
+                    </button>
+                    <button id="btn-race-close" class="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-cyber text-xs rounded border border-neutral-700 transition cursor-pointer">
                         LOBBY
                     </button>
                 </div>
