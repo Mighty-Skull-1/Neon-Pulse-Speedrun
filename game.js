@@ -4254,15 +4254,22 @@ function startEndlessMode() {
     const modalVic = document.getElementById('modal-victory');
     const modalMp = document.getElementById('modal-multiplayer');
 
-    if (modalMenu) modalMenu.classList.add('hidden');
-    if (modalLb) modalLb.classList.add('hidden');
-    if (modalDaily) modalDaily.classList.add('hidden');
-    if (modalHow) modalHow.classList.add('hidden');
-    if (modalVic) modalVic.classList.add('hidden');
-    if (modalMp) modalMp.classList.add('hidden');
+    const allModals = [modalMenu, modalLb, modalDaily, modalHow, modalVic, modalMp];
+    allModals.forEach(m => {
+        if (m) {
+            m.classList.add('hidden');
+            m.style.display = 'none';
+        }
+    });
 
-    if (mainMenu) mainMenu.classList.add('hidden');
-    if (ingameHeader) ingameHeader.classList.remove('hidden');
+    if (mainMenu) {
+        mainMenu.classList.add('hidden');
+        mainMenu.style.display = 'none';
+    }
+    if (ingameHeader) {
+        ingameHeader.classList.remove('hidden');
+        ingameHeader.style.display = '';
+    }
     if (endlessBadge) endlessBadge.classList.remove('hidden');
     if (objPill) objPill.classList.add('hidden');
     if (hudLevelName) hudLevelName.innerText = "⚡ ENDLESS MARATHON";
@@ -4495,6 +4502,11 @@ function clearActiveCountdowns() {
         clearInterval(id);
     });
     activeCountdownTimers = [];
+    const overlay = document.getElementById('overlay-race-countdown');
+    if (overlay) {
+        overlay.classList.add('hidden');
+        overlay.style.display = 'none';
+    }
 }
 
 function startVisualRaceCountdown(config = {}) {
@@ -4554,6 +4566,7 @@ function startVisualRaceCountdown(config = {}) {
     audio.stopMusic();
 
     overlay.classList.remove('hidden');
+    overlay.style.display = '';
 
     const isMultiplayer = !!config.isMultiplayer;
     if (isMultiplayer) {
@@ -4672,7 +4685,10 @@ function startVisualRaceCountdown(config = {}) {
                 }
 
                 const hideT = setTimeout(() => {
-                    if (overlay) overlay.classList.add('hidden');
+                    if (overlay) {
+                        overlay.classList.add('hidden');
+                        overlay.style.display = 'none';
+                    }
                 }, 400);
                 activeCountdownTimers.push(hideT);
             }
@@ -5661,8 +5677,14 @@ function startLevel(idx, skipCountdown = false) {
     const mainMenu = document.getElementById('screen-main-menu');
     const ingameHeader = document.getElementById('ingame-header');
     const endlessBadge = document.getElementById('hud-endless-badge');
-    if (mainMenu) mainMenu.classList.add('hidden');
-    if (ingameHeader) ingameHeader.classList.remove('hidden');
+    if (mainMenu) {
+        mainMenu.classList.add('hidden');
+        mainMenu.style.display = 'none';
+    }
+    if (ingameHeader) {
+        ingameHeader.classList.remove('hidden');
+        ingameHeader.style.display = '';
+    }
     if (endlessBadge) endlessBadge.classList.add('hidden');
 
     const hudLevelName = document.getElementById('hud-level-name');
@@ -5681,13 +5703,13 @@ function startLevel(idx, skipCountdown = false) {
     const modalMp = document.getElementById('modal-multiplayer');
     const pauseModal = document.getElementById('modal-pause');
 
-    if (modalVic) modalVic.classList.add('hidden');
-    if (modalMenu) modalMenu.classList.add('hidden');
-    if (modalLb) modalLb.classList.add('hidden');
-    if (modalDaily) modalDaily.classList.add('hidden');
-    if (modalHow) modalHow.classList.add('hidden');
-    if (modalMp) modalMp.classList.add('hidden');
-    if (pauseModal) pauseModal.classList.add('hidden');
+    const allModals = [modalVic, modalMenu, modalLb, modalDaily, modalHow, modalMp, pauseModal];
+    allModals.forEach(m => {
+        if (m) {
+            m.classList.add('hidden');
+            m.style.display = 'none';
+        }
+    });
 
     updateShardHUD();
     updateAbilityHUD();
