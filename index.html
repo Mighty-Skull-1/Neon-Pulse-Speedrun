@@ -275,6 +275,9 @@
                     </div>
 
                     <div class="flex flex-wrap items-center justify-center gap-2 mt-3 w-full max-w-lg">
+                        <button id="btn-main-random" onclick="if(window.playRandomStage)window.playRandomStage();" class="py-1.5 px-3 bg-amber-950/50 hover:bg-amber-900/70 border border-amber-500/60 hover:border-amber-400 text-amber-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.25)] cursor-pointer">
+                            <span>🎲</span> RANDOM QUICK PLAY
+                        </button>
                         <button id="btn-main-stages" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-neutral-300 font-cyber text-xs rounded transition flex items-center gap-1.5">
                             <span>☰</span> STAGE MATRIX
                         </button>
@@ -317,6 +320,9 @@
                         <p class="text-xs text-neutral-400">Master 2 dimensions: Dimension α Cyber Prime & Dimension β Quantum Rift with unique mission objectives.</p>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button id="btn-menu-random-stage" onclick="const m=document.getElementById('modal-menu');if(m){m.classList.add('hidden');m.style.display='none';}if(window.playRandomStage)window.playRandomStage();" class="cursor-pointer pointer-events-auto px-3 py-1 bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 hover:text-amber-200 text-xs font-cyber font-bold rounded border border-amber-500/60 hover:border-amber-400 transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+                            <span>🎲</span> RANDOM STAGE
+                        </button>
                         <button id="btn-menu-back-main" onclick="const m=document.getElementById('modal-menu');if(m){m.classList.add('hidden');m.style.display='none';}if(window.returnToMainMenu)window.returnToMainMenu();" class="cursor-pointer pointer-events-auto px-3 py-1 bg-neutral-950 hover:bg-neutral-800 text-cyan-400 hover:text-cyan-300 text-xs font-cyber font-bold rounded border border-cyan-500/50 hover:border-cyan-400 transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
                             <span>🏠</span> MAIN MENU
                         </button>
@@ -688,7 +694,7 @@
                             </div>
                             <div class="flex items-center justify-between text-[11px] font-cyber">
                                 <span class="text-neutral-400">RIVAL'S TRACK PICK:</span>
-                                <span id="mp-rival-track-display" class="text-amber-400 font-mono font-bold">WAITING FOR RIVAL...</span>
+                                <span id="mp-rival-track-display" class="text-amber-400 font-mono font-bold">🎲 RANDOM (ALL 20 MODES)</span>
                             </div>
                             <div class="text-[10px] text-purple-300 font-cyber flex items-center gap-1 bg-purple-950/40 px-2 py-1 rounded border border-purple-500/30">
                                 <span>🎲</span> BEST OF 3: 50/50 ROULETTE DECIDES WHOSE TRACK IS RACED EACH ROUND
@@ -730,7 +736,7 @@
                             </div>
                             <div class="flex items-center justify-between text-[11px] font-cyber">
                                 <span class="text-neutral-400">HOST'S TRACK PICK:</span>
-                                <span id="mp-guest-host-track-display" class="text-amber-400 font-mono font-bold">LEVEL 1: NEON OVERPASS</span>
+                                <span id="mp-guest-host-track-display" class="text-amber-400 font-mono font-bold">🎲 RANDOM (ALL 20 MODES)</span>
                             </div>
                             <div class="text-[10px] text-purple-300 font-cyber flex items-center gap-1 bg-purple-950/40 px-2 py-1 rounded border border-purple-500/30">
                                 <span>🎲</span> BEST OF 3: 50/50 ROULETTE DECIDES WHOSE TRACK IS RACED EACH ROUND
@@ -822,6 +828,6 @@
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=2.5"></script>
+    <script src="game.js?v=2.6"></script>
 </body>
 </html>

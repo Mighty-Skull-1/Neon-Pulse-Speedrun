@@ -4722,17 +4722,59 @@ const MP = {
         currentRound: 1,
         myScore: 0,
         rivalScore: 0,
-        hostTrack: 0,
-        guestTrack: 0,
+        hostTrack: 'RANDOM_ALL',
+        guestTrack: 'RANDOM_ALL',
         activeTrackIdx: 0,
-        chosenBy: 'HOST'
+        chosenBy: 'HOST',
+        playedTracks: []
     },
 
     resetSeries() {
         this.series.currentRound = 1;
         this.series.myScore = 0;
         this.series.rivalScore = 0;
+        this.series.playedTracks = [];
         this.updateHUDSeriesBadge();
+    },
+
+    formatTrackChoiceLabel(choice) {
+        if (choice === 'RANDOM_ALL' || choice === 'RANDOM' || choice === undefined || choice === null || choice === '') {
+            return '🎲 RANDOM (ALL 20 MODES)';
+        }
+        if (choice === 'RANDOM_DIM1') {
+            return '🌌 RANDOM DIM-α (01–10)';
+        }
+        if (choice === 'RANDOM_DIM2') {
+            return '🌀 RANDOM DIM-β (11–20)';
+        }
+        const idx = parseInt(choice, 10);
+        if (!isNaN(idx) && LEVELS[idx]) {
+            return LEVELS[idx].name;
+        }
+        return '🎲 RANDOM (ALL MODES)';
+    },
+
+    resolveTrackIndex(choice, excluded = []) {
+        let pool = [];
+        if (choice === 'RANDOM_DIM1') {
+            pool = Array.from({ length: 10 }, (_, i) => i);
+        } else if (choice === 'RANDOM_DIM2') {
+            pool = Array.from({ length: 10 }, (_, i) => i + 10);
+        } else if (choice === 'RANDOM_ALL' || choice === 'RANDOM' || choice === undefined || choice === null || choice === '' || isNaN(parseInt(choice, 10))) {
+            pool = Array.from({ length: LEVELS.length }, (_, i) => i);
+        } else {
+            const idx = parseInt(choice, 10);
+            if (idx >= 0 && idx < LEVELS.length) {
+                return idx;
+            }
+            pool = Array.from({ length: LEVELS.length }, (_, i) => i);
+        }
+
+        let available = pool.filter(idx => !excluded.includes(idx));
+        if (available.length === 0) {
+            available = pool;
+        }
+        return available[Math.floor(Math.random() * available.length)];
     },
 
     updateHUDSeriesBadge() {
@@ -4809,9 +4851,10 @@ const MP = {
                 g: 1
             };
             game.mpRival = this.rivalData;
-            if (data.trackIdx !== undefined) {
-                this.series.guestTrack = data.trackIdx;
-                this.updateRivalTrackDisplay(data.trackIdx);
+            const choice = data.trackChoice !== undefined ? data.trackChoice : data.trackIdx;
+            if (choice !== undefined) {
+                this.series.guestTrack = choice;
+                this.updateRivalTrackDisplay(choice);
             }
 
             // Acknowledge to client
@@ -4819,7 +4862,8 @@ const MP = {
                 type: 'JOIN_ACCEPT',
                 tag: game.pilotTag,
                 skin: dailySystem.activeSkin,
-                hostTrack: this.series.hostTrack
+                hostTrack: this.series.hostTrack,
+                trackChoice: this.series.hostTrack
             });
 
             const hostStatus = document.getElementById('mp-opponent-status');
@@ -4849,9 +4893,10 @@ const MP = {
                 g: 1
             };
             game.mpRival = this.rivalData;
-            if (data.hostTrack !== undefined) {
-                this.series.hostTrack = data.hostTrack;
-                this.updateHostTrackDisplay(data.hostTrack);
+            const choice = data.trackChoice !== undefined ? data.trackChoice : data.hostTrack;
+            if (choice !== undefined) {
+                this.series.hostTrack = choice;
+                this.updateHostTrackDisplay(choice);
             }
 
             const joinStatus = document.getElementById('mp-join-status');
@@ -4866,17 +4911,17 @@ const MP = {
         }
     },
 
-    updateRivalTrackDisplay(trackIdx) {
+    updateRivalTrackDisplay(trackChoice) {
         const rivalTrackDisplay = document.getElementById('mp-rival-track-display');
-        if (rivalTrackDisplay && LEVELS[trackIdx]) {
-            rivalTrackDisplay.innerText = LEVELS[trackIdx].name;
+        if (rivalTrackDisplay) {
+            rivalTrackDisplay.innerText = this.formatTrackChoiceLabel(trackChoice);
         }
     },
 
-    updateHostTrackDisplay(trackIdx) {
+    updateHostTrackDisplay(trackChoice) {
         const hostTrackDisplay = document.getElementById('mp-guest-host-track-display');
-        if (hostTrackDisplay && LEVELS[trackIdx]) {
-            hostTrackDisplay.innerText = LEVELS[trackIdx].name;
+        if (hostTrackDisplay) {
+            hostTrackDisplay.innerText = this.formatTrackChoiceLabel(trackChoice);
         }
     },
 
@@ -4909,7 +4954,7 @@ const MP = {
         }
 
         const stageSelect = document.getElementById('mp-stage-select');
-        if (stageSelect) this.series.hostTrack = parseInt(stageSelect.value || 0, 10);
+        if (stageSelect) this.series.hostTrack = stageSelect.value || 'RANDOM_ALL';
 
         if (typeof Peer !== 'undefined') {
             if (this.peer) {
@@ -4975,7 +5020,7 @@ const MP = {
         if (joinStatus) joinStatus.innerText = `Connecting to Room ${cleanCode}...`;
 
         const guestSelect = document.getElementById('mp-guest-stage-select');
-        if (guestSelect) this.series.guestTrack = parseInt(guestSelect.value || 0, 10);
+        if (guestSelect) this.series.guestTrack = guestSelect.value || 'RANDOM_ALL';
 
         this.initChannel();
         // Send JOIN_REQUEST on BroadcastChannel (for instant multi-tab communication)
@@ -4984,7 +5029,8 @@ const MP = {
             roomCode: cleanCode,
             tag: game.pilotTag,
             skin: dailySystem.activeSkin,
-            trackIdx: this.series.guestTrack
+            trackIdx: this.series.guestTrack,
+            trackChoice: this.series.guestTrack
         });
 
         // Also initiate WebRTC connection if PeerJS is available
@@ -5024,13 +5070,14 @@ const MP = {
             if (guestLobby) guestLobby.classList.remove('hidden');
 
             const guestSelect = document.getElementById('mp-guest-stage-select');
-            if (guestSelect) this.series.guestTrack = parseInt(guestSelect.value || 0, 10);
+            if (guestSelect) this.series.guestTrack = guestSelect.value || 'RANDOM_ALL';
 
             this.conn.send({
                 type: 'HANDSHAKE',
                 tag: game.pilotTag,
                 skin: dailySystem.activeSkin,
-                trackIdx: this.isHost ? this.series.hostTrack : this.series.guestTrack
+                trackIdx: this.isHost ? this.series.hostTrack : this.series.guestTrack,
+                trackChoice: this.isHost ? this.series.hostTrack : this.series.guestTrack
             });
         });
 
@@ -5080,7 +5127,7 @@ const MP = {
             finishTime: null
         };
         game.mpRival = this.rivalData;
-        this.series.guestTrack = Math.floor(Math.random() * LEVELS.length);
+        this.series.guestTrack = 'RANDOM_ALL';
         this.updateRivalTrackDisplay(this.series.guestTrack);
 
         const hostStatus = document.getElementById('mp-opponent-status');
@@ -5126,8 +5173,8 @@ const MP = {
         game.mpRival = this.rivalData;
 
         const stageSelect = document.getElementById('mp-stage-select');
-        this.series.hostTrack = stageIdx !== undefined ? stageIdx : (stageSelect ? parseInt(stageSelect.value, 10) : 0);
-        this.series.guestTrack = Math.floor(Math.random() * LEVELS.length);
+        this.series.hostTrack = stageIdx !== undefined ? stageIdx : (stageSelect ? stageSelect.value : 'RANDOM_ALL');
+        this.series.guestTrack = 'RANDOM_ALL';
         this.updateRivalTrackDisplay(this.series.guestTrack);
 
         this.hostTriggerStartRound();
@@ -5144,24 +5191,31 @@ const MP = {
             return;
         }
 
-        const stageSelect = document.getElementById('mp-stage-select');
-        const hostTrack = stageSelect ? parseInt(stageSelect.value, 10) : this.series.hostTrack || 0;
-        this.series.hostTrack = hostTrack;
+        this.series.playedTracks = this.series.playedTracks || [];
 
-        // If AI, AI randomly selects a track
-        let guestTrack = this.series.guestTrack || 0;
+        const stageSelect = document.getElementById('mp-stage-select');
+        const hostChoice = (stageSelect && stageSelect.value) ? stageSelect.value : (this.series.hostTrack || 'RANDOM_ALL');
+        this.series.hostTrack = hostChoice;
+
+        // If AI, AI randomly selects from all 20 modes
+        let guestChoice = this.series.guestTrack || 'RANDOM_ALL';
         if (game.mpRival && game.mpRival.isAI) {
-            guestTrack = Math.floor(Math.random() * LEVELS.length);
-            this.series.guestTrack = guestTrack;
+            guestChoice = 'RANDOM_ALL';
+            this.series.guestTrack = guestChoice;
         }
+
+        // Resolve non-repeating track candidates for both host and guest
+        const hostActualTrack = this.resolveTrackIndex(hostChoice, this.series.playedTracks);
+        const guestActualTrack = this.resolveTrackIndex(guestChoice, [...this.series.playedTracks, hostActualTrack]);
 
         // 50/50 Coin Flip / Roulette Decision
         const roll = Math.random() < 0.5;
-        const chosenTrack = roll ? hostTrack : guestTrack;
+        const chosenTrack = roll ? hostActualTrack : guestActualTrack;
         const chosenBy = roll 
             ? (game.mpRival && game.mpRival.isAI ? 'YOUR' : 'HOST')
             : (game.mpRival && game.mpRival.isAI ? 'AI RIVAL' : 'GUEST');
 
+        this.series.playedTracks.push(chosenTrack);
         this.series.activeTrackIdx = chosenTrack;
         this.series.chosenBy = chosenBy;
 
@@ -5171,8 +5225,8 @@ const MP = {
             round: this.series.currentRound,
             hostScore: this.series.myScore,
             guestScore: this.series.rivalScore,
-            hostTrack: hostTrack,
-            guestTrack: guestTrack,
+            hostTrack: hostActualTrack,
+            guestTrack: guestActualTrack,
             chosenTrack: chosenTrack,
             chosenBy: chosenBy
         });
@@ -5197,22 +5251,25 @@ const MP = {
                 g: 1
             };
             game.mpRival = this.rivalData;
-            if (data.trackIdx !== undefined) {
+            const choice = data.trackChoice !== undefined ? data.trackChoice : data.trackIdx;
+            if (choice !== undefined) {
                 if (this.isHost) {
-                    this.series.guestTrack = data.trackIdx;
-                    this.updateRivalTrackDisplay(data.trackIdx);
+                    this.series.guestTrack = choice;
+                    this.updateRivalTrackDisplay(choice);
                 } else {
-                    this.series.hostTrack = data.trackIdx;
-                    this.updateHostTrackDisplay(data.trackIdx);
+                    this.series.hostTrack = choice;
+                    this.updateHostTrackDisplay(choice);
                 }
             }
             showNotification(`⚔️ RIVAL IDENTIFIED: ${data.tag}!`);
         } else if (data.type === 'GUEST_TRACK_CHOICE') {
-            this.series.guestTrack = data.trackIdx;
-            this.updateRivalTrackDisplay(data.trackIdx);
+            const choice = data.trackChoice !== undefined ? data.trackChoice : data.trackIdx;
+            this.series.guestTrack = choice;
+            this.updateRivalTrackDisplay(choice);
         } else if (data.type === 'HOST_TRACK_CHOICE') {
-            this.series.hostTrack = data.trackIdx;
-            this.updateHostTrackDisplay(data.trackIdx);
+            const choice = data.trackChoice !== undefined ? data.trackChoice : data.trackIdx;
+            this.series.hostTrack = choice;
+            this.updateHostTrackDisplay(choice);
         } else if (data.type === 'START_ROUND_COUNTDOWN') {
             this.series.currentRound = data.round;
             if (this.isHost) {
@@ -5675,14 +5732,63 @@ function populateMultiplayerStageSelect() {
     selects.forEach(select => {
         if (!select) return;
         select.innerHTML = '';
-        LEVELS.forEach((lvl, idx) => {
+
+        // 1. RANDOM CHOICES (Default)
+        const optRandomAll = document.createElement('option');
+        optRandomAll.value = 'RANDOM_ALL';
+        optRandomAll.innerText = '🎲 RANDOM (ALL 20 MODES & STAGES)';
+        optRandomAll.selected = true;
+        select.appendChild(optRandomAll);
+
+        const optRandomDim1 = document.createElement('option');
+        optRandomDim1.value = 'RANDOM_DIM1';
+        optRandomDim1.innerText = '🌌 RANDOM DIM-α (SPEEDRUN FLOW 01–10)';
+        select.appendChild(optRandomDim1);
+
+        const optRandomDim2 = document.createElement('option');
+        optRandomDim2.value = 'RANDOM_DIM2';
+        optRandomDim2.innerText = '🌀 RANDOM DIM-β (SPECIAL MECHANICS 11–20)';
+        select.appendChild(optRandomDim2);
+
+        // 2. DIMENSION 1 INDIVIDUAL STAGES
+        const groupDim1 = document.createElement('optgroup');
+        groupDim1.label = '── DIMENSION α (SPEEDRUN FLOW) ──';
+        for (let i = 0; i < 10 && i < LEVELS.length; i++) {
             const opt = document.createElement('option');
-            opt.value = idx;
-            opt.innerText = lvl.name;
-            select.appendChild(opt);
-        });
+            opt.value = String(i);
+            opt.innerText = LEVELS[i].name;
+            groupDim1.appendChild(opt);
+        }
+        select.appendChild(groupDim1);
+
+        // 3. DIMENSION 2 INDIVIDUAL STAGES (WITH OBJECTIVE LABELS)
+        const groupDim2 = document.createElement('optgroup');
+        groupDim2.label = '── DIMENSION β (SPECIAL MECHANICS) ──';
+        for (let i = 10; i < 20 && i < LEVELS.length; i++) {
+            const opt = document.createElement('option');
+            opt.value = String(i);
+            const objInfo = LEVELS[i].objective ? ` [${LEVELS[i].objective.title}]` : '';
+            opt.innerText = `${LEVELS[i].name}${objInfo}`;
+            groupDim2.appendChild(opt);
+        }
+        select.appendChild(groupDim2);
     });
 }
+
+function playRandomStage(dim = null) {
+    let pool = [];
+    if (dim === 1) {
+        pool = Array.from({ length: 10 }, (_, i) => i);
+    } else if (dim === 2) {
+        pool = Array.from({ length: 10 }, (_, i) => i + 10);
+    } else {
+        pool = Array.from({ length: LEVELS.length }, (_, i) => i);
+    }
+    const chosen = pool[Math.floor(Math.random() * pool.length)];
+    startLevel(chosen);
+    showNotification(`🎲 RANDOM STAGE SELECTED: ${LEVELS[chosen].name}`);
+}
+window.playRandomStage = playRandomStage;
 
 // ============================================================================
 // 12. LEVEL FLOW & STAGE MATRIX POPULATION
@@ -6305,6 +6411,21 @@ bindClick('btn-main-play', () => {
     startLevel(game.currentLevelIdx);
 });
 
+bindClick('btn-main-random', () => {
+    audio.init();
+    playRandomStage();
+});
+
+bindClick('btn-menu-random-stage', () => {
+    audio.init();
+    const menuModal = document.getElementById('modal-menu');
+    if (menuModal) {
+        menuModal.classList.add('hidden');
+        menuModal.style.display = 'none';
+    }
+    playRandomStage();
+});
+
 bindClick('btn-main-stages', () => {
     populateStageMenu();
     const menuModal = document.getElementById('modal-menu');
@@ -6753,9 +6874,9 @@ bindClick('btn-mp-quick-ai', () => {
     const diffEl = document.getElementById('mp-ai-difficulty');
     const diff = diffEl ? diffEl.value : 'EXPERT';
     const stageSelect = document.getElementById('mp-stage-select');
-    const stageIdx = stageSelect ? parseInt(stageSelect.value, 10) : 0;
+    const stageChoice = (stageSelect && stageSelect.value) ? stageSelect.value : 'RANDOM_ALL';
     if (typeof MP !== 'undefined') {
-        MP.startAiRivalMatch(stageIdx, diff);
+        MP.startAiRivalMatch(stageChoice, diff);
     }
 });
 
@@ -6831,11 +6952,11 @@ bindClick('btn-race-again', handleRaceAgainClick);
 const hostStageSelect = document.getElementById('mp-stage-select');
 if (hostStageSelect) {
     hostStageSelect.addEventListener('change', (e) => {
-        const trackIdx = parseInt(e.target.value, 10);
+        const trackChoice = e.target.value;
         if (typeof MP !== 'undefined') {
-            MP.series.hostTrack = trackIdx;
+            MP.series.hostTrack = trackChoice;
             if (MP.connected && (!game.mpRival || !game.mpRival.isAI)) {
-                MP.sendMsg({ type: 'HOST_TRACK_CHOICE', trackIdx });
+                MP.sendMsg({ type: 'HOST_TRACK_CHOICE', trackChoice, trackIdx: trackChoice });
             }
         }
     });
@@ -6844,11 +6965,11 @@ if (hostStageSelect) {
 const guestStageSelect = document.getElementById('mp-guest-stage-select');
 if (guestStageSelect) {
     guestStageSelect.addEventListener('change', (e) => {
-        const trackIdx = parseInt(e.target.value, 10);
+        const trackChoice = e.target.value;
         if (typeof MP !== 'undefined') {
-            MP.series.guestTrack = trackIdx;
+            MP.series.guestTrack = trackChoice;
             if (MP.connected) {
-                MP.sendMsg({ type: 'GUEST_TRACK_CHOICE', trackIdx });
+                MP.sendMsg({ type: 'GUEST_TRACK_CHOICE', trackChoice, trackIdx: trackChoice });
             }
         }
     });
