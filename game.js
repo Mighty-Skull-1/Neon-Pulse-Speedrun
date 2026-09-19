@@ -2989,7 +2989,7 @@ function triggerVictory() {
     }
     if (vicRank) vicRank.innerText = rank;
 
-    if (game.isMultiplayer) {
+    if (game.isMultiplayer && typeof MP !== 'undefined' && (MP.connected || (game.mpRival && game.mpRival.isAI))) {
         // Race finish is handled by MP.broadcastFinish / showPodium
         return;
     }
@@ -5279,6 +5279,14 @@ const MP = {
             } else {
                 setTimeout(() => this.showPodium(), 500);
             }
+        } else {
+            // Safety fallback: if remote peer doesn't finish within 3.5s, display podium anyway
+            setTimeout(() => {
+                if (this.rivalFinishTime === null) {
+                    this.rivalFinishTime = time + 5;
+                    this.showPodium();
+                }
+            }, 3500);
         }
     },
 
@@ -5630,6 +5638,14 @@ function startLevel(idx, skipCountdown = false) {
     game.isEndless = false;
     game.isCountingDown = false;
     game.currentLevelIdx = idx;
+    if (!skipCountdown) {
+        game.isMultiplayer = false;
+        game.mpRival = null;
+        const raceBadge = document.getElementById('hud-race-badge');
+        const seriesBadge = document.getElementById('hud-series-badge');
+        if (raceBadge) raceBadge.classList.add('hidden');
+        if (seriesBadge) seriesBadge.classList.add('hidden');
+    }
     game.level = JSON.parse(JSON.stringify(LEVELS[idx]));
     game.currentDimensionTab = game.level.dimension || 1;
     updateDimensionTabsUI();
@@ -5692,10 +5708,8 @@ function returnToMainMenu() {
     game.isPaused = false;
     game.isCountingDown = false;
     game.isEndless = false;
-    if (game.isMultiplayer && game.mpRival && game.mpRival.isAI) {
-        game.isMultiplayer = false;
-        game.mpRival = null;
-    }
+    game.isMultiplayer = false;
+    game.mpRival = null;
     audio.stopMusic();
 
     const ingameHeader = document.getElementById('ingame-header');
@@ -5733,13 +5747,13 @@ function returnToMainMenu() {
 }
 
 function setPause(paused, showModal = true) {
-    if (game.victory || game.inMainMenu) return;
+    if (game.inMainMenu || game.isCountingDown) return;
     game.isPaused = paused;
     const pauseModal = document.getElementById('modal-pause');
     if (pauseModal) {
         if (game.isPaused) {
             audio.pauseMusic();
-            if (showModal && !game.isCountingDown) {
+            if (showModal) {
                 pauseModal.classList.remove('hidden');
             } else {
                 pauseModal.classList.add('hidden');
@@ -6027,24 +6041,27 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
-    if (e.code === 'Escape') {
+    if (e.code === 'Escape' || e.code === 'KeyP') {
         if (game.isCountingDown) return;
         e.preventDefault();
         const menuModal = document.getElementById('modal-menu');
         const lbModal = document.getElementById('modal-leaderboard');
         const dailyModal = document.getElementById('modal-daily');
         const howModal = document.getElementById('modal-howtoplay');
+        const mpModal = document.getElementById('modal-multiplayer');
 
         const anyOpen = (menuModal && !menuModal.classList.contains('hidden')) ||
                         (lbModal && !lbModal.classList.contains('hidden')) ||
                         (dailyModal && !dailyModal.classList.contains('hidden')) ||
-                        (howModal && !howModal.classList.contains('hidden'));
+                        (howModal && !howModal.classList.contains('hidden')) ||
+                        (mpModal && !mpModal.classList.contains('hidden'));
 
         if (anyOpen) {
             if (menuModal) menuModal.classList.add('hidden');
             if (lbModal) lbModal.classList.add('hidden');
             if (dailyModal) dailyModal.classList.add('hidden');
             if (howModal) howModal.classList.add('hidden');
+            if (mpModal) mpModal.classList.add('hidden');
             setPause(false);
         } else {
             setPause(!game.isPaused);
@@ -6281,6 +6298,12 @@ bindClick('btn-close-menu', () => {
     if (!game.inMainMenu) setPause(false);
 });
 
+bindClick('btn-menu-back-main', () => {
+    const menuModal = document.getElementById('modal-menu');
+    if (menuModal) menuModal.classList.add('hidden');
+    returnToMainMenu();
+});
+
 bindClick('btn-daily-open', () => {
     setPause(true);
     populateDailyModal();
@@ -6307,7 +6330,16 @@ bindClick('btn-close-leaderboard', () => {
     if (!game.inMainMenu) setPause(false);
 });
 
-bindClick('btn-pause', () => setPause(!game.isPaused));
+const pauseBtn = document.getElementById('btn-pause');
+if (pauseBtn) {
+    pauseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setPause(!game.isPaused);
+    });
+    pauseBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+    });
+}
 bindClick('btn-pause-resume', () => setPause(false));
 bindClick('btn-pause-restart', () => {
     setPause(false);
@@ -6336,6 +6368,12 @@ bindClick('btn-audio', () => {
     if (menuAudioIcon) menuAudioIcon.innerText = audio.muted ? "🔇" : "🔊";
     if (audio.muted) audio.stopMusic();
     else if (!game.inMainMenu && !game.isPaused) audio.startMusic(game.level.bpm);
+});
+
+bindClick('btn-victory-main-menu', () => {
+    const vicModal = document.getElementById('modal-victory');
+    if (vicModal) vicModal.classList.add('hidden');
+    returnToMainMenu();
 });
 
 bindClick('btn-victory-replay', () => {
