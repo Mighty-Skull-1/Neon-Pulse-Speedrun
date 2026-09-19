@@ -5610,8 +5610,15 @@ const MP = {
             this.handleMessage(data);
         });
 
+        this.conn.on('error', (err) => {
+            console.warn('[MP] Connection error:', err);
+        });
+
         this.conn.on('close', () => {
-            this.expireSession('RIVAL DISCONNECTED');
+            // Only expire if the connection was actually established
+            if (this.connected && !this.sessionExpired) {
+                this.expireSession('RIVAL DISCONNECTED');
+            }
         });
     },
 
@@ -5869,7 +5876,17 @@ const MP = {
                 if (this.finishTimeout) clearTimeout(this.finishTimeout);
                 this.finishTimeout = setTimeout(() => this.showPodium(), 500);
             } else {
-                showNotification(`⚠️ RIVAL FINISHED IN ${formatTime(data.time)}! RUN!`);
+                showNotification(`⚠️ RIVAL FINISHED IN ${formatTime(data.time)}! KEEP RUNNING!`);
+                // Give local player 60 seconds to finish after rival crosses
+                if (this.finishTimeout) clearTimeout(this.finishTimeout);
+                this.finishTimeout = setTimeout(() => {
+                    if (this.myFinishTime === null) {
+                        // Force a DNF for the local player
+                        this.myFinishTime = data.time + 999;
+                        showNotification("⏱️ TIME'S UP — ROUND AWARDED TO RIVAL");
+                    }
+                    this.showPodium();
+                }, 60000);
             }
         }
     },
@@ -5914,14 +5931,16 @@ const MP = {
                 this.finishTimeout = setTimeout(() => this.showPodium(), 500);
             }
         } else {
-            // Safety fallback: if remote peer doesn't finish within 4s, display podium anyway
-            showNotification("🏁 WAITING FOR RIVAL TO CROSS...");
+            // Wait for rival to finish — give them up to 60 seconds
+            showNotification("🏁 WAITING FOR RIVAL TO FINISH...");
             this.finishTimeout = setTimeout(() => {
                 if (this.rivalFinishTime === null) {
-                    this.rivalFinishTime = time + 5;
+                    // Rival still hasn't finished after 60s — they likely disconnected
+                    this.rivalFinishTime = time + 999;
+                    showNotification("⚠️ RIVAL TIMED OUT — AWARDING ROUND");
                 }
                 this.showPodium();
-            }, 4000);
+            }, 60000);
         }
     },
 
@@ -6974,6 +6993,15 @@ canvas.addEventListener('pointerdown', () => {
 window.addEventListener('pointerup', () => {
     game.inputs.jumpHeld = false;
 });
+
+// Mobile touch detection — show touch controls if device supports touch
+(function initMobileControls() {
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const controls = document.getElementById('mobile-touch-controls');
+    if (controls && isTouchDevice) {
+        controls.classList.remove('hidden');
+    }
+})();
 
 const touchJump = document.getElementById('touch-jump');
 const touchSlide = document.getElementById('touch-slide');
