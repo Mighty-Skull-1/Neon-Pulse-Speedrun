@@ -229,8 +229,11 @@
                 <!-- Top Status Bar in Main Menu -->
                 <div class="w-full flex items-center justify-between max-w-4xl border-b border-neutral-800 pb-3">
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-cyber text-neutral-400">PILOT:</span>
-                        <span id="main-pilot-display" class="text-xs font-mono font-bold text-cyan-400 bg-neutral-900 border border-cyan-900/60 px-2 py-0.5 rounded">PULSE_PILOT</span>
+                        <span class="text-xs font-cyber text-neutral-400 flex items-center gap-1">
+                            <span>👤</span> PILOT:
+                        </span>
+                        <input id="input-pilot-tag" type="text" maxlength="15" value="PULSE_PILOT" placeholder="USERNAME" class="text-xs font-cyber font-bold text-cyan-400 bg-neutral-900 border border-cyan-800 hover:border-cyan-400 focus:border-cyan-400 px-2.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-cyan-400 uppercase tracking-wider w-36 text-center cursor-text transition" title="Click to edit your Pilot Username">
+                        <span id="main-pilot-display" class="hidden">PULSE_PILOT</span>
                     </div>
                     <div class="flex items-center gap-3">
                         <button id="btn-menu-audio" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-cyber text-cyan-400 rounded flex items-center gap-1 transition">
@@ -635,6 +638,20 @@
 
                 <!-- Tab 1 Panel: Live 1v1 Racing -->
                 <div id="mp-panel-live" class="flex flex-col gap-3">
+                    <!-- Pilot Identity / Username Bar in Lobby -->
+                    <div class="bg-neutral-950 p-2.5 rounded-lg border border-cyan-500/40 flex items-center justify-between gap-2 shadow-[0_0_12px_rgba(6,182,212,0.15)]">
+                        <div class="flex items-center gap-2">
+                            <span class="text-base">👤</span>
+                            <div>
+                                <div class="text-[10px] font-cyber text-cyan-400 tracking-wider font-bold">PILOT CALLSIGN / USERNAME:</div>
+                                <div class="text-[10px] text-neutral-400 font-mono">Shared across online races & leaderboards</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-1 max-w-[200px]">
+                            <input id="mp-input-pilot-tag" type="text" maxlength="15" placeholder="USERNAME" class="w-full bg-neutral-900 border border-cyan-600/70 hover:border-cyan-400 focus:border-cyan-300 text-cyan-300 font-cyber font-bold text-xs uppercase tracking-wider px-2.5 py-1 rounded focus:outline-none focus:ring-1 focus:ring-cyan-400 text-center" title="Edit your pilot username">
+                        </div>
+                    </div>
+
                     <!-- Instant 1v1 Match Card (Always playable immediately) -->
                     <div class="bg-gradient-to-r from-rose-950/90 to-purple-950/90 border border-rose-500/60 rounded-lg p-3 flex flex-col gap-2 shadow-[0_0_20px_rgba(244,63,94,0.2)]">
                         <div class="flex items-center justify-between">
@@ -713,6 +730,9 @@
                         <button id="btn-mp-start-race" disabled class="mt-1 w-full py-2.5 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5">
                             WAITING FOR OPPONENT TO CONNECT...
                         </button>
+                        <button id="btn-mp-new-room" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-850 border border-neutral-700 hover:border-cyan-400 text-neutral-300 hover:text-cyan-300 font-cyber text-xs rounded transition flex items-center justify-center gap-1.5 cursor-pointer" title="Disconnect any current rival and generate a fresh room code">
+                            <span>🔄</span> NEW ROOM / DISCONNECT RIVAL
+                        </button>
                     </div>
 
                     <!-- Join Section -->
@@ -741,6 +761,9 @@
                             <div class="text-[10px] text-purple-300 font-cyber flex items-center gap-1 bg-purple-950/40 px-2 py-1 rounded border border-purple-500/30">
                                 <span>🎲</span> BEST OF 3: 50/50 ROULETTE DECIDES WHOSE TRACK IS RACED EACH ROUND
                             </div>
+                            <button id="btn-mp-leave-room" class="mt-1 py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-rose-500/50 hover:border-rose-400 text-rose-300 font-cyber text-xs rounded transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                <span>🚪</span> LEAVE ROOM / DISCONNECT
+                            </button>
                         </div>
                     </div>
 
@@ -864,6 +887,6 @@
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=2.7"></script>
+    <script src="game.js?v=2.8"></script>
 </body>
 </html>

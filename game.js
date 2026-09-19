@@ -1834,30 +1834,69 @@ const game = {
     }
 };
 
-// Pilot Tag persistence
-try {
-    const savedTag = localStorage.getItem('neon_pulse_pilot_tag');
-    if (savedTag) {
-        game.pilotTag = savedTag;
-        const tagInput = document.getElementById('input-pilot-tag');
-        if (tagInput) tagInput.value = savedTag;
-        const mainDisplay = document.getElementById('main-pilot-display');
-        if (mainDisplay) mainDisplay.innerText = savedTag;
-    }
-} catch(e) {}
+// Pilot Tag persistence & synchronization
+function setPilotTag(newTag, broadcast = true) {
+    const raw = (newTag !== undefined && newTag !== null) ? String(newTag).trim().toUpperCase() : '';
+    const sanitized = raw.replace(/[^A-Z0-9_\- ]/g, '').slice(0, 15) || 'PULSE_PILOT';
+    game.pilotTag = sanitized;
+    try {
+        localStorage.setItem('neon_pulse_pilot_tag', sanitized);
+    } catch(e) {}
 
-const tagInput = document.getElementById('input-pilot-tag');
-if (tagInput) {
-    tagInput.addEventListener('change', (e) => {
-        game.pilotTag = e.target.value.trim().toUpperCase() || 'PULSE_PILOT';
+    const tagInput = document.getElementById('input-pilot-tag');
+    if (tagInput && tagInput.value !== sanitized) tagInput.value = sanitized;
+
+    const mpTagInput = document.getElementById('mp-input-pilot-tag');
+    if (mpTagInput && mpTagInput.value !== sanitized) mpTagInput.value = sanitized;
+
+    const mainDisplay = document.getElementById('main-pilot-display');
+    if (mainDisplay) mainDisplay.innerText = sanitized;
+
+    if (broadcast && typeof MP !== 'undefined' && MP.connected && (!game.mpRival || !game.mpRival.isAI)) {
         try {
-            localStorage.setItem('neon_pulse_pilot_tag', game.pilotTag);
+            MP.sendMsg({ type: 'PILOT_UPDATE', tag: sanitized });
         } catch(e) {}
-        const mainDisplay = document.getElementById('main-pilot-display');
-        if (mainDisplay) mainDisplay.innerText = game.pilotTag;
+    }
+
+    if (typeof populateLeaderboard === 'function' && typeof game.currentLevelIdx !== 'undefined') {
         populateLeaderboard(game.currentLevelIdx);
+    }
+}
+window.setPilotTag = setPilotTag;
+
+function setupPilotTagInputs() {
+    let savedTag = 'PULSE_PILOT';
+    try {
+        const stored = localStorage.getItem('neon_pulse_pilot_tag');
+        if (stored) savedTag = stored;
+    } catch(e) {}
+    setPilotTag(savedTag, false);
+
+    const inputs = ['input-pilot-tag', 'mp-input-pilot-tag'];
+    inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el || el._boundPilot) return;
+        el._boundPilot = true;
+        el.addEventListener('input', (e) => {
+            const val = e.target.value.toUpperCase();
+            e.target.value = val;
+            const otherId = id === 'input-pilot-tag' ? 'mp-input-pilot-tag' : 'input-pilot-tag';
+            const otherEl = document.getElementById(otherId);
+            if (otherEl && otherEl.value !== val) otherEl.value = val;
+        });
+        el.addEventListener('change', (e) => {
+            setPilotTag(e.target.value, true);
+            showNotification(`👤 PILOT CALLSIGN: ${game.pilotTag}`);
+        });
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                el.blur();
+            }
+        });
     });
 }
+window.setupPilotTagInputs = setupPilotTagInputs;
+setupPilotTagInputs();
 window.game = game;
 
 function formatTime(sec) {
@@ -4581,7 +4620,7 @@ function startVisualRaceCountdown(config = {}) {
                 ? 'px-4 py-1 rounded-full bg-amber-950/90 border border-amber-500 text-amber-300 font-cyber font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(245,158,11,0.5)] animate-pulse'
                 : 'px-4 py-1 rounded-full bg-rose-950/90 border border-rose-500/80 text-rose-300 font-cyber font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(244,63,94,0.4)]';
         }
-        if (hostTag) hostTag.innerText = `YOU [ ${MP.series ? MP.series.myScore : 0} ]`;
+        if (hostTag) hostTag.innerText = `${game.pilotTag || 'YOU'} [ ${MP.series ? MP.series.myScore : 0} ]`;
         if (rivalTag) rivalTag.innerText = `[ ${MP.series ? MP.series.rivalScore : 0} ] ${(game.mpRival && game.mpRival.tag) || 'RIVAL'}`;
         if (typeof MP !== 'undefined' && MP.updateHUDSeriesBadge) MP.updateHUDSeriesBadge();
 
@@ -4759,6 +4798,73 @@ const MP = {
         this.updateHUDSeriesBadge();
     },
 
+    disconnectSession(notify = true) {
+        if (notify && this.connected && (!game.mpRival || !game.mpRival.isAI)) {
+            try {
+                this.sendMsg({ type: 'PLAYER_LEFT', tag: game.pilotTag });
+            } catch(e) {}
+        }
+        if (this.conn) {
+            try { this.conn.close(); } catch(e) {}
+            this.conn = null;
+        }
+        if (this.peer) {
+            try { this.peer.destroy(); } catch(e) {}
+            this.peer = null;
+        }
+        if (this.channel) {
+            try { this.channel.close(); } catch(e) {}
+            this.channel = null;
+        }
+        this.connected = false;
+        game.isMultiplayer = false;
+        this.rivalData = null;
+        game.mpRival = null;
+        this.roomCode = '';
+        this.resetSeries();
+        this.resetMatch();
+        this.resetRematch();
+        this.resetLobbyUI();
+    },
+
+    resetLobbyUI() {
+        // Reset Host box elements
+        const codeDisplay = document.getElementById('mp-room-code');
+        const hostStatus = document.getElementById('mp-opponent-status');
+        const btnStart = document.getElementById('btn-mp-start-race');
+        if (codeDisplay) codeDisplay.innerText = this.roomCode || 'READY';
+        if (hostStatus) hostStatus.innerText = 'WAITING FOR RIVAL...';
+        if (btnStart) {
+            btnStart.disabled = true;
+            btnStart.className = "mt-1 w-full py-2.5 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5";
+            btnStart.innerText = "WAITING FOR OPPONENT TO CONNECT...";
+        }
+        const rivalTrackDisplay = document.getElementById('mp-rival-track-display');
+        if (rivalTrackDisplay) rivalTrackDisplay.innerText = '🎲 RANDOM (ALL 20 MODES)';
+
+        // Reset Join box elements
+        const joinInput = document.getElementById('input-room-code');
+        const joinStatus = document.getElementById('mp-join-status');
+        const guestLobby = document.getElementById('mp-guest-lobby-view');
+        const guestHostTrackDisplay = document.getElementById('mp-guest-host-track-display');
+        if (joinInput) joinInput.value = '';
+        if (joinStatus) joinStatus.innerText = 'Ready to connect to host room.';
+        if (guestLobby) guestLobby.classList.add('hidden');
+        if (guestHostTrackDisplay) guestHostTrackDisplay.innerText = '🎲 RANDOM (ALL 20 MODES)';
+
+        // Reset HUD multiplayer badges & dots
+        this.updateHUDSeriesBadge();
+        const raceBadge = document.getElementById('hud-race-badge');
+        if (raceBadge) raceBadge.classList.add('hidden');
+        const rivalDot = document.getElementById('hud-rival-dot');
+        if (rivalDot) rivalDot.classList.add('hidden');
+
+        const netStatus = document.getElementById('mp-network-status');
+        if (netStatus) {
+            netStatus.innerHTML = `<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>P2P ENGINE READY</span></span><span class="text-neutral-600">WebRTC + Local Relay</span>`;
+        }
+    },
+
     updateRematchUI() {
         const panel = document.getElementById('race-rematch-panel');
         const roundActions = document.getElementById('race-round-actions');
@@ -4909,14 +5015,12 @@ const MP = {
             if (this.rematch.decisionTimer) clearTimeout(this.rematch.decisionTimer);
             this.rematch.decisionTimer = setTimeout(() => {
                 showNotification("🚪 SESSION ENDED — RETURNING TO MENU");
-                this.connected = false;
-                game.isMultiplayer = false;
-                game.mpRival = null;
                 const modal = document.getElementById('modal-race-result');
                 if (modal) {
                     modal.classList.add('hidden');
                     modal.style.display = 'none';
                 }
+                this.disconnectSession(true);
                 returnToMainMenu();
             }, 1800);
             return;
@@ -4952,16 +5056,14 @@ const MP = {
         this.rematch.status = 'declined';
         this.rematch.rivalVote = false;
         this.updateRematchUI();
-        showNotification("⚠️ RIVAL LEFT — MULTIPLAYER SESSION CONCLUDED");
+        showNotification("⚠️ RIVAL LEFT — ROOM CLEARED");
         setTimeout(() => {
             const modal = document.getElementById('modal-race-result');
             if (modal) {
                 modal.classList.add('hidden');
                 modal.style.display = 'none';
             }
-            this.connected = false;
-            game.isMultiplayer = false;
-            game.mpRival = null;
+            this.disconnectSession(false);
             returnToMainMenu();
         }, 1500);
     },
@@ -5163,7 +5265,10 @@ const MP = {
         return code;
     },
 
-    createRoom() {
+    createRoom(forceFresh = false) {
+        if (this.conn || this.connected || this.rivalData || forceFresh) {
+            this.disconnectSession(false);
+        }
         this.roomCode = this.generateRoomCode();
         this.isHost = true;
         this.resetSeries();
@@ -5217,7 +5322,7 @@ const MP = {
 
                 this.peer.on('error', (err) => {
                     if (err.type === 'unavailable-id') {
-                        this.createRoom();
+                        this.createRoom(true);
                     } else if (hostStatus && !this.connected) {
                         hostStatus.innerText = `Room active (${this.roomCode}). Ready for rival...`;
                     }
@@ -5232,6 +5337,9 @@ const MP = {
         if (!code) {
             showNotification("⚠️ ENTER A ROOM CODE");
             return;
+        }
+        if (this.conn || this.connected || this.rivalData) {
+            this.disconnectSession(false);
         }
         this.isHost = false;
         this.resetSeries();
@@ -5315,12 +5423,41 @@ const MP = {
         });
 
         this.conn.on('close', () => {
-            if (!this.channel) {
-                this.connected = false;
-                game.isMultiplayer = false;
-                showNotification("⚠️ RIVAL DISCONNECTED");
-            }
+            this.handleRivalDisconnected();
         });
+    },
+
+    handleRivalDisconnected() {
+        if (!this.connected) return;
+        showNotification("⚠️ RIVAL DISCONNECTED");
+        const mpModal = document.getElementById('modal-multiplayer');
+        const inLobby = mpModal && !mpModal.classList.contains('hidden') && mpModal.style.display !== 'none';
+        if (game.inMainMenu || inLobby) {
+            this.rivalData = null;
+            game.mpRival = null;
+            this.connected = false;
+            game.isMultiplayer = false;
+            const hostStatus = document.getElementById('mp-opponent-status');
+            const btnStart = document.getElementById('btn-mp-start-race');
+            if (hostStatus && this.isHost) {
+                hostStatus.innerText = "RIVAL DISCONNECTED. WAITING FOR NEW RIVAL...";
+            }
+            if (btnStart) {
+                btnStart.disabled = true;
+                btnStart.className = "mt-1 w-full py-2.5 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5";
+                btnStart.innerText = "WAITING FOR OPPONENT TO CONNECT...";
+            }
+            const joinStatus = document.getElementById('mp-join-status');
+            if (joinStatus && !this.isHost) {
+                joinStatus.innerText = "Disconnected from host. Ready to connect.";
+            }
+            const guestLobby = document.getElementById('mp-guest-lobby-view');
+            if (guestLobby && !this.isHost) {
+                guestLobby.classList.add('hidden');
+            }
+        } else {
+            this.handleRivalLeft();
+        }
     },
 
     copyInviteLink() {
@@ -5522,7 +5659,27 @@ const MP = {
         } else if (data.type === 'REMATCH_VOTE') {
             this.handleRivalRematchVote(data.vote);
         } else if (data.type === 'PLAYER_LEFT') {
-            this.handleRivalLeft();
+            const mpModal = document.getElementById('modal-multiplayer');
+            const inLobby = mpModal && !mpModal.classList.contains('hidden') && mpModal.style.display !== 'none';
+            if (game.inMainMenu || inLobby) {
+                this.handleRivalDisconnected();
+            } else {
+                this.handleRivalLeft();
+            }
+        } else if (data.type === 'PILOT_UPDATE') {
+            if (data.tag) {
+                if (this.rivalData) this.rivalData.tag = data.tag;
+                if (game.mpRival) game.mpRival.tag = data.tag;
+                const hostStatus = document.getElementById('mp-opponent-status');
+                if (hostStatus && this.isHost) {
+                    hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● ${data.tag} CONNECTED!</span>`;
+                }
+                const joinStatus = document.getElementById('mp-join-status');
+                if (joinStatus && !this.isHost) {
+                    joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST (${data.tag})!</span>`;
+                }
+                showNotification(`👤 RIVAL CALLSIGN UPDATED: ${data.tag}`);
+            }
         } else if (data.type === 'SYNC') {
             if (!this.rivalData) {
                 this.rivalData = { tag: data.tag, skin: data.skin };
@@ -6117,8 +6274,7 @@ function returnToMainMenu() {
     game.openedLeaderboardFrom = null;
     game.mpRival = null;
     if (typeof MP !== 'undefined') {
-        MP.connected = false;
-        MP.resetRematch();
+        MP.disconnectSession(true);
     }
     audio.stopMusic();
 
@@ -6163,6 +6319,10 @@ function returnToMainMenu() {
 
     const pilotDisplay = document.getElementById('main-pilot-display');
     if (pilotDisplay) pilotDisplay.innerText = game.pilotTag;
+    const tagInput = document.getElementById('input-pilot-tag');
+    if (tagInput) tagInput.value = game.pilotTag;
+    const mpTagInput = document.getElementById('mp-input-pilot-tag');
+    if (mpTagInput) mpTagInput.value = game.pilotTag;
 
     dailySystem.updateBadge();
 }
@@ -7026,6 +7186,9 @@ const openMultiplayerModal = () => {
     if (typeof populateMultiplayerStageSelect === 'function') {
         populateMultiplayerStageSelect();
     }
+    const mpTagInput = document.getElementById('mp-input-pilot-tag');
+    if (mpTagInput) mpTagInput.value = game.pilotTag;
+
     const mpModal = document.getElementById('modal-multiplayer');
     if (mpModal) {
         mpModal.classList.remove('hidden');
@@ -7079,7 +7242,12 @@ bindClick('btn-mp-host-mode', () => {
     if (btnJoin) btnJoin.className = "py-2 px-3 bg-neutral-950 border border-neutral-800 text-neutral-400 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5";
     if (boxHost) boxHost.classList.remove('hidden');
     if (boxJoin) boxJoin.classList.add('hidden');
-    if (typeof MP !== 'undefined' && !MP.roomCode) MP.createRoom();
+    if (typeof MP !== 'undefined') {
+        if (!MP.isHost || MP.connected || !MP.roomCode) {
+            MP.disconnectSession(false);
+            MP.createRoom(true);
+        }
+    }
 });
 
 bindClick('btn-mp-join-mode', () => {
@@ -7091,6 +7259,11 @@ bindClick('btn-mp-join-mode', () => {
     if (btnHost) btnHost.className = "py-2 px-3 bg-neutral-950 border border-neutral-800 text-neutral-400 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5";
     if (boxHost) boxHost.classList.add('hidden');
     if (boxJoin) boxJoin.classList.remove('hidden');
+    if (typeof MP !== 'undefined') {
+        if (MP.isHost || MP.connected) {
+            MP.disconnectSession(false);
+        }
+    }
 });
 
 bindClick('btn-copy-room-code', () => {
@@ -7134,10 +7307,25 @@ bindClick('btn-mp-start-race', () => {
     }
 });
 
+bindClick('btn-mp-new-room', () => {
+    if (typeof MP !== 'undefined') {
+        MP.disconnectSession(true);
+        MP.createRoom(true);
+        showNotification("🔄 PREVIOUS CONNECTION ENDED — NEW ROOM READY");
+    }
+});
+
 bindClick('btn-mp-connect', () => {
     const input = document.getElementById('input-room-code');
     if (input && typeof MP !== 'undefined') {
         MP.joinRoom(input.value);
+    }
+});
+
+bindClick('btn-mp-leave-room', () => {
+    if (typeof MP !== 'undefined') {
+        MP.disconnectSession(true);
+        showNotification("🚪 DISCONNECTED FROM ROOM — READY FOR NEW QUEUE");
     }
 });
 
@@ -7218,13 +7406,7 @@ function handleRaceCloseClick() {
         modal.style.display = 'none';
     }
     if (typeof MP !== 'undefined') {
-        if (MP.connected && (!game.mpRival || !game.mpRival.isAI)) {
-            MP.sendMsg({ type: 'PLAYER_LEFT', tag: game.pilotTag });
-        }
-        MP.connected = false;
-        game.isMultiplayer = false;
-        game.mpRival = null;
-        MP.resetRematch();
+        MP.disconnectSession(true);
     }
     returnToMainMenu();
 }
@@ -7258,6 +7440,7 @@ function mainLoop(timestamp) {
 }
 
 window.onload = function() {
+    setupPilotTagInputs();
     updateCanvasViewport();
     populateStageMenu();
     if (typeof populateMultiplayerStageSelect === 'function') {
