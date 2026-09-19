@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Pulse: 20-Stage Multiverse Speedrun Edition</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PeerJS WebRTC P2P Multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="w-screen h-screen flex flex-col items-center justify-center p-0 m-0 bg-neutral-950 text-neutral-100 select-none">
+
+    <!-- Primary Game Viewport Wrapper -->
+    <div id="game-wrapper" class="relative w-full h-full max-w-[1280px] max-h-[720px] aspect-video flex flex-col bg-black border border-cyan-900/60 shadow-[0_0_60px_rgba(6,182,212,0.18)] overflow-hidden">
+        
+        <!-- In-Game Top Navigation Header -->
+        <header id="ingame-header" class="hidden h-12 w-full bg-neutral-950/95 border-b border-neutral-800 flex items-center justify-between px-3 z-30 shrink-0">
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <button id="btn-menu" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-xs font-cyber tracking-wider text-cyan-300 rounded transition flex items-center gap-1.5" title="Open Stage Matrix [M]">
+                    <span>☰</span> <span class="hidden sm:inline">STAGES</span> (20)
+                </button>
+                <button id="btn-multiplayer-open" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-500/70 hover:border-rose-400 text-xs font-cyber tracking-wider text-rose-300 rounded transition flex items-center gap-1" title="Online Race / Ghost Challenges">
+                    <span>⚔️</span> <span class="hidden md:inline">RACE</span>
+                </button>
+                <button id="btn-daily-open" class="relative px-2 py-1 bg-amber-950/60 hover:bg-amber-900/70 border border-amber-500/70 hover:border-amber-400 text-xs font-cyber tracking-wider text-amber-300 rounded transition flex items-center gap-1">
+                    <span>🎁</span>
+                    <span id="daily-badge" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-pink-500 rounded-full animate-ping"></span>
+                </button>
+                <button id="btn-leaderboard-open" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition flex items-center gap-1">
+                    <span>🏆</span>
+                </button>
+                <button id="btn-pause" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition" title="Pause [ESC]">
+                    <span>⏸</span>
+                </button>
+            </div>
+
+            <!-- Central Speedrun Stopwatch & Progress Bar -->
+            <div class="flex-1 max-w-xs md:max-w-md mx-2 flex flex-col gap-0.5">
+                <div class="flex justify-between items-center text-[10px] font-bold">
+                    <div class="flex items-center gap-2">
+                        <span id="hud-dim-tag" class="text-[9px] font-cyber px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/50 text-cyan-300 font-bold">DIM-α</span>
+                        <span id="hud-level-name" class="text-cyan-400 font-cyber tracking-wider truncate max-w-[110px] sm:max-w-[170px]">01 // HIGHWAY ZERO</span>
+                        <span id="hud-pct-text" class="text-neutral-400">0%</span>
+                    </div>
+                    <!-- Millisecond Stopwatch -->
+                    <div class="flex items-center gap-1 bg-neutral-900/90 px-2 py-0.5 rounded border border-neutral-800">
+                        <span class="text-neutral-500 font-bold">TIME</span>
+                        <span id="hud-stopwatch" class="text-amber-400 font-mono text-xs font-bold tracking-wider">00:00.000</span>
+                    </div>
+                </div>
+                <div class="w-full h-2 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative">
+                    <div id="hud-progress-fill" class="h-full bg-gradient-to-r from-cyan-500 via-emerald-400 to-pink-500 w-0 transition-all duration-75"></div>
+                    <!-- Opponent / Rival Dot on Progress Bar -->
+                    <div id="hud-rival-dot" class="hidden absolute top-0 bottom-0 w-2 bg-rose-500 border border-white rounded-full shadow-[0_0_8px_rgba(244,63,94,1)] transition-all duration-100" style="left: 0%;"></div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs">
+                <!-- Live Race Delta Badge (Multiplayer / Ghost) -->
+                <div id="hud-race-badge" class="hidden flex items-center gap-1 bg-rose-950/80 px-2 py-1 rounded border border-rose-500/60 shadow-[0_0_10px_rgba(244,63,94,0.3)]">
+                    <span class="text-[9px] text-rose-300 font-cyber font-bold">VS</span>
+                    <span id="hud-race-delta" class="text-[9px] font-mono font-bold text-white">+0.0m</span>
+                </div>
+
+                <!-- Endless Distance Badge -->
+                <div id="hud-endless-badge" class="hidden flex items-center gap-1.5 bg-amber-950/80 px-2 py-1 rounded border border-amber-500/60 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+                    <span class="text-amber-400 text-xs">⚡</span>
+                    <span id="hud-endless-dist" class="text-[10px] font-mono font-bold text-amber-300 tracking-tight">0m</span>
+                </div>
+
+                <!-- Tri-Ability Exosuit Dock (Collective Power System) -->
+                <div id="hud-ability-dock" class="flex items-center gap-1.5 bg-neutral-900/90 px-2 py-1 rounded border border-cyan-500/40">
+                    <!-- 1. Phase Dash -->
+                    <div id="dock-dash" class="flex items-center gap-1 bg-neutral-950 px-1.5 py-0.5 rounded border border-cyan-500/60" title="Phase Dash [SHIFT]">
+                        <span class="text-cyan-400 text-[10px] font-bold">⚡</span>
+                        <div class="w-7 h-1 bg-neutral-800 rounded-full overflow-hidden">
+                            <div id="meter-dash" class="h-full bg-cyan-400 w-full transition-all duration-75"></div>
+                        </div>
+                        <span class="text-[8px] text-cyan-300 font-mono font-bold">⇧</span>
+                    </div>
+                    <!-- 2. Thruster Burst -->
+                    <div id="dock-thrust" class="flex items-center gap-1 bg-neutral-950 px-1.5 py-0.5 rounded border border-amber-500/60" title="Thruster Burst [E]">
+                        <span class="text-amber-400 text-[10px] font-bold">🚀</span>
+                        <div class="w-7 h-1 bg-neutral-800 rounded-full overflow-hidden">
+                            <div id="meter-thrust" class="h-full bg-amber-400 w-full transition-all duration-75"></div>
+                        </div>
+                        <span class="text-[8px] text-amber-300 font-mono font-bold">E</span>
+                    </div>
+                    <!-- 3. Chrono Pulse -->
+                    <div id="dock-chrono" class="flex items-center gap-1 bg-neutral-950 px-1.5 py-0.5 rounded border border-purple-500/60" title="Chrono Pulse [Q]">
+                        <span class="text-purple-400 text-[10px] font-bold">⏱️</span>
+                        <div class="w-7 h-1 bg-neutral-800 rounded-full overflow-hidden">
+                            <div id="meter-chrono" class="h-full bg-purple-400 w-full transition-all duration-75"></div>
+                        </div>
+                        <span class="text-[8px] text-purple-300 font-mono font-bold">Q</span>
+                    </div>
+                </div>
+
+                <!-- Hidden compatibility legacy ability elements -->
+                <div id="hud-ability-pill" class="hidden">
+                    <span id="hud-ability-icon">⚡</span>
+                    <span id="hud-ability-name">PHASE DASH</span>
+                    <div id="hud-ability-meter"></div>
+                    <span id="hud-ability-key">[SHIFT]</span>
+                </div>
+
+                <!-- Mission Objective Badge (Dimension 2) -->
+                <div id="hud-objective-pill" class="hidden flex items-center gap-1.5 bg-neutral-900/90 px-2 py-1 rounded border border-purple-500/60 shadow-[0_0_10px_rgba(168,85,247,0.25)]">
+                    <span id="hud-obj-icon" class="text-purple-400 font-bold text-xs">🎯</span>
+                    <div class="flex flex-col text-left">
+                        <span id="hud-obj-title" class="text-[8px] font-cyber font-bold text-purple-300 tracking-wider">OBJECTIVE</span>
+                        <span id="hud-obj-detail" class="text-[9px] font-mono font-bold text-amber-300 tracking-tight">ACTIVE</span>
+                    </div>
+                </div>
+
+                <!-- Secret Shard Trackers -->
+                <div class="hidden lg:flex items-center gap-1 bg-neutral-900 px-2 py-1 rounded border border-neutral-800">
+                    <span class="text-[9px] text-neutral-500 font-bold">SHARDS</span>
+                    <div id="shard-1-icon" class="w-2.5 h-2.5 rounded-sm bg-neutral-800 border border-neutral-700 transition"></div>
+                    <div id="shard-2-icon" class="w-2.5 h-2.5 rounded-sm bg-neutral-800 border border-neutral-700 transition"></div>
+                    <div id="shard-3-icon" class="w-2.5 h-2.5 rounded-sm bg-neutral-800 border border-neutral-700 transition"></div>
+                </div>
+
+                <button id="btn-bot" title="Autonomous AI Pilot [B]" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 font-cyber text-[11px] rounded transition">
+                    🤖 <span class="hidden sm:inline">DEMO</span>
+                </button>
+                <button id="btn-audio" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-cyan-400 font-cyber text-[11px] rounded transition">
+                    🔊 SFX
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Canvas Area -->
+        <main class="relative flex-1 w-full h-full bg-neutral-950 overflow-hidden">
+            <canvas id="game-canvas" class="w-full h-full block cursor-pointer"></canvas>
+            <div id="crt-overlay" class="absolute inset-0 crt-scanlines z-10 pointer-events-none"></div>
+
+            <!-- Toast Notification Banner -->
+            <div id="toast-banner" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 bg-neutral-900/95 border border-pink-500 text-pink-300 text-xs font-cyber tracking-wider rounded-full shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all pointer-events-none">
+                SECRET SHARD ACQUIRED!
+            </div>
+
+            <!-- Bot Active Indicator Banner -->
+            <div id="bot-active-banner" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1 bg-cyan-950/90 border border-cyan-400 text-cyan-300 text-xs font-cyber tracking-wider rounded-full shadow-[0_0_15px_rgba(6,182,212,0.4)] pointer-events-none flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                <span>AI PILOT ACTIVE — PRESS [SPACE] TO TAKE CONTROLS</span>
+            </div>
+
+            <!-- Dimension Warp Screen Flash Overlay -->
+            <div id="warp-overlay" class="pointer-events-none absolute inset-0 z-20 opacity-0 bg-white transition-opacity duration-500"></div>
+
+            <!-- Mobile Virtual Touch Controls -->
+            <div class="md:hidden absolute bottom-3 left-2 right-2 flex justify-between items-end z-20 pointer-events-none">
+                <div class="flex gap-1.5 pointer-events-auto">
+                    <button id="touch-slide" class="w-12 h-12 bg-neutral-900/90 active:bg-neutral-800 border border-neutral-600 active:border-amber-400 rounded-xl flex flex-col items-center justify-center text-amber-300 font-cyber font-bold shadow-xl touch-none">
+                        <span class="text-xs">▼</span>
+                        <span class="text-[7px]">SLIDE</span>
+                    </button>
+                    <button id="touch-dash" class="w-12 h-12 bg-neutral-900/90 active:bg-neutral-800 border border-neutral-600 active:border-cyan-400 rounded-xl flex flex-col items-center justify-center text-cyan-300 font-cyber font-bold shadow-xl touch-none">
+                        <span class="text-xs">⚡</span>
+                        <span class="text-[7px]">DASH</span>
+                    </button>
+                    <button id="touch-thrust" class="w-12 h-12 bg-neutral-900/90 active:bg-neutral-800 border border-neutral-600 active:border-amber-400 rounded-xl flex flex-col items-center justify-center text-amber-300 font-cyber font-bold shadow-xl touch-none">
+                        <span class="text-xs">🚀</span>
+                        <span class="text-[7px]">THRUST</span>
+                    </button>
+                    <button id="touch-chrono" class="w-12 h-12 bg-neutral-900/90 active:bg-neutral-800 border border-neutral-600 active:border-purple-400 rounded-xl flex flex-col items-center justify-center text-purple-300 font-cyber font-bold shadow-xl touch-none">
+                        <span class="text-xs">⏱️</span>
+                        <span class="text-[7px]">CHRONO</span>
+                    </button>
+                    <!-- Legacy alias for touch-ability -->
+                    <button id="touch-ability" class="hidden"></button>
+                </div>
+                <button id="touch-jump" class="pointer-events-auto w-16 h-16 bg-neutral-900/90 active:bg-neutral-800 border-2 border-neutral-600 active:border-cyan-400 rounded-full flex flex-col items-center justify-center text-cyan-300 font-cyber font-bold shadow-xl touch-none p-2">
+                    <span class="text-lg">▲</span>
+                    <span class="text-[8px]">JUMP / 2X</span>
+                </button>
+            </div>
+
+            <!-- Title Screen / Main Menu View Overlay -->
+            <div id="screen-main-menu" class="absolute inset-0 z-30 bg-black/85 backdrop-blur-md flex flex-col items-center justify-between p-6 overflow-y-auto">
+                <!-- Top Status Bar in Main Menu -->
+                <div class="w-full flex items-center justify-between max-w-4xl border-b border-neutral-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-cyber text-neutral-400">PILOT:</span>
+                        <span id="main-pilot-display" class="text-xs font-mono font-bold text-cyan-400 bg-neutral-900 border border-cyan-900/60 px-2 py-0.5 rounded">PULSE_PILOT</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button id="btn-menu-audio" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-cyber text-cyan-400 rounded flex items-center gap-1 transition">
+                            <span id="menu-audio-icon">🔊</span>
+                            <span id="menu-audio-text">AUDIO: ON</span>
+                        </button>
+                        <div class="text-xs font-cyber text-neutral-400">
+                            SYSTEM: <span class="text-emerald-400 font-bold">OPERATIONAL</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center Hero Branding -->
+                <div class="flex flex-col items-center text-center my-auto py-4">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 bg-cyan-950/60 border border-cyan-500/40 rounded-full text-[10px] font-cyber tracking-widest text-cyan-300 uppercase mb-3">
+                        <span>⚡</span> 20 STAGES • ENDLESS MARATHON • 1V1 ONLINE RACING
+                    </div>
+                    <h1 class="text-4xl sm:text-6xl font-cyber font-bold tracking-wider glow-cyan text-white">
+                        NEON PULSE
+                    </h1>
+                    <p class="text-xs sm:text-sm font-cyber tracking-widest text-cyan-300/80 mt-1 uppercase">
+                        Precision Speedrun & Multiverse Edition
+                    </p>
+                    <p class="text-xs text-neutral-400 max-w-md mt-2 font-mono">
+                        Handcrafted speedrun campaigns, procedural endless marathon, ghost challenges, and real-time online racing.
+                    </p>
+
+                    <!-- Main Menu Primary Game Modes -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-5 w-full max-w-lg">
+                        <button id="btn-main-play" class="btn-shimmer py-2.5 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.5)] transition transform active:scale-95 flex items-center justify-center gap-1.5">
+                            <span>▶</span> CAMPAIGN: DIM-α (01–10)
+                        </button>
+                        <button id="btn-main-dim2" class="py-2.5 px-4 bg-purple-950/80 hover:bg-purple-900 border border-purple-500/70 hover:border-purple-400 text-purple-200 font-cyber font-bold text-xs tracking-wider rounded-lg transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                            <span>🌀</span> CAMPAIGN: DIM-β (11–20)
+                        </button>
+                        <button id="btn-main-endless" class="btn-shimmer py-2.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(245,158,11,0.5)] transition transform active:scale-95 flex items-center justify-center gap-1.5">
+                            <span>⚡</span> ENDLESS MARATHON
+                        </button>
+                        <button id="btn-main-multiplayer" class="py-2.5 px-4 bg-rose-950/80 hover:bg-rose-900 border border-rose-500/70 hover:border-rose-400 text-rose-200 font-cyber font-bold text-xs tracking-wider rounded-lg transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(244,63,94,0.3)]">
+                            <span>⚔️</span> ONLINE RACE & GHOSTS
+                        </button>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-center gap-2 mt-3 w-full max-w-lg">
+                        <button id="btn-main-stages" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-neutral-300 font-cyber text-xs rounded transition flex items-center gap-1.5">
+                            <span>☰</span> STAGE MATRIX
+                        </button>
+                        <button id="btn-main-daily" class="relative py-1.5 px-3 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-600/60 hover:border-amber-400 text-amber-300 font-cyber text-xs rounded transition flex items-center gap-1.5">
+                            <span>🎁</span> REWARDS
+                            <span id="main-daily-dot" class="hidden w-2 h-2 rounded-full bg-pink-500 animate-ping"></span>
+                        </button>
+                        <button id="btn-main-ranks" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-neutral-500 text-neutral-300 font-cyber text-xs rounded transition flex items-center gap-1.5">
+                            <span>🏆</span> TIME RANKS
+                        </button>
+                        <button id="btn-main-howtoplay" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-neutral-500 text-neutral-300 font-cyber text-xs rounded transition flex items-center gap-1.5">
+                            <span>❓</span> HOW TO PLAY
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Footer Keys Quick Bar -->
+                <div class="w-full flex flex-wrap items-center justify-center gap-2.5 text-[10px] font-mono text-neutral-500 border-t border-neutral-900 pt-3">
+                    <span><strong class="text-neutral-300 font-bold">[SPACE]</strong> JUMP & 2X JUMP</span>
+                    <span>•</span>
+                    <span><strong class="text-neutral-300 font-bold">[S / DOWN]</strong> SLIDE & DIVE</span>
+                    <span>•</span>
+                    <span><strong class="text-cyan-400 font-bold">[SHIFT]</strong> PHASE DASH</span>
+                    <span>•</span>
+                    <span><strong class="text-amber-400 font-bold">[E]</strong> THRUST</span>
+                    <span>•</span>
+                    <span><strong class="text-purple-400 font-bold">[Q / F]</strong> CHRONO PULSE</span>
+                    <span>•</span>
+                    <span><strong class="text-neutral-300 font-bold">[R]</strong> RESTART</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- MODAL: 20 Stage Matrix Selection -->
+        <div id="modal-menu" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="w-full max-w-4xl bg-neutral-900 border border-neutral-700 rounded-xl p-5 shadow-2xl flex flex-col gap-3.5 max-h-[94vh] overflow-hidden">
+                <div class="flex items-center justify-between border-b border-neutral-800 pb-2.5">
+                    <div>
+                        <h2 class="text-lg font-cyber font-bold tracking-wider text-cyan-400">STAGE MATRIX // 20 CURATED SECTORS</h2>
+                        <p class="text-xs text-neutral-400">Master 2 dimensions: Dimension α Cyber Prime & Dimension β Quantum Rift with unique mission objectives.</p>
+                    </div>
+                    <button id="btn-close-menu" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700">
+                        ✕ CLOSE
+                    </button>
+                </div>
+
+                <!-- Dimension Switcher Bar -->
+                <div class="flex items-center gap-2 p-1 bg-neutral-950 rounded-lg border border-neutral-800" id="dimension-switcher-tabs">
+                    <button id="dim-tab-1" class="flex-1 py-1.5 px-3 rounded text-xs font-cyber font-bold tracking-wider transition bg-cyan-950 text-cyan-300 border border-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.3)] flex items-center justify-center gap-2">
+                        <span>🌌</span> DIMENSION α (01–10)
+                    </button>
+                    <button id="dim-tab-2" class="flex-1 py-1.5 px-3 rounded text-xs font-cyber font-bold tracking-wider transition bg-neutral-900 text-neutral-400 border border-neutral-800 hover:border-purple-500 hover:text-purple-300 flex items-center justify-center gap-2">
+                        <span>🌀</span> DIMENSION β (11–20)
+                    </button>
+                    <button id="dim-tab-endless" class="flex-1 py-1.5 px-3 rounded text-xs font-cyber font-bold tracking-wider transition bg-neutral-900 text-amber-400 border border-neutral-800 hover:border-amber-500 hover:text-amber-300 flex items-center justify-center gap-2">
+                        <span>⚡</span> ENDLESS MARATHON
+                    </button>
+                </div>
+
+                <!-- Sector Filter Tabs -->
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-neutral-800 text-[11px] font-cyber" id="sector-tabs-bar">
+                    <!-- Populated dynamically via JS -->
+                </div>
+
+                <!-- Active Ability Selector -->
+                <div class="flex items-center gap-2 bg-neutral-950 p-2 rounded-lg border border-neutral-800">
+                    <span class="text-[10px] font-cyber font-bold text-neutral-400 tracking-wider">EQUIPPED SKILL:</span>
+                    <div class="flex gap-2 flex-1" id="ability-selection-group">
+                        <button data-ability="DASH" class="ability-card flex-1 py-1 px-2 bg-neutral-900 border-2 border-cyan-500 rounded flex items-center justify-center gap-1 text-[11px] font-cyber text-cyan-300">
+                            <span>⚡</span> PHASE DASH
+                        </button>
+                        <button data-ability="DOUBLE_JUMP" class="ability-card flex-1 py-1 px-2 bg-neutral-900 border border-neutral-700 rounded flex items-center justify-center gap-1 text-[11px] font-cyber text-neutral-300">
+                            <span>🚀</span> THRUSTER BURST
+                        </button>
+                        <button data-ability="CHRONO" class="ability-card flex-1 py-1 px-2 bg-neutral-900 border border-neutral-700 rounded flex items-center justify-center gap-1 text-[11px] font-cyber text-neutral-300">
+                            <span>⏱️</span> CHRONO PULSE
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 10 Stage Grid -->
+                <div id="stage-cards-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 overflow-y-auto pr-1 flex-1 py-1 max-h-[380px]">
+                    <!-- Injected dynamically via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Daily Runner Rewards -->
+        <div id="modal-daily" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="w-full max-w-2xl bg-neutral-900 border border-amber-500/80 rounded-xl p-6 shadow-[0_0_50px_rgba(245,158,11,0.25)] flex flex-col gap-4 max-h-[90vh] overflow-hidden">
+                <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">🎁</span>
+                        <div>
+                            <h2 class="text-lg font-cyber font-bold tracking-wider text-amber-400">DAILY RUNNER REWARDS</h2>
+                            <p class="text-xs text-neutral-400">Claim daily login bonuses to unlock cyber suits, particle trails, and special glows.</p>
+                        </div>
+                    </div>
+                    <button id="btn-close-daily" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700">
+                        ✕ CLOSE
+                    </button>
+                </div>
+
+                <!-- 7-Day Rewards Track Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 overflow-y-auto" id="daily-cards-grid">
+                    <!-- Injected dynamically via JS -->
+                </div>
+
+                <!-- Reward Claim Desk & Skin Selector -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-neutral-950 p-3 rounded-lg border border-neutral-800 mt-2">
+                    <div class="flex items-center gap-3">
+                        <div class="text-left">
+                            <div class="text-[10px] text-neutral-400 font-cyber">EQUIPPED EXOSUIT SKIN:</div>
+                            <div id="equipped-skin-name" class="text-xs font-cyber font-bold text-cyan-300">CYBER CYAN (DEFAULT)</div>
+                        </div>
+                        <select id="skin-select-dropdown" class="bg-neutral-900 border border-neutral-700 text-xs text-neutral-200 px-2 py-1 rounded font-cyber focus:outline-none focus:border-cyan-400">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button id="btn-claim-daily" class="py-2 px-5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-cyber font-bold text-xs tracking-wider rounded shadow-[0_0_20px_rgba(245,158,11,0.5)] transition">
+                            CLAIM DAY REWARD
+                        </button>
+                        <button id="btn-instant-streak-test" title="Simulate 24hr passage to test daily unlocks immediately" class="py-1 px-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-cyan-300 font-mono text-[10px] rounded border border-neutral-700 transition">
+                            +24H TEST
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Leaderboards & Personal Bests -->
+        <div id="modal-leaderboard" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="w-full max-w-2xl bg-neutral-900 border border-amber-500/80 rounded-xl p-6 shadow-[0_0_40px_rgba(245,158,11,0.2)] flex flex-col gap-4 max-h-[90vh] overflow-hidden">
+                <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">🏆</span>
+                        <div>
+                            <h2 class="text-lg font-cyber font-bold tracking-wider text-amber-400">STAGE SPEEDRUN LEADERBOARD</h2>
+                            <p id="lb-stage-subtitle" class="text-xs text-neutral-400">FASTEST TIME TRIAL COMPLETIONS</p>
+                        </div>
+                    </div>
+                    <button id="btn-close-leaderboard" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700">
+                        ✕ CLOSE
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2 bg-neutral-950 px-3 py-2 rounded-lg border border-neutral-800">
+                    <span class="text-xs font-cyber text-neutral-400">PILOT HANDLE:</span>
+                    <input id="input-pilot-tag" type="text" maxlength="14" value="PULSE_PILOT" class="bg-neutral-900 border border-neutral-700 px-2 py-0.5 rounded text-xs font-mono text-cyan-300 uppercase tracking-wider focus:outline-none focus:border-cyan-400">
+                    <span class="text-[10px] text-neutral-500 ml-auto">Saved locally</span>
+                </div>
+
+                <div class="overflow-y-auto max-h-[280px] pr-1">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-neutral-800 text-neutral-500 text-[10px] font-cyber tracking-wider">
+                                <th class="py-1.5 px-2">RANK</th>
+                                <th class="py-1.5 px-2">PILOT</th>
+                                <th class="py-1.5 px-2">TIME</th>
+                                <th class="py-1.5 px-2">SKILL</th>
+                                <th class="py-1.5 px-2">SHARDS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-table-body" class="divide-y divide-neutral-800/60 font-mono">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: How to Play -->
+        <div id="modal-howtoplay" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="w-full max-w-xl bg-neutral-900 border border-cyan-500/80 rounded-xl p-6 shadow-[0_0_40px_rgba(6,182,212,0.25)] flex flex-col gap-4 max-h-[90vh] overflow-hidden">
+                <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">⚡</span>
+                        <h2 class="text-lg font-cyber font-bold tracking-wider text-cyan-400">HOW TO PLAY // PILOT PROTOCOLS</h2>
+                    </div>
+                    <button id="btn-close-howtoplay" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700">
+                        ✕ CLOSE
+                    </button>
+                </div>
+
+                <div class="space-y-3 text-xs text-neutral-300 font-mono overflow-y-auto pr-1 max-h-[360px]">
+                    <div class="bg-neutral-950 p-3 rounded border border-neutral-800">
+                        <span class="text-cyan-400 font-cyber font-bold">1. FLUID AIR MOBILITY & DOUBLE JUMP</span>
+                        <p class="text-neutral-400 mt-1">
+                            Press <strong class="text-cyan-300">[SPACE / W]</strong> to jump. Hold to leap higher, release early for precise short hops. Press <strong class="text-cyan-300">[SPACE]</strong> again in mid-air to execute a crisp double jump air-boost!
+                        </p>
+                    </div>
+
+                    <div class="bg-neutral-950 p-3 rounded border border-neutral-800">
+                        <span class="text-amber-400 font-cyber font-bold">2. SLIDE & RAPID AIR-DIVE</span>
+                        <p class="text-neutral-400 mt-1">
+                            Press and hold <strong class="text-amber-300">[S / DOWN]</strong> on the ground to slide smoothly under low laser beams. Press in the air to execute an instant kinetic dive to the surface.
+                        </p>
+                    </div>
+
+                    <div class="bg-neutral-950 p-3 rounded border border-neutral-800">
+                        <span class="text-pink-400 font-cyber font-bold">3. SPECIAL ABILITIES [SHIFT / E]</span>
+                        <p class="text-neutral-400 mt-1">
+                            • <strong class="text-cyan-300">Phase Dash:</strong> Warp forward with momentary invulnerability through hazardous spikes & lasers.<br>
+                            • <strong class="text-pink-300">Thruster Burst:</strong> Extra velocity pulse in mid-flight.<br>
+                            • <strong class="text-purple-300">Chrono Pulse:</strong> Dilate time to slow down tricky obstacle sections.
+                        </p>
+                    </div>
+
+                    <div class="bg-neutral-950 p-3 rounded border border-neutral-800">
+                        <span class="text-emerald-400 font-cyber font-bold">4. SECTOR MECHANICS</span>
+                        <p class="text-neutral-400 mt-1">
+                            • <strong class="text-amber-400">Speed Pads:</strong> Launch runner at supersonic speed.<br>
+                            • <strong class="text-emerald-400">Trampolines:</strong> Spring up to high-altitude skyline platforms.<br>
+                            • <strong class="text-pink-400">Jump Rings:</strong> Touch in mid-air to refresh your jumps and launch higher.<br>
+                            • <strong class="text-sky-400">Gravity Rings (Blue Orbs):</strong> Geometry Dash-style mid-air rings that flip gravity to run along ceilings or plunge back down!
+                        </p>
+                    </div>
+                </div>
+
+                <button id="btn-howtoplay-confirm" class="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-cyber font-bold text-xs tracking-wider rounded transition">
+                    ROGER THAT, LET'S RUN ▶
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL: In-Game Pause -->
+        <div id="modal-pause" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="w-full max-w-sm bg-neutral-900 border border-neutral-700 rounded-xl p-6 shadow-2xl flex flex-col gap-4 text-center">
+                <div>
+                    <h3 class="text-2xl font-cyber font-bold text-amber-400 tracking-wider">RUN PAUSED</h3>
+                    <p class="text-xs text-neutral-400 mt-1">Press ESC or click Resume to continue</p>
+                </div>
+                <div class="flex flex-col gap-2 w-full mt-2">
+                    <button id="btn-pause-resume" class="py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-cyber font-bold text-xs tracking-wider rounded shadow-[0_0_15px_rgba(6,182,212,0.4)] transition">
+                        ▶ RESUME [ESC]
+                    </button>
+                    <button id="btn-pause-restart" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition">
+                        🔄 RESTART RUN [R]
+                    </button>
+                    <button id="btn-pause-stages" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition">
+                        ☰ STAGES & SKILLS
+                    </button>
+                    <button id="btn-pause-main-menu" class="py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-800 transition">
+                        🏠 MAIN MENU
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Victory Screen -->
+        <div id="modal-victory" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="w-full max-w-md bg-neutral-900 border border-emerald-500/80 rounded-xl p-6 shadow-[0_0_40px_rgba(16,185,129,0.3)] flex flex-col items-center text-center gap-4">
+                <div class="text-4xl animate-bounce">⚡</div>
+                <div>
+                    <h3 class="text-2xl font-cyber font-bold text-emerald-400 tracking-wider">STAGE COMPLETED</h3>
+                    <p id="victory-level-name" class="text-xs text-neutral-400 mt-0.5">LEVEL 01: HIGHWAY ZERO</p>
+                </div>
+
+                <div class="w-full bg-neutral-950 p-4 rounded-lg border border-neutral-800 flex justify-around text-center">
+                    <div>
+                        <div class="text-[10px] text-neutral-500 font-bold uppercase">Time</div>
+                        <div id="vic-time" class="text-xl font-bold font-mono text-amber-400">00:18.420</div>
+                    </div>
+                    <div class="border-r border-neutral-800"></div>
+                    <div>
+                        <div class="text-[10px] text-neutral-500 font-bold uppercase">Shards</div>
+                        <div id="vic-shards" class="text-xl font-bold font-cyber text-pink-400">3 / 3</div>
+                    </div>
+                    <div class="border-r border-neutral-800"></div>
+                    <div>
+                        <div class="text-[10px] text-neutral-500 font-bold uppercase">Rank</div>
+                        <div id="vic-rank" class="text-xl font-bold font-cyber text-cyan-400">S RANK</div>
+                    </div>
+                </div>
+
+                <!-- Mission Objective Status (Dimension 2) -->
+                <div id="vic-objective-box" class="hidden w-full bg-purple-950/40 border border-purple-500/50 p-2.5 rounded-lg flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2">
+                        <span id="vic-obj-icon" class="text-base">🎯</span>
+                        <div class="text-left">
+                            <div id="vic-obj-title" class="text-[9px] text-purple-300 font-cyber font-bold tracking-wider">MISSION OBJECTIVE</div>
+                            <div id="vic-obj-desc" class="text-[11px] text-neutral-200 font-mono">Objective Complete</div>
+                        </div>
+                    </div>
+                    <span id="vic-obj-status" class="px-2 py-0.5 rounded font-cyber text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-500/60 font-bold">CLEARED</span>
+                </div>
+
+                <div id="vic-pb-notification" class="text-xs text-amber-300 font-cyber flex items-center gap-1 font-bold">
+                    <span>👑</span> NEW PERSONAL BEST TIME RECORDED!
+                </div>
+
+                <div class="w-full">
+                    <button id="btn-victory-share-ghost" class="w-full py-2 bg-gradient-to-r from-rose-950/70 to-pink-950/70 hover:from-rose-900 hover:to-pink-900 border border-rose-500/70 text-rose-300 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(244,63,94,0.3)]">
+                        <span>🔗</span> SHARE GHOST LINK // CHALLENGE A FRIEND
+                    </button>
+                </div>
+
+                <div class="flex gap-2 w-full mt-1">
+                    <button id="btn-victory-ranks" class="py-2.5 px-3 bg-neutral-800 hover:bg-neutral-700 text-amber-300 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition flex items-center justify-center gap-1">
+                        <span>🏆</span> RANKS
+                    </button>
+                    <button id="btn-victory-replay" class="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition">
+                        REPLAY
+                    </button>
+                    <button id="btn-victory-next" class="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-cyber font-bold text-xs tracking-wider rounded shadow-[0_0_15px_rgba(6,182,212,0.5)] transition">
+                        NEXT STAGE →
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Multiplayer & Ghost Challenges -->
+        <div id="modal-multiplayer" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="w-full max-w-lg bg-neutral-900 border border-rose-500/70 rounded-xl p-5 shadow-[0_0_50px_rgba(244,63,94,0.25)] flex flex-col gap-4 max-h-[92vh] overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-neutral-800 pb-2.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">⚔️</span>
+                        <div>
+                            <h2 class="text-base font-cyber font-bold tracking-wider text-rose-400">MULTIPLAYER CYBER LOBBY</h2>
+                            <p class="text-[11px] text-neutral-400">Live 1v1 P2P room racing & asynchronous ghost link challenges.</p>
+                        </div>
+                    </div>
+                    <button id="btn-close-multiplayer" class="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700">
+                        ✕ CLOSE
+                    </button>
+                </div>
+
+                <!-- Mode Tabs: Live 1v1 Room vs Ghost Link -->
+                <div class="flex gap-2 bg-neutral-950 p-1 rounded-lg border border-neutral-800">
+                    <button id="mp-tab-live" class="flex-1 py-1.5 rounded text-xs font-cyber font-bold transition bg-rose-950 text-rose-300 border border-rose-500/70">
+                        🏁 1V1 LIVE RACE
+                    </button>
+                    <button id="mp-tab-ghost" class="flex-1 py-1.5 rounded text-xs font-cyber font-bold transition bg-neutral-900 text-neutral-400 border border-neutral-800 hover:border-cyan-500 hover:text-cyan-300">
+                        👻 GHOST CHALLENGES
+                    </button>
+                </div>
+
+                <!-- Tab 1 Panel: Live 1v1 Racing -->
+                <div id="mp-panel-live" class="flex flex-col gap-3">
+                    <!-- Host / Join Selector -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btn-mp-host-mode" class="py-2 px-3 bg-neutral-950 border border-rose-500 text-rose-300 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5">
+                            <span>👑</span> HOST ROOM
+                        </button>
+                        <button id="btn-mp-join-mode" class="py-2 px-3 bg-neutral-950 border border-neutral-800 text-neutral-400 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5">
+                            <span>⚡</span> JOIN ROOM
+                        </button>
+                    </div>
+
+                    <!-- Host Section -->
+                    <div id="mp-host-box" class="bg-neutral-950 p-3.5 rounded-lg border border-neutral-800 flex flex-col gap-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-cyber text-neutral-400">ROOM CODE:</span>
+                            <div class="flex items-center gap-2">
+                                <span id="mp-room-code" class="text-base font-mono font-bold tracking-widest text-amber-400 bg-neutral-900 px-3 py-1 rounded border border-amber-500/60">GENERATING...</span>
+                                <button id="btn-copy-room-code" class="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-300 font-cyber text-xs rounded border border-neutral-700">
+                                    COPY
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between border-t border-neutral-900 pt-2 text-xs">
+                            <span class="font-cyber text-neutral-400">TRACK SELECT:</span>
+                            <select id="mp-stage-select" class="bg-neutral-900 border border-neutral-700 text-cyan-300 text-xs font-cyber rounded px-2 py-1 focus:outline-none focus:border-cyan-400 max-w-[200px]">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+
+                        <div class="flex items-center justify-between border-t border-neutral-900 pt-2 text-xs">
+                            <span class="font-cyber text-neutral-400">OPPONENT STATUS:</span>
+                            <span id="mp-opponent-status" class="font-cyber font-bold text-neutral-500">WAITING FOR RIVAL...</span>
+                        </div>
+
+                        <button id="btn-mp-start-race" disabled class="mt-1 w-full py-2.5 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5">
+                            WAITING FOR OPPONENT TO CONNECT...
+                        </button>
+                    </div>
+
+                    <!-- Join Section -->
+                    <div id="mp-join-box" class="hidden bg-neutral-950 p-3.5 rounded-lg border border-neutral-800 flex flex-col gap-2.5">
+                        <div class="text-xs font-cyber text-neutral-400">ENTER 4-LETTER ROOM CODE:</div>
+                        <div class="flex gap-2">
+                            <input id="input-room-code" type="text" maxlength="8" placeholder="e.g. 4829" class="flex-1 bg-neutral-900 border border-neutral-700 text-amber-400 font-mono text-center tracking-widest uppercase text-base rounded px-3 py-1.5 focus:outline-none focus:border-cyan-400">
+                            <button id="btn-mp-connect" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-cyber font-bold text-xs rounded transition">
+                                CONNECT
+                            </button>
+                        </div>
+                        <div id="mp-join-status" class="text-xs font-cyber text-neutral-500">Ready to connect to host room.</div>
+                    </div>
+                </div>
+
+                <!-- Tab 2 Panel: Ghost Challenges -->
+                <div id="mp-panel-ghost" class="hidden flex flex-col gap-3">
+                    <div class="bg-neutral-950 p-3.5 rounded-lg border border-neutral-800 flex flex-col gap-2">
+                        <span class="text-xs font-cyber text-cyan-400 font-bold">RACE AGAINST A FRIEND'S GHOST RUN:</span>
+                        <p class="text-[11px] text-neutral-400">Paste any challenge link received from a friend to race against their exact ghost recording!</p>
+                        <div class="flex gap-2 mt-1">
+                            <input id="input-ghost-link" type="text" placeholder="Paste challenge link / code here..." class="flex-1 bg-neutral-900 border border-neutral-700 text-xs font-mono text-neutral-200 rounded px-2.5 py-1.5 focus:outline-none focus:border-cyan-400">
+                            <button id="btn-load-ghost-challenge" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-cyber font-bold text-xs rounded transition">
+                                LOAD GHOST
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Match Race Results Screen -->
+        <div id="modal-race-result" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="w-full max-w-md bg-neutral-900 border border-cyan-500/80 rounded-xl p-6 shadow-[0_0_40px_rgba(6,182,212,0.4)] flex flex-col items-center text-center gap-3.5">
+                <div id="race-result-icon" class="text-4xl animate-bounce">🏆</div>
+                <div>
+                    <h3 id="race-result-title" class="text-2xl font-cyber font-bold text-cyan-400 tracking-wider">VICTORY!</h3>
+                    <p id="race-result-subtitle" class="text-xs text-neutral-400 mt-0.5">YOU OUTPACED YOUR RIVAL</p>
+                </div>
+
+                <div class="w-full bg-neutral-950 p-3.5 rounded-lg border border-neutral-800 flex flex-col gap-2">
+                    <div class="flex justify-between text-xs font-cyber border-b border-neutral-800 pb-1.5">
+                        <span class="text-cyan-300 font-bold" id="race-my-name">YOU</span>
+                        <span class="text-amber-400 font-mono font-bold" id="race-my-time">00:14.320</span>
+                    </div>
+                    <div class="flex justify-between text-xs font-cyber">
+                        <span class="text-rose-400 font-bold" id="race-rival-name">OPPONENT</span>
+                        <span class="text-neutral-400 font-mono font-bold" id="race-rival-time">00:15.110</span>
+                    </div>
+                    <div id="race-gap-banner" class="text-[11px] font-mono text-emerald-400 mt-1 font-bold">
+                        DELTA: +0.790s AHEAD
+                    </div>
+                </div>
+
+                <div class="flex gap-2 w-full mt-1">
+                    <button id="btn-race-again" class="flex-1 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg">
+                        REMATCH / RACE AGAIN
+                    </button>
+                    <button id="btn-race-close" class="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-cyber text-xs rounded border border-neutral-700 transition">
+                        LOBBY
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Game Logic Script -->
+    <script src="game.js"></script>
+</body>
+</html>

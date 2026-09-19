@@ -1,0 +1,189 @@
+/* Neon Pulse Speedrun Edition - Core Stylesheet */
+
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+* {
+    user-select: none;
+    -webkit-user-select: none;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'JetBrains Mono', monospace;
+    background-color: #030712;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+.font-cyber {
+    font-family: 'Chakra Petch', sans-serif;
+}
+
+/* CRT Scanlines & Screen Overlay */
+.crt-scanlines {
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+    background-size: 100% 3px, 6px 100%;
+    pointer-events: none;
+}
+
+/* Cyberpunk Neon Text Glows */
+.glow-cyan {
+    text-shadow: 0 0 12px rgba(6, 182, 212, 0.8), 0 0 24px rgba(6, 182, 212, 0.4);
+}
+
+.glow-pink {
+    text-shadow: 0 0 12px rgba(236, 72, 153, 0.8), 0 0 24px rgba(236, 72, 153, 0.4);
+}
+
+.glow-amber {
+    text-shadow: 0 0 12px rgba(245, 158, 11, 0.8), 0 0 24px rgba(245, 158, 11, 0.4);
+}
+
+.glow-emerald {
+    text-shadow: 0 0 12px rgba(16, 185, 129, 0.8), 0 0 24px rgba(16, 185, 129, 0.4);
+}
+
+.glow-gold {
+    text-shadow: 0 0 14px rgba(234, 179, 8, 0.9), 0 0 28px rgba(234, 179, 8, 0.4);
+}
+
+.glow-purple {
+    text-shadow: 0 0 12px rgba(168, 85, 247, 0.85), 0 0 24px rgba(168, 85, 247, 0.45);
+}
+
+/* Cyber Box Glows */
+.box-glow-cyan {
+    box-shadow: 0 0 25px rgba(6, 182, 212, 0.25), inset 0 0 15px rgba(6, 182, 212, 0.1);
+}
+
+.box-glow-pink {
+    box-shadow: 0 0 25px rgba(236, 72, 153, 0.25), inset 0 0 15px rgba(236, 72, 153, 0.1);
+}
+
+.box-glow-amber {
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.25), inset 0 0 15px rgba(245, 158, 11, 0.1);
+}
+
+.box-glow-purple {
+    box-shadow: 0 0 25px rgba(168, 85, 247, 0.3), inset 0 0 15px rgba(168, 85, 247, 0.15);
+}
+
+/* Custom Cyber Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #090d16;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 3px;
+    border: 1px solid #334155;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #06b6d4;
+    box-shadow: 0 0 8px #06b6d4;
+}
+
+/* Animated Cyber Grid Pulse */
+@keyframes cyberPulse {
+    0%, 100% {
+        opacity: 0.85;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+.animate-cyber-pulse {
+    animation: cyberPulse 2.5s infinite ease-in-out;
+}
+
+/* Shimmer Button Effect */
+.btn-shimmer {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-shimmer::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -60%;
+    width: 20%;
+    height: 200%;
+    background: linear-gradient(
+        60deg,
+        rgba(255, 255, 255, 0) 20%,
+        rgba(255, 255, 255, 0.25) 50%,
+        rgba(255, 255, 255, 0) 80%
+    );
+    transform: rotate(25deg);
+    animation: shimmerSlide 3.5s infinite;
+}
+
+@keyframes shimmerSlide {
+    0% {
+        left: -70%;
+    }
+    30% {
+        left: 140%;
+    }
+    100% {
+        left: 140%;
+    }
+}
+
+/* Modal Backdrop Blur Animation */
+.modal-backdrop {
+    animation: fadeInModal 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInModal {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Dimension Warp Screen Flash */
+@keyframes dimensionWarpFlash {
+    0% { opacity: 0.85; filter: brightness(2.5); }
+    50% { opacity: 0.5; filter: hue-rotate(180deg); }
+    100% { opacity: 0; filter: brightness(1); }
+}
+
+.dimension-warp-active {
+    animation: dimensionWarpFlash 0.65s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+}
+
+/* Holographic Rival Ghost Shader */
+.glow-rival {
+    text-shadow: 0 0 10px rgba(244, 63, 94, 0.9), 0 0 20px rgba(244, 63, 94, 0.5);
+}
+
+.glow-ghost {
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.9), 0 0 20px rgba(56, 189, 248, 0.5);
+}
+
+/* Tri-Ability Dock Accents */
+.ability-ready-dash {
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+}
+.ability-ready-thrust {
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+}
+.ability-ready-chrono {
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+}
+
