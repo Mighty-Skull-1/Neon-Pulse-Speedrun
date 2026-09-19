@@ -1747,6 +1747,7 @@ const game = {
     level: null,
     attempts: 1,
     isPaused: false,
+    isCountingDown: false,
     inMainMenu: true,
     botDemo: false,
     shardsCollected: new Set(),
@@ -1962,7 +1963,7 @@ function createJumpParticles(p, isDouble = false) {
 
 function triggerPhaseDash() {
     if (!game.abilities || !game.abilities.dash) return;
-    if (game.abilities.dash.cd > 0 || game.victory || game.isPaused || game.inMainMenu) return;
+    if (game.abilities.dash.cd > 0 || game.victory || game.isPaused || game.inMainMenu || game.isCountingDown) return;
 
     const p = game.player;
     game.abilities.dash.cd = game.abilities.dash.maxCd;
@@ -1990,7 +1991,7 @@ function triggerPhaseDash() {
 
 function triggerThrusterBurst() {
     if (!game.abilities || !game.abilities.thrust) return;
-    if (game.abilities.thrust.cd > 0 || game.victory || game.isPaused || game.inMainMenu) return;
+    if (game.abilities.thrust.cd > 0 || game.victory || game.isPaused || game.inMainMenu || game.isCountingDown) return;
 
     const p = game.player;
     game.abilities.thrust.cd = game.abilities.thrust.maxCd;
@@ -2008,7 +2009,7 @@ function triggerThrusterBurst() {
 
 function triggerChronoPulse() {
     if (!game.abilities || !game.abilities.chrono) return;
-    if (game.abilities.chrono.cd > 0 || game.victory || game.isPaused || game.inMainMenu) return;
+    if (game.abilities.chrono.cd > 0 || game.victory || game.isPaused || game.inMainMenu || game.isCountingDown) return;
 
     game.abilities.chrono.cd = game.abilities.chrono.maxCd;
     game.timeScale = 0.45;
@@ -2233,7 +2234,7 @@ function isCeilingOverhead() {
 }
 
 function updatePhysics(rawDt) {
-    if (game.victory || game.isPaused || game.inMainMenu) return;
+    if (game.victory || game.isPaused || game.inMainMenu || game.isCountingDown) return;
 
     const dt = rawDt * game.timeScale;
     game.runTime += dt;
@@ -4876,7 +4877,9 @@ const MP = {
 
     startAiRivalMatch(stageIdx, difficulty = 'EXPERT') {
         const mpModal = document.getElementById('modal-multiplayer');
+        const pauseModal = document.getElementById('modal-pause');
         if (mpModal) mpModal.classList.add('hidden');
+        if (pauseModal) pauseModal.classList.add('hidden');
 
         this.connected = true;
         game.isMultiplayer = true;
@@ -5082,13 +5085,19 @@ const MP = {
     playVisualCountdown(stageIdx, chosenBy) {
         const mpModal = document.getElementById('modal-multiplayer');
         const resModal = document.getElementById('modal-race-result');
+        const pauseModal = document.getElementById('modal-pause');
         if (mpModal) mpModal.classList.add('hidden');
         if (resModal) resModal.classList.add('hidden');
+        if (pauseModal) pauseModal.classList.add('hidden');
 
         this.resetMatch();
         this.series.activeTrackIdx = stageIdx;
         startLevel(stageIdx);
-        setPause(true);
+
+        // Keep runner and physics held at start line without opening pause menu
+        game.isCountingDown = true;
+        game.isPaused = false;
+        if (pauseModal) pauseModal.classList.add('hidden');
 
         if (game.mpRival) {
             game.mpRival.x = 80;
@@ -5181,7 +5190,11 @@ const MP = {
                     bigNum.innerText = "GO!";
                     bigNum.className = "text-8xl font-cyber font-extrabold text-emerald-400 tracking-wider scale-130 transition-transform duration-200 drop-shadow-[0_0_35px_rgba(52,211,153,1)]";
                     if (subHint) subHint.innerText = "SPRINT FOR THE FINISH!";
-                    setPause(false);
+                    game.isCountingDown = false;
+                    game.isPaused = false;
+                    if (pauseModal) pauseModal.classList.add('hidden');
+                    game.lastTime = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+                    game.physicsAccumulator = 0;
                     showNotification("🏁 GO! SPRINT!");
                     setTimeout(() => {
                         if (overlay) overlay.classList.add('hidden');
@@ -5515,6 +5528,7 @@ function populateMultiplayerStageSelect() {
 function startLevel(idx) {
     game.inMainMenu = false;
     game.isEndless = false;
+    game.isCountingDown = false;
     game.currentLevelIdx = idx;
     game.level = JSON.parse(JSON.stringify(LEVELS[idx]));
     game.currentDimensionTab = game.level.dimension || 1;
@@ -5546,6 +5560,7 @@ function startLevel(idx) {
     const modalDaily = document.getElementById('modal-daily');
     const modalHow = document.getElementById('modal-howtoplay');
     const modalMp = document.getElementById('modal-multiplayer');
+    const pauseModal = document.getElementById('modal-pause');
 
     if (modalVic) modalVic.classList.add('hidden');
     if (modalMenu) modalMenu.classList.add('hidden');
@@ -5553,6 +5568,7 @@ function startLevel(idx) {
     if (modalDaily) modalDaily.classList.add('hidden');
     if (modalHow) modalHow.classList.add('hidden');
     if (modalMp) modalMp.classList.add('hidden');
+    if (pauseModal) pauseModal.classList.add('hidden');
 
     updateShardHUD();
     updateAbilityHUD();
@@ -5562,6 +5578,7 @@ function startLevel(idx) {
 function returnToMainMenu() {
     game.inMainMenu = true;
     game.isPaused = false;
+    game.isCountingDown = false;
     game.isEndless = false;
     if (game.isMultiplayer && game.mpRival && game.mpRival.isAI) {
         game.isMultiplayer = false;
@@ -5603,17 +5620,21 @@ function returnToMainMenu() {
     dailySystem.updateBadge();
 }
 
-function setPause(paused) {
+function setPause(paused, showModal = true) {
     if (game.victory || game.inMainMenu) return;
     game.isPaused = paused;
     const pauseModal = document.getElementById('modal-pause');
     if (pauseModal) {
         if (game.isPaused) {
             audio.pauseMusic();
-            pauseModal.classList.remove('hidden');
+            if (showModal && !game.isCountingDown) {
+                pauseModal.classList.remove('hidden');
+            } else {
+                pauseModal.classList.add('hidden');
+            }
         } else {
             pauseModal.classList.add('hidden');
-            game.lastTime = performance.now();
+            game.lastTime = (typeof performance !== 'undefined') ? performance.now() : Date.now();
             game.physicsAccumulator = 0;
             audio.resumeMusic();
         }
@@ -5895,6 +5916,7 @@ window.addEventListener('keydown', (e) => {
     }
 
     if (e.code === 'Escape') {
+        if (game.isCountingDown) return;
         e.preventDefault();
         const menuModal = document.getElementById('modal-menu');
         const lbModal = document.getElementById('modal-leaderboard');
@@ -5918,7 +5940,7 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
-    if (game.isPaused) return;
+    if (game.isPaused || game.isCountingDown) return;
 
     if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
         e.preventDefault();
@@ -5971,6 +5993,7 @@ canvas.addEventListener('pointerdown', () => {
         startLevel(game.currentLevelIdx);
         return;
     }
+    if (game.isCountingDown) return;
     if (game.isPaused) {
         setPause(false);
         return;
@@ -5996,7 +6019,7 @@ if (touchJump) {
     touchJump.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         audio.init();
-        if (game.isPaused) return;
+        if (game.isPaused || game.isCountingDown) return;
         game.inputs.jumpHeld = true;
         game.inputs.jumpPressedThisFrame = true;
         game.inputs.jumpBufferTime = 0.16;
@@ -6009,7 +6032,7 @@ if (touchSlide) {
     touchSlide.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         audio.init();
-        if (game.isPaused) return;
+        if (game.isPaused || game.isCountingDown) return;
         game.inputs.slideHeld = true;
         if (game.botDemo) toggleBotDemo(false);
     });
@@ -6020,7 +6043,7 @@ if (touchDash) {
     touchDash.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         audio.init();
-        if (game.isPaused) return;
+        if (game.isPaused || game.isCountingDown) return;
         triggerPhaseDash();
     });
 }
@@ -6029,7 +6052,7 @@ if (touchThrust) {
     touchThrust.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         audio.init();
-        if (game.isPaused) return;
+        if (game.isPaused || game.isCountingDown) return;
         triggerThrusterBurst();
     });
 }
@@ -6038,7 +6061,7 @@ if (touchChrono) {
     touchChrono.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         audio.init();
-        if (game.isPaused) return;
+        if (game.isPaused || game.isCountingDown) return;
         triggerChronoPulse();
     });
 }
@@ -6047,7 +6070,7 @@ if (touchAbility) {
     touchAbility.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         audio.init();
-        if (game.isPaused) return;
+        if (game.isPaused || game.isCountingDown) return;
         triggerAbility();
     });
 }
@@ -6286,7 +6309,9 @@ bindClick('dim-tab-endless', () => {
 });
 
 const openMultiplayerModal = () => {
-    setPause(true);
+    setPause(true, false);
+    const pauseModal = document.getElementById('modal-pause');
+    if (pauseModal) pauseModal.classList.add('hidden');
     if (typeof populateMultiplayerStageSelect === 'function') {
         populateMultiplayerStageSelect();
     }
@@ -6481,7 +6506,7 @@ function mainLoop(timestamp) {
     game.lastTime = timestamp;
     game.lastFrameDelta = frameDelta;
 
-    if (!game.isPaused && !game.inMainMenu) {
+    if (!game.isPaused && !game.inMainMenu && !game.isCountingDown) {
         game.physicsAccumulator += frameDelta;
         if (game.physicsAccumulator > 0.2) game.physicsAccumulator = 0.2;
         while (game.physicsAccumulator >= FIXED_DT) {
