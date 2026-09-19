@@ -2094,6 +2094,7 @@ function resetPlayerState() {
     p.prevY = 356;
     p.renderX = 80;
     p.renderY = 356;
+    p.vx = (game.level && game.level.startSpeed) ? game.level.startSpeed : 320;
     p.vy = 0;
     p.gravityDir = 1;
     p.isGrounded = true;
@@ -4266,8 +4267,11 @@ function startEndlessMode() {
     if (hudFill) hudFill.style.width = "100%";
 
     updateAbilityHUD();
-    if (!audio.muted) audio.startMusic(140);
-    showNotification("⚡ CYBER MARATHON ENGAGED! RUN FOR MAXIMUM DISTANCE!");
+    startVisualRaceCountdown({
+        isMultiplayer: false,
+        title: "⚡ ENDLESS MARATHON",
+        bpm: 140
+    });
 }
 
 function updateEndlessMode(dt) {
@@ -4475,6 +4479,202 @@ function loadGhostChallenge(raw) {
     } catch(e) {
         showNotification("⚠️ INVALID OR CORRUPT GHOST LINK");
         return false;
+    }
+}
+
+// ============================================================================
+// 11C. RACE COUNTDOWN SYSTEM (3-2-1-GO & 50/50 Track Roulette)
+// ============================================================================
+let activeCountdownTimers = [];
+function clearActiveCountdowns() {
+    activeCountdownTimers.forEach(id => {
+        clearTimeout(id);
+        clearInterval(id);
+    });
+    activeCountdownTimers = [];
+}
+
+function startVisualRaceCountdown(config = {}) {
+    clearActiveCountdowns();
+
+    const overlay = document.getElementById('overlay-race-countdown');
+    if (!overlay) return;
+
+    const roundBadge = document.getElementById('countdown-round-badge');
+    const seriesScore = document.getElementById('countdown-series-score');
+    const rouletteBox = document.getElementById('countdown-roulette-box');
+    const hostTag = document.getElementById('countdown-host-tag');
+    const rivalTag = document.getElementById('countdown-rival-tag');
+    const rouletteTrack = document.getElementById('countdown-roulette-track');
+    const roulettePickBy = document.getElementById('countdown-roulette-pickby');
+    const bigNum = document.getElementById('countdown-big-num');
+    const subHint = document.getElementById('countdown-sub-hint');
+    const pauseModal = document.getElementById('modal-pause');
+
+    if (pauseModal) pauseModal.classList.add('hidden');
+
+    // Freeze runner and stopwatch during countdown
+    game.isCountingDown = true;
+    game.isPaused = false;
+    game.runTime = 0;
+    const stopwatch = document.getElementById('hud-stopwatch');
+    if (stopwatch) stopwatch.innerText = "00:00.000";
+
+    const p = game.player;
+    if (p) {
+        p.x = 80;
+        p.y = 356;
+        p.prevX = 80;
+        p.prevY = 356;
+        p.renderX = 80;
+        p.renderY = 356;
+        p.vx = 0;
+        p.vy = 0;
+        p.runCycle = 0;
+        p.isGrounded = true;
+        p.isSliding = false;
+        p.isJumping = false;
+    }
+
+    if (game.mpRival) {
+        game.mpRival.x = 80;
+        game.mpRival.y = 356;
+        game.mpRival.renderX = 80;
+        game.mpRival.renderY = 356;
+        game.mpRival.vx = 0;
+        game.mpRival.vy = 0;
+        game.mpRival.s = 0;
+        game.mpRival.finishTime = null;
+    }
+
+    // Stop music during countdown so countdown beeps are distinct
+    audio.stopMusic();
+
+    overlay.classList.remove('hidden');
+
+    const isMultiplayer = !!config.isMultiplayer;
+    if (isMultiplayer) {
+        if (seriesScore) seriesScore.classList.remove('hidden');
+        if (rouletteBox) rouletteBox.classList.remove('hidden');
+        if (roundBadge) {
+            roundBadge.innerText = config.title || 'BEST OF 3 SERIES';
+            const isDecider = config.isDecider;
+            roundBadge.className = isDecider 
+                ? 'px-4 py-1 rounded-full bg-amber-950/90 border border-amber-500 text-amber-300 font-cyber font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(245,158,11,0.5)] animate-pulse'
+                : 'px-4 py-1 rounded-full bg-rose-950/90 border border-rose-500/80 text-rose-300 font-cyber font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(244,63,94,0.4)]';
+        }
+        if (hostTag) hostTag.innerText = `YOU [ ${MP.series ? MP.series.myScore : 0} ]`;
+        if (rivalTag) rivalTag.innerText = `[ ${MP.series ? MP.series.rivalScore : 0} ] ${(game.mpRival && game.mpRival.tag) || 'RIVAL'}`;
+        if (typeof MP !== 'undefined' && MP.updateHUDSeriesBadge) MP.updateHUDSeriesBadge();
+
+        const trackIdx = (config.chosenTrack !== undefined) ? config.chosenTrack : 0;
+        const trackName = (LEVELS[trackIdx] && LEVELS[trackIdx].name) || `STAGE ${trackIdx + 1}`;
+        if (bigNum) {
+            bigNum.innerText = "🎲";
+            bigNum.className = "text-6xl font-cyber text-amber-400 animate-pulse tracking-wider";
+        }
+        if (subHint) subHint.innerText = "50/50 TRACK SELECTION ROLLING...";
+
+        // Quick roulette roll (6 ticks over ~660ms)
+        let rouletteTicks = 0;
+        const rouletteInterval = setInterval(() => {
+            rouletteTicks++;
+            const randomLvl = LEVELS[Math.floor(Math.random() * LEVELS.length)];
+            if (rouletteTrack) rouletteTrack.innerText = randomLvl.name;
+            audio.playJump(false);
+            if (rouletteTicks >= 6) {
+                clearInterval(rouletteInterval);
+                if (rouletteTrack) {
+                    rouletteTrack.innerText = trackName;
+                    rouletteTrack.className = "text-xs font-cyber font-bold text-cyan-300 tracking-wide text-center drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]";
+                }
+                if (roulettePickBy) {
+                    roulettePickBy.innerHTML = `<span>SELECTED BY 50/50 FLIP: <span class="text-amber-400 font-bold">${(config.chosenBy || 'HOST').toUpperCase()}'S CHOICE</span></span>`;
+                }
+                if (subHint) subHint.innerText = "TRACK LOCKED! PREPARE TO RACE!";
+                const timerId = setTimeout(() => runCountdownSequence(), 400);
+                activeCountdownTimers.push(timerId);
+            }
+        }, 110);
+        activeCountdownTimers.push(rouletteInterval);
+    } else {
+        // Single player mode / campaign / endless
+        if (seriesScore) seriesScore.classList.add('hidden');
+        if (rouletteBox) rouletteBox.classList.add('hidden');
+        if (roundBadge) {
+            roundBadge.innerText = config.title || (game.level && game.level.name) || 'SPEEDRUN TRIAL';
+            roundBadge.className = 'px-4 py-1 rounded-full bg-cyan-950/90 border border-cyan-500/80 text-cyan-300 font-cyber font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(6,182,212,0.4)]';
+        }
+        runCountdownSequence();
+    }
+
+    function runCountdownSequence() {
+        let count = 3;
+        const updateTick = () => {
+            if (!bigNum) return;
+            if (count === 3) {
+                audio.playJump(false);
+                bigNum.innerText = "3";
+                bigNum.className = "text-7xl font-cyber font-extrabold text-rose-500 tracking-wider scale-125 transition-transform duration-200 drop-shadow-[0_0_25px_rgba(244,63,94,0.9)]";
+                if (subHint) subHint.innerText = "ON YOUR MARK...";
+                const animT = setTimeout(() => { if (bigNum) bigNum.className = "text-7xl font-cyber font-extrabold text-rose-500 tracking-wider scale-100 transition-transform duration-200 drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]"; }, 150);
+                activeCountdownTimers.push(animT);
+                count--;
+                const nextT = setTimeout(updateTick, 1000);
+                activeCountdownTimers.push(nextT);
+            } else if (count === 2) {
+                audio.playJump(false);
+                bigNum.innerText = "2";
+                bigNum.className = "text-7xl font-cyber font-extrabold text-amber-400 tracking-wider scale-125 transition-transform duration-200 drop-shadow-[0_0_25px_rgba(245,158,11,0.9)]";
+                if (subHint) subHint.innerText = "GET SET...";
+                const animT = setTimeout(() => { if (bigNum) bigNum.className = "text-7xl font-cyber font-extrabold text-amber-400 tracking-wider scale-100 transition-transform duration-200 drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]"; }, 150);
+                activeCountdownTimers.push(animT);
+                count--;
+                const nextT = setTimeout(updateTick, 1000);
+                activeCountdownTimers.push(nextT);
+            } else if (count === 1) {
+                audio.playJump(true);
+                bigNum.innerText = "1";
+                bigNum.className = "text-7xl font-cyber font-extrabold text-yellow-300 tracking-wider scale-125 transition-transform duration-200 drop-shadow-[0_0_25px_rgba(253,224,71,0.9)]";
+                if (subHint) subHint.innerText = "ENGAGE BOOSTERS!";
+                const animT = setTimeout(() => { if (bigNum) bigNum.className = "text-7xl font-cyber font-extrabold text-yellow-300 tracking-wider scale-100 transition-transform duration-200 drop-shadow-[0_0_15px_rgba(253,224,71,0.6)]"; }, 150);
+                activeCountdownTimers.push(animT);
+                count--;
+                const nextT = setTimeout(updateTick, 1000);
+                activeCountdownTimers.push(nextT);
+            } else {
+                audio.playBoostPad();
+                bigNum.innerText = "GO!";
+                bigNum.className = "text-8xl font-cyber font-extrabold text-emerald-400 tracking-wider scale-135 transition-transform duration-200 drop-shadow-[0_0_35px_rgba(52,211,153,1)]";
+                if (subHint) subHint.innerText = "SPRINT FOR THE FINISH!";
+
+                // The game starts NOW!
+                game.isCountingDown = false;
+                game.isPaused = false;
+                game.runTime = 0;
+                game.lastTime = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+                game.physicsAccumulator = 0;
+
+                const startSpd = (game.level && game.level.startSpeed) ? game.level.startSpeed : 320;
+                if (game.player) game.player.vx = startSpd;
+                if (game.mpRival) game.mpRival.vx = startSpd;
+
+                const musicBpm = config.bpm || (game.level && game.level.bpm) || 135;
+                if (!audio.muted) audio.startMusic(musicBpm);
+
+                showNotification("🏁 GO! SPRINT!");
+
+                if (config.onComplete) {
+                    config.onComplete();
+                }
+
+                const hideT = setTimeout(() => {
+                    if (overlay) overlay.classList.add('hidden');
+                }, 400);
+                activeCountdownTimers.push(hideT);
+            }
+        };
+        updateTick();
     }
 }
 
@@ -5092,117 +5292,17 @@ const MP = {
 
         this.resetMatch();
         this.series.activeTrackIdx = stageIdx;
-        startLevel(stageIdx);
-
-        // Keep runner and physics held at start line without opening pause menu
-        game.isCountingDown = true;
-        game.isPaused = false;
-        if (pauseModal) pauseModal.classList.add('hidden');
-
-        if (game.mpRival) {
-            game.mpRival.x = 80;
-            game.mpRival.y = 356;
-            game.mpRival.renderX = 80;
-            game.mpRival.renderY = 356;
-            game.mpRival.vx = (game.level && game.level.startSpeed) ? game.level.startSpeed : 320;
-            game.mpRival.vy = 0;
-            game.mpRival.s = 0;
-            game.mpRival.finishTime = null;
-        }
-
-        const overlay = document.getElementById('overlay-race-countdown');
-        const roundBadge = document.getElementById('countdown-round-badge');
-        const hostTag = document.getElementById('countdown-host-tag');
-        const rivalTag = document.getElementById('countdown-rival-tag');
-        const rouletteTrack = document.getElementById('countdown-roulette-track');
-        const roulettePickBy = document.getElementById('countdown-roulette-pickby');
-        const bigNum = document.getElementById('countdown-big-num');
-        const subHint = document.getElementById('countdown-sub-hint');
-
-        if (overlay) overlay.classList.remove('hidden');
-        this.updateHUDSeriesBadge();
+        startLevel(stageIdx, true);
 
         const isDecider = (this.series.currentRound === 3) || (this.series.myScore === 1 && this.series.rivalScore === 1);
-        if (roundBadge) {
-            roundBadge.innerText = isDecider ? '🔥 FINAL DECIDING ROUND 3' : `ROUND ${this.series.currentRound} OF 3`;
-            roundBadge.className = isDecider 
-                ? 'px-4 py-1 rounded-full bg-amber-950/90 border border-amber-500 text-amber-300 font-cyber font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(245,158,11,0.5)] animate-pulse'
-                : 'px-4 py-1 rounded-full bg-rose-950/90 border border-rose-500/80 text-rose-300 font-cyber font-bold text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(244,63,94,0.4)]';
-        }
-
-        if (hostTag) hostTag.innerText = `YOU [ ${this.series.myScore} ]`;
-        if (rivalTag) rivalTag.innerText = `[ ${this.series.rivalScore} ] ${(game.mpRival && game.mpRival.tag) || 'RIVAL'}`;
-
-        const trackName = (LEVELS[stageIdx] && LEVELS[stageIdx].name) || `STAGE ${stageIdx + 1}`;
-
-        // 1. Rapid 50/50 Roulette Animation (1 second)
-        let rouletteTicks = 0;
-        if (roulettePickBy) roulettePickBy.innerText = "🎲 50/50 COIN FLIP ROLLING...";
-        const rouletteInterval = setInterval(() => {
-            rouletteTicks++;
-            const randomLvl = LEVELS[Math.floor(Math.random() * LEVELS.length)];
-            if (rouletteTrack) rouletteTrack.innerText = randomLvl.name;
-            audio.playJump(false);
-            if (rouletteTicks >= 8) {
-                clearInterval(rouletteInterval);
-                if (rouletteTrack) {
-                    rouletteTrack.innerText = trackName;
-                    rouletteTrack.className = "text-xs font-cyber font-bold text-cyan-300 tracking-wide text-center drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]";
-                }
-                if (roulettePickBy) {
-                    roulettePickBy.innerHTML = `<span>SELECTED BY 50/50 FLIP: <span class="text-amber-400 font-bold">${chosenBy.toUpperCase()}'S CHOICE</span></span>`;
-                }
-                startCountTicks();
-            }
-        }, 110);
-
-        // 2. Big 3 -> 2 -> 1 -> GO Numbers
-        const startCountTicks = () => {
-            let count = 3;
-            const updateCount = () => {
-                if (!bigNum) return;
-                if (count === 3) {
-                    audio.playJump(false);
-                    bigNum.innerText = "3";
-                    bigNum.className = "text-7xl font-cyber font-extrabold text-rose-500 tracking-wider scale-125 transition-transform duration-200 drop-shadow-[0_0_25px_rgba(244,63,94,0.9)]";
-                    if (subHint) subHint.innerText = "ON YOUR MARK...";
-                    setTimeout(() => bigNum.className = "text-7xl font-cyber font-extrabold text-rose-500 tracking-wider scale-100 transition-transform duration-200 drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]", 150);
-                    count--;
-                    setTimeout(updateCount, 1000);
-                } else if (count === 2) {
-                    audio.playJump(false);
-                    bigNum.innerText = "2";
-                    bigNum.className = "text-7xl font-cyber font-extrabold text-amber-400 tracking-wider scale-125 transition-transform duration-200 drop-shadow-[0_0_25px_rgba(245,158,11,0.9)]";
-                    if (subHint) subHint.innerText = "GET SET...";
-                    setTimeout(() => bigNum.className = "text-7xl font-cyber font-extrabold text-amber-400 tracking-wider scale-100 transition-transform duration-200 drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]", 150);
-                    count--;
-                    setTimeout(updateCount, 1000);
-                } else if (count === 1) {
-                    audio.playJump(false);
-                    bigNum.innerText = "1";
-                    bigNum.className = "text-7xl font-cyber font-extrabold text-yellow-300 tracking-wider scale-125 transition-transform duration-200 drop-shadow-[0_0_25px_rgba(253,224,71,0.9)]";
-                    if (subHint) subHint.innerText = "ENGAGE BOOSTERS!";
-                    setTimeout(() => bigNum.className = "text-7xl font-cyber font-extrabold text-yellow-300 tracking-wider scale-100 transition-transform duration-200 drop-shadow-[0_0_15px_rgba(253,224,71,0.6)]", 150);
-                    count--;
-                    setTimeout(updateCount, 1000);
-                } else {
-                    audio.playBoostPad();
-                    bigNum.innerText = "GO!";
-                    bigNum.className = "text-8xl font-cyber font-extrabold text-emerald-400 tracking-wider scale-130 transition-transform duration-200 drop-shadow-[0_0_35px_rgba(52,211,153,1)]";
-                    if (subHint) subHint.innerText = "SPRINT FOR THE FINISH!";
-                    game.isCountingDown = false;
-                    game.isPaused = false;
-                    if (pauseModal) pauseModal.classList.add('hidden');
-                    game.lastTime = (typeof performance !== 'undefined') ? performance.now() : Date.now();
-                    game.physicsAccumulator = 0;
-                    showNotification("🏁 GO! SPRINT!");
-                    setTimeout(() => {
-                        if (overlay) overlay.classList.add('hidden');
-                    }, 500);
-                }
-            };
-            updateCount();
-        };
+        startVisualRaceCountdown({
+            isMultiplayer: true,
+            title: isDecider ? '🔥 FINAL DECIDING ROUND 3' : `ROUND ${this.series.currentRound} OF 3`,
+            isDecider: isDecider,
+            chosenTrack: stageIdx,
+            chosenBy: chosenBy,
+            bpm: (LEVELS[stageIdx] && LEVELS[stageIdx].bpm) || 135
+        });
     },
 
     showPodium() {
@@ -5525,7 +5625,7 @@ function populateMultiplayerStageSelect() {
 // ============================================================================
 // 12. LEVEL FLOW & STAGE MATRIX POPULATION
 // ============================================================================
-function startLevel(idx) {
+function startLevel(idx, skipCountdown = false) {
     game.inMainMenu = false;
     game.isEndless = false;
     game.isCountingDown = false;
@@ -5572,10 +5672,22 @@ function startLevel(idx) {
 
     updateShardHUD();
     updateAbilityHUD();
-    audio.startMusic(game.level.bpm);
+
+    if (skipCountdown || game.isMultiplayer) {
+        if (!game.isMultiplayer) {
+            audio.startMusic(game.level.bpm);
+        }
+    } else {
+        startVisualRaceCountdown({
+            isMultiplayer: false,
+            title: game.level.name,
+            bpm: game.level.bpm
+        });
+    }
 }
 
 function returnToMainMenu() {
+    clearActiveCountdowns();
     game.inMainMenu = true;
     game.isPaused = false;
     game.isCountingDown = false;
