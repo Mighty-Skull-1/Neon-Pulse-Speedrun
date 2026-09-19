@@ -812,22 +812,58 @@
                     </div>
                 </div>
 
-                <div class="flex gap-2 w-full mt-1">
+                <!-- In-Progress Round Actions (Rounds 1 & 2) -->
+                <div id="race-round-actions" class="flex gap-2 w-full mt-1">
                     <button id="btn-next-round" onclick="window.handleNextRoundClick && window.handleNextRoundClick()" class="flex-1 py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg cursor-pointer pointer-events-auto">
                         🏁 NEXT ROUND (ROUND 2)
-                    </button>
-                    <button id="btn-race-again" onclick="window.handleRaceAgainClick && window.handleRaceAgainClick()" class="hidden flex-1 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg cursor-pointer pointer-events-auto">
-                        🏆 NEW MATCH (BEST OF 3)
                     </button>
                     <button id="btn-race-close" onclick="window.handleRaceCloseClick && window.handleRaceCloseClick()" class="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-cyber text-xs rounded border border-neutral-700 transition cursor-pointer pointer-events-auto">
                         LOBBY
                     </button>
+                </div>
+
+                <!-- Match Concluded: Rematch Voting Panel -->
+                <div id="race-rematch-panel" class="hidden w-full flex-col gap-2.5 bg-neutral-950 p-3 rounded-lg border border-cyan-500/50 mt-1 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
+                    <div class="flex items-center justify-between text-xs font-cyber">
+                        <span class="font-bold text-cyan-300 flex items-center gap-1.5">
+                            <span>🔥</span> WANT A REMATCH?
+                        </span>
+                        <span class="text-[10px] text-amber-400 font-mono">BOTH PLAYERS MUST AGREE</span>
+                    </div>
+                    <p class="text-[11px] text-neutral-400 text-left">If both players vote YES, a new Best-of-3 starts. If either player votes NO, the session ends.</p>
+
+                    <!-- Live Voting Status Grid -->
+                    <div class="grid grid-cols-2 gap-2 text-xs font-cyber">
+                        <div class="p-2 rounded bg-neutral-900 border border-neutral-800 flex flex-col items-center">
+                            <span class="text-[10px] text-neutral-400">YOUR CHOICE:</span>
+                            <span id="rematch-my-status" class="font-bold text-neutral-400 mt-0.5">WAITING...</span>
+                        </div>
+                        <div class="p-2 rounded bg-neutral-900 border border-neutral-800 flex flex-col items-center">
+                            <span class="text-[10px] text-neutral-400">RIVAL'S CHOICE:</span>
+                            <span id="rematch-rival-status" class="font-bold text-neutral-400 mt-0.5">WAITING...</span>
+                        </div>
+                    </div>
+
+                    <div id="rematch-feedback-msg" class="text-[11px] font-cyber text-amber-300 text-center hidden"></div>
+
+                    <!-- Vote Buttons -->
+                    <div class="flex gap-2 w-full">
+                        <button id="btn-rematch-yes" onclick="window.handleRematchVote && window.handleRematchVote(true)" class="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-cyber font-bold text-xs rounded transition shadow-lg cursor-pointer pointer-events-auto flex items-center justify-center gap-1.5">
+                            <span>🔥</span> YES, REMATCH!
+                        </button>
+                        <button id="btn-rematch-no" onclick="window.handleRematchVote && window.handleRematchVote(false)" class="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-rose-300 hover:text-rose-200 font-cyber font-bold text-xs rounded border border-rose-500/40 hover:border-rose-500 transition cursor-pointer pointer-events-auto flex items-center justify-center gap-1.5">
+                            <span>❌</span> NO, LEAVE
+                        </button>
+                    </div>
+
+                    <!-- Hidden legacy fallback button -->
+                    <button id="btn-race-again" class="hidden"></button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=2.6"></script>
+    <script src="game.js?v=2.7"></script>
 </body>
 </html>

@@ -4729,12 +4729,241 @@ const MP = {
         playedTracks: []
     },
 
+    rematch: {
+        myVote: null,
+        rivalVote: null,
+        status: 'idle',
+        decisionTimer: null
+    },
+
+    resetRematch() {
+        if (this.rematch && this.rematch.decisionTimer) {
+            clearTimeout(this.rematch.decisionTimer);
+            this.rematch.decisionTimer = null;
+        }
+        this.rematch = {
+            myVote: null,
+            rivalVote: null,
+            status: 'idle',
+            decisionTimer: null
+        };
+        this.updateRematchUI();
+    },
+
     resetSeries() {
         this.series.currentRound = 1;
         this.series.myScore = 0;
         this.series.rivalScore = 0;
         this.series.playedTracks = [];
+        this.resetRematch();
         this.updateHUDSeriesBadge();
+    },
+
+    updateRematchUI() {
+        const panel = document.getElementById('race-rematch-panel');
+        const roundActions = document.getElementById('race-round-actions');
+        const myStatus = document.getElementById('rematch-my-status');
+        const rivalStatus = document.getElementById('rematch-rival-status');
+        const feedback = document.getElementById('rematch-feedback-msg');
+        const btnYes = document.getElementById('btn-rematch-yes');
+        const btnNo = document.getElementById('btn-rematch-no');
+
+        if (!panel) return;
+
+        const seriesOver = this.series.myScore >= 2 || this.series.rivalScore >= 2;
+        if (!seriesOver || this.rematch.status === 'idle') {
+            panel.classList.add('hidden');
+            panel.style.display = 'none';
+            if (roundActions) {
+                roundActions.classList.remove('hidden');
+                roundActions.style.display = 'flex';
+            }
+            return;
+        }
+
+        panel.classList.remove('hidden');
+        panel.style.display = 'flex';
+        if (roundActions) {
+            roundActions.classList.add('hidden');
+            roundActions.style.display = 'none';
+        }
+
+        if (myStatus) {
+            if (this.rematch.myVote === true) {
+                myStatus.innerHTML = `<span class="text-emerald-400 font-bold">✓ VOTED YES</span>`;
+            } else if (this.rematch.myVote === false) {
+                myStatus.innerHTML = `<span class="text-rose-400 font-bold">✗ VOTED NO</span>`;
+            } else {
+                myStatus.innerHTML = `<span class="text-neutral-400">WAITING FOR YOU...</span>`;
+            }
+        }
+
+        if (rivalStatus) {
+            if (this.rematch.rivalVote === true) {
+                rivalStatus.innerHTML = `<span class="text-emerald-400 font-bold">✓ WANTS REMATCH</span>`;
+            } else if (this.rematch.rivalVote === false) {
+                rivalStatus.innerHTML = `<span class="text-rose-400 font-bold">✗ DECLINED</span>`;
+            } else {
+                rivalStatus.innerHTML = `<span class="text-neutral-400">THINKING...</span>`;
+            }
+        }
+
+        if (btnYes && btnNo) {
+            if (this.rematch.myVote !== null) {
+                btnYes.disabled = true;
+                btnYes.classList.add('opacity-50', 'cursor-not-allowed');
+                if (this.rematch.myVote === true) {
+                    btnYes.innerText = "⏳ WAITING FOR RIVAL...";
+                }
+            } else {
+                btnYes.disabled = false;
+                btnYes.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnYes.innerText = "🔥 YES, REMATCH!";
+            }
+
+            if (this.rematch.myVote === false || this.rematch.status === 'declined' || this.rematch.status === 'accepted') {
+                btnNo.disabled = true;
+                btnNo.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                btnNo.disabled = false;
+                btnNo.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnNo.innerText = "❌ NO, LEAVE";
+            }
+        }
+
+        if (feedback) {
+            if (this.rematch.status === 'accepted') {
+                feedback.classList.remove('hidden');
+                feedback.className = "text-xs font-cyber font-bold text-emerald-400 text-center animate-pulse py-1 bg-emerald-950/60 border border-emerald-500/50 rounded";
+                feedback.innerText = "🔥 BOTH PLAYERS AGREED! PREPARING NEW BEST-OF-3 MATCH...";
+            } else if (this.rematch.status === 'declined') {
+                feedback.classList.remove('hidden');
+                feedback.className = "text-xs font-cyber font-bold text-rose-400 text-center py-1 bg-rose-950/60 border border-rose-500/50 rounded";
+                feedback.innerText = "❌ REMATCH DECLINED — ENDING MULTIPLAYER SESSION...";
+            } else if (this.rematch.myVote === true && this.rematch.rivalVote === null) {
+                feedback.classList.remove('hidden');
+                feedback.className = "text-[11px] font-cyber text-cyan-300 text-center py-1";
+                feedback.innerText = "⏳ You voted YES! Awaiting rival's decision...";
+            } else if (this.rematch.myVote === null && this.rematch.rivalVote === true) {
+                feedback.classList.remove('hidden');
+                feedback.className = "text-[11px] font-cyber text-amber-300 text-center py-1 animate-pulse";
+                feedback.innerText = "⚡ Rival wants a rematch! Vote YES to go again, or NO to exit.";
+            } else {
+                feedback.classList.add('hidden');
+            }
+        }
+    },
+
+    castRematchVote(vote) {
+        if (this.rematch.status === 'accepted' || this.rematch.status === 'declined') return;
+        if (this.rematch.myVote !== null) return;
+
+        this.rematch.myVote = !!vote;
+        this.rematch.status = 'voting';
+
+        this.sendMsg({
+            type: 'REMATCH_VOTE',
+            vote: this.rematch.myVote
+        });
+
+        if (this.rematch.myVote) {
+            showNotification("🔥 YOU VOTED YES FOR A REMATCH!");
+        } else {
+            showNotification("❌ YOU DECLINED THE REMATCH");
+        }
+
+        if (game.mpRival && game.mpRival.isAI) {
+            setTimeout(() => {
+                if (this.rematch.myVote === true) {
+                    this.handleRivalRematchVote(true);
+                } else {
+                    this.handleRivalRematchVote(false);
+                }
+            }, 400);
+        }
+
+        this.updateRematchUI();
+        this.checkRematchDecision();
+    },
+
+    handleRivalRematchVote(vote) {
+        if (this.rematch.status === 'accepted' || this.rematch.status === 'declined') return;
+
+        this.rematch.rivalVote = !!vote;
+        if (this.rematch.rivalVote) {
+            showNotification(`🔥 RIVAL VOTED YES FOR REMATCH!`);
+        } else {
+            showNotification(`❌ RIVAL DECLINED REMATCH`);
+        }
+
+        this.updateRematchUI();
+        this.checkRematchDecision();
+    },
+
+    checkRematchDecision() {
+        // If either player says NO: ends the session anyway!
+        if (this.rematch.myVote === false || this.rematch.rivalVote === false) {
+            this.rematch.status = 'declined';
+            this.updateRematchUI();
+
+            if (this.rematch.decisionTimer) clearTimeout(this.rematch.decisionTimer);
+            this.rematch.decisionTimer = setTimeout(() => {
+                showNotification("🚪 SESSION ENDED — RETURNING TO MENU");
+                this.connected = false;
+                game.isMultiplayer = false;
+                game.mpRival = null;
+                const modal = document.getElementById('modal-race-result');
+                if (modal) {
+                    modal.classList.add('hidden');
+                    modal.style.display = 'none';
+                }
+                returnToMainMenu();
+            }, 1800);
+            return;
+        }
+
+        // If BOTH players say YES: go again!
+        if (this.rematch.myVote === true && this.rematch.rivalVote === true) {
+            this.rematch.status = 'accepted';
+            this.updateRematchUI();
+
+            if (this.rematch.decisionTimer) clearTimeout(this.rematch.decisionTimer);
+            this.rematch.decisionTimer = setTimeout(() => {
+                const modal = document.getElementById('modal-race-result');
+                if (modal) {
+                    modal.classList.add('hidden');
+                    modal.style.display = 'none';
+                }
+                this.resetSeries();
+                this.resetRematch();
+
+                if (game.mpRival && game.mpRival.isAI) {
+                    this.hostTriggerStartRound();
+                } else if (this.isHost) {
+                    this.hostTriggerStartRound();
+                } else {
+                    showNotification("⏳ STARTING NEW BEST-OF-3 SERIES...");
+                }
+            }, 1400);
+        }
+    },
+
+    handleRivalLeft() {
+        this.rematch.status = 'declined';
+        this.rematch.rivalVote = false;
+        this.updateRematchUI();
+        showNotification("⚠️ RIVAL LEFT — MULTIPLAYER SESSION CONCLUDED");
+        setTimeout(() => {
+            const modal = document.getElementById('modal-race-result');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+            this.connected = false;
+            game.isMultiplayer = false;
+            game.mpRival = null;
+            returnToMainMenu();
+        }, 1500);
     },
 
     formatTrackChoiceLabel(choice) {
@@ -5290,6 +5519,10 @@ const MP = {
                 this.resetSeries();
                 this.hostTriggerStartRound();
             }
+        } else if (data.type === 'REMATCH_VOTE') {
+            this.handleRivalRematchVote(data.vote);
+        } else if (data.type === 'PLAYER_LEFT') {
+            this.handleRivalLeft();
         } else if (data.type === 'SYNC') {
             if (!this.rivalData) {
                 this.rivalData = { tag: data.tag, skin: data.skin };
@@ -5480,10 +5713,13 @@ const MP = {
                 btnNextRound.style.display = 'none';
             }
             if (btnRaceAgain) {
-                btnRaceAgain.classList.remove('hidden');
-                btnRaceAgain.style.display = '';
-                btnRaceAgain.innerText = "🏆 PLAY NEW MATCH (BEST OF 3)";
+                btnRaceAgain.classList.add('hidden');
+                btnRaceAgain.style.display = 'none';
             }
+            this.rematch.status = 'voting';
+            this.rematch.myVote = null;
+            this.rematch.rivalVote = null;
+            this.updateRematchUI();
         } else {
             // Series continues!
             this.series.currentRound++;
@@ -5508,6 +5744,8 @@ const MP = {
                 btnRaceAgain.classList.add('hidden');
                 btnRaceAgain.style.display = 'none';
             }
+            this.rematch.status = 'idle';
+            this.updateRematchUI();
         }
 
         if (myName) myName.innerText = game.pilotTag;
@@ -5878,6 +6116,10 @@ function returnToMainMenu() {
     game.victory = false;
     game.openedLeaderboardFrom = null;
     game.mpRival = null;
+    if (typeof MP !== 'undefined') {
+        MP.connected = false;
+        MP.resetRematch();
+    }
     audio.stopMusic();
 
     const ingameHeader = document.getElementById('ingame-header');
@@ -6928,23 +7170,17 @@ function handleNextRoundClick() {
 window.handleNextRoundClick = handleNextRoundClick;
 bindClick('btn-next-round', handleNextRoundClick);
 
-function handleRaceAgainClick() {
-    const modal = document.getElementById('modal-race-result');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.style.display = 'none';
-    }
+function handleRematchVote(vote) {
     if (typeof MP !== 'undefined') {
-        MP.resetSeries();
-        if (game.mpRival && game.mpRival.isAI) {
-            MP.hostTriggerStartRound();
-        } else if (MP.isHost) {
-            MP.hostTriggerStartRound();
-        } else {
-            MP.sendMsg({ type: 'READY_NEW_MATCH' });
-            showNotification("⏳ WAITING FOR HOST TO START NEW MATCH...");
-        }
+        MP.castRematchVote(vote);
     }
+}
+window.handleRematchVote = handleRematchVote;
+bindClick('btn-rematch-yes', () => handleRematchVote(true));
+bindClick('btn-rematch-no', () => handleRematchVote(false));
+
+function handleRaceAgainClick() {
+    handleRematchVote(true);
 }
 window.handleRaceAgainClick = handleRaceAgainClick;
 bindClick('btn-race-again', handleRaceAgainClick);
@@ -6980,6 +7216,15 @@ function handleRaceCloseClick() {
     if (modal) {
         modal.classList.add('hidden');
         modal.style.display = 'none';
+    }
+    if (typeof MP !== 'undefined') {
+        if (MP.connected && (!game.mpRival || !game.mpRival.isAI)) {
+            MP.sendMsg({ type: 'PLAYER_LEFT', tag: game.pilotTag });
+        }
+        MP.connected = false;
+        game.isMultiplayer = false;
+        game.mpRival = null;
+        MP.resetRematch();
     }
     returnToMainMenu();
 }
