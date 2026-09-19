@@ -1861,7 +1861,8 @@ function setPilotTag(newTag, broadcast = true) {
         } catch(e) {}
     }
 
-    if (typeof populateLeaderboard === 'function' && typeof game.currentLevelIdx !== 'undefined') {
+    const lbModal = document.getElementById('modal-leaderboard');
+    if (lbModal && !lbModal.classList.contains('hidden') && typeof populateLeaderboard === 'function' && typeof game !== 'undefined' && typeof game.currentLevelIdx !== 'undefined') {
         populateLeaderboard(game.currentLevelIdx);
     }
 }
@@ -1902,7 +1903,6 @@ function setupPilotTagInputs() {
     });
 }
 window.setupPilotTagInputs = setupPilotTagInputs;
-setupPilotTagInputs();
 window.game = game;
 
 function formatTime(sec) {
@@ -1920,7 +1920,7 @@ function getActiveSkinData() {
 // 5. GLOBAL ONLINE LEADERBOARD (DREAMLO) & PB SYSTEM
 // ============================================================================
 
-const DreamloLB = {
+var DreamloLB = {
     publicCode: '6aaf1b678f40bb15a890552d',
     privateCode: 'Ycm9wpmt4UC6haZYAdvOyg0kS9NSx9kUeC-5xlf6NCNw',
     cachedEntries: null,
@@ -2206,7 +2206,7 @@ function populateLeaderboard(levelIdx) {
         });
     }
 
-    const currentFilter = DreamloLB.selectedFilter || 'ALL';
+    const currentFilter = (typeof DreamloLB !== 'undefined' && DreamloLB && DreamloLB.selectedFilter) ? DreamloLB.selectedFilter : 'ALL';
     if (filterSelect && filterSelect.value !== currentFilter) {
         filterSelect.value = currentFilter;
     }
@@ -2223,7 +2223,7 @@ function populateLeaderboard(levelIdx) {
     }
 
     // Show initial loading state if first time
-    if (DreamloLB.isFetching && (!DreamloLB.cachedEntries || DreamloLB.cachedEntries.length === 0)) {
+    if (typeof DreamloLB !== 'undefined' && DreamloLB && DreamloLB.isFetching && (!DreamloLB.cachedEntries || DreamloLB.cachedEntries.length === 0)) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="6" class="py-8 text-center text-cyan-400 font-cyber text-xs tracking-wider animate-pulse">
@@ -2234,11 +2234,15 @@ function populateLeaderboard(levelIdx) {
     }
 
     // Fetch live entries from Dreamlo
-    DreamloLB.fetchScores().then(onlineScores => {
-        renderLeaderboardRows(onlineScores, levelIdx, currentFilter);
-    }).catch(() => {
+    if (typeof DreamloLB !== 'undefined' && DreamloLB && typeof DreamloLB.fetchScores === 'function') {
+        DreamloLB.fetchScores().then(onlineScores => {
+            renderLeaderboardRows(onlineScores, levelIdx, currentFilter);
+        }).catch(() => {
+            renderLeaderboardRows([], levelIdx, currentFilter);
+        });
+    } else {
         renderLeaderboardRows([], levelIdx, currentFilter);
-    });
+    }
 }
 window.populateLeaderboard = populateLeaderboard;
 
@@ -2248,20 +2252,29 @@ function refreshLeaderboard() {
         liveBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-spin"></span> SYNCING...`;
     }
     showNotification("🔄 REFRESHING GLOBAL LEADERBOARD...");
-    DreamloLB.fetchScores(true).then(() => {
+    if (typeof DreamloLB !== 'undefined' && DreamloLB && typeof DreamloLB.fetchScores === 'function') {
+        DreamloLB.fetchScores(true).then(() => {
+            populateLeaderboard();
+            showNotification("✅ GLOBAL LEADERBOARD SYNCED");
+        }).catch(() => {
+            populateLeaderboard();
+        });
+    } else {
         populateLeaderboard();
-        showNotification("✅ GLOBAL LEADERBOARD SYNCED");
-    }).catch(() => {
-        populateLeaderboard();
-    });
+    }
 }
 window.refreshLeaderboard = refreshLeaderboard;
 
 function onLeaderboardFilterChange(val) {
-    DreamloLB.selectedFilter = val;
+    if (typeof DreamloLB !== 'undefined' && DreamloLB) {
+        DreamloLB.selectedFilter = val;
+    }
     populateLeaderboard();
 }
 window.onLeaderboardFilterChange = onLeaderboardFilterChange;
+
+// Initialize Pilot Tag & inputs now that Leaderboard system is defined
+setupPilotTagInputs();
 
 // ============================================================================
 // 6. PARTICLES & VISUAL FX
