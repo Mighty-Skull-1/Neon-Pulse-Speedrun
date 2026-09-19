@@ -8,6 +8,14 @@
     box-sizing: border-box;
 }
 
+.hidden {
+    display: none !important;
+}
+
+button, [role="button"], select {
+    cursor: pointer;
+}
+
 body {
     font-family: 'JetBrains Mono', monospace;
     background-color: #030712;

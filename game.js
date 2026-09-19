@@ -2995,7 +2995,10 @@ function triggerVictory() {
     }
 
     const vicModal = document.getElementById('modal-victory');
-    if (vicModal) vicModal.classList.remove('hidden');
+    if (vicModal) {
+        vicModal.classList.remove('hidden');
+        vicModal.style.display = '';
+    }
 }
 
 // ============================================================================
@@ -5709,6 +5712,8 @@ function returnToMainMenu() {
     game.isCountingDown = false;
     game.isEndless = false;
     game.isMultiplayer = false;
+    game.victory = false;
+    game.openedLeaderboardFrom = null;
     game.mpRival = null;
     audio.stopMusic();
 
@@ -5719,6 +5724,7 @@ function returnToMainMenu() {
     const modalLb = document.getElementById('modal-leaderboard');
     const modalDaily = document.getElementById('modal-daily');
     const modalVictory = document.getElementById('modal-victory');
+    const modalHow = document.getElementById('modal-howtoplay');
     const modalMp = document.getElementById('modal-multiplayer');
     const modalRaceResult = document.getElementById('modal-race-result');
     const endlessBadge = document.getElementById('hud-endless-badge');
@@ -5726,25 +5732,36 @@ function returnToMainMenu() {
     const seriesBadge = document.getElementById('hud-series-badge');
     const countdownOverlay = document.getElementById('overlay-race-countdown');
 
-    if (ingameHeader) ingameHeader.classList.add('hidden');
-    if (pauseModal) pauseModal.classList.add('hidden');
-    if (modalMenu) modalMenu.classList.add('hidden');
-    if (modalLb) modalLb.classList.add('hidden');
-    if (modalDaily) modalDaily.classList.add('hidden');
-    if (modalVictory) modalVictory.classList.add('hidden');
-    if (modalMp) modalMp.classList.add('hidden');
-    if (modalRaceResult) modalRaceResult.classList.add('hidden');
+    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalVictory, modalHow, modalMp, modalRaceResult];
+    allModals.forEach(m => {
+        if (m) {
+            m.classList.add('hidden');
+            m.style.display = 'none';
+        }
+    });
+
+    if (ingameHeader) {
+        ingameHeader.classList.add('hidden');
+        ingameHeader.style.display = 'none';
+    }
     if (endlessBadge) endlessBadge.classList.add('hidden');
     if (raceBadge) raceBadge.classList.add('hidden');
     if (seriesBadge) seriesBadge.classList.add('hidden');
-    if (countdownOverlay) countdownOverlay.classList.add('hidden');
-    if (mainMenu) mainMenu.classList.remove('hidden');
+    if (countdownOverlay) {
+        countdownOverlay.classList.add('hidden');
+        countdownOverlay.style.display = 'none';
+    }
+    if (mainMenu) {
+        mainMenu.classList.remove('hidden');
+        mainMenu.style.display = '';
+    }
 
     const pilotDisplay = document.getElementById('main-pilot-display');
     if (pilotDisplay) pilotDisplay.innerText = game.pilotTag;
 
     dailySystem.updateBadge();
 }
+window.returnToMainMenu = returnToMainMenu;
 
 function setPause(paused, showModal = true) {
     if (game.inMainMenu || game.isCountingDown) return;
@@ -5755,11 +5772,14 @@ function setPause(paused, showModal = true) {
             audio.pauseMusic();
             if (showModal) {
                 pauseModal.classList.remove('hidden');
+                pauseModal.style.display = '';
             } else {
                 pauseModal.classList.add('hidden');
+                pauseModal.style.display = 'none';
             }
         } else {
             pauseModal.classList.add('hidden');
+            pauseModal.style.display = 'none';
             game.lastTime = (typeof performance !== 'undefined') ? performance.now() : Date.now();
             game.physicsAccumulator = 0;
             audio.resumeMusic();
@@ -6034,13 +6054,6 @@ window.addEventListener('keydown', (e) => {
 
     if (e.repeat) return;
 
-    if (game.inMainMenu) {
-        if (e.code === 'Space' || e.code === 'Enter') {
-            startLevel(game.currentLevelIdx);
-        }
-        return;
-    }
-
     if (e.code === 'Escape' || e.code === 'KeyP') {
         if (game.isCountingDown) return;
         e.preventDefault();
@@ -6057,14 +6070,24 @@ window.addEventListener('keydown', (e) => {
                         (mpModal && !mpModal.classList.contains('hidden'));
 
         if (anyOpen) {
-            if (menuModal) menuModal.classList.add('hidden');
-            if (lbModal) lbModal.classList.add('hidden');
-            if (dailyModal) dailyModal.classList.add('hidden');
-            if (howModal) howModal.classList.add('hidden');
-            if (mpModal) mpModal.classList.add('hidden');
-            setPause(false);
-        } else {
-            setPause(!game.isPaused);
+            if (menuModal) { menuModal.classList.add('hidden'); menuModal.style.display = 'none'; }
+            if (lbModal) { closeLeaderboardModal(); }
+            if (dailyModal) { dailyModal.classList.add('hidden'); dailyModal.style.display = 'none'; }
+            if (howModal) { howModal.classList.add('hidden'); howModal.style.display = 'none'; }
+            if (mpModal) { mpModal.classList.add('hidden'); mpModal.style.display = 'none'; }
+            if (!game.inMainMenu && !game.victory) setPause(false);
+            return;
+        }
+
+        if (game.inMainMenu) return;
+
+        setPause(!game.isPaused);
+        return;
+    }
+
+    if (game.inMainMenu) {
+        if (e.code === 'Space' || e.code === 'Enter') {
+            startLevel(game.currentLevelIdx);
         }
         return;
     }
@@ -6206,7 +6229,18 @@ if (touchAbility) {
 
 const bindClick = (id, fn) => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('click', fn);
+    if (el) {
+        let lastFired = 0;
+        const handler = (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            const now = Date.now();
+            if (now - lastFired < 180) return;
+            lastFired = now;
+            fn(e);
+        };
+        el.addEventListener('pointerdown', handler);
+        el.addEventListener('click', handler);
+    }
 };
 
 bindClick('btn-main-play', () => {
@@ -6217,31 +6251,46 @@ bindClick('btn-main-play', () => {
 bindClick('btn-main-stages', () => {
     populateStageMenu();
     const menuModal = document.getElementById('modal-menu');
-    if (menuModal) menuModal.classList.remove('hidden');
+    if (menuModal) {
+        menuModal.classList.remove('hidden');
+        menuModal.style.display = '';
+    }
 });
 
 bindClick('btn-main-ranks', () => {
     game.openedLeaderboardFrom = 'main';
     populateLeaderboard(game.currentLevelIdx);
     const lbModal = document.getElementById('modal-leaderboard');
-    if (lbModal) lbModal.classList.remove('hidden');
+    if (lbModal) {
+        lbModal.classList.remove('hidden');
+        lbModal.style.display = '';
+    }
 });
 
 bindClick('btn-main-daily', () => {
     populateDailyModal();
     const dailyModal = document.getElementById('modal-daily');
-    if (dailyModal) dailyModal.classList.remove('hidden');
+    if (dailyModal) {
+        dailyModal.classList.remove('hidden');
+        dailyModal.style.display = '';
+    }
 });
 
 bindClick('btn-main-dim2', () => {
     audio.init();
     const mainMenu = document.getElementById('screen-main-menu');
-    if (mainMenu) mainMenu.classList.add('hidden');
+    if (mainMenu) {
+        mainMenu.classList.add('hidden');
+        mainMenu.style.display = 'none';
+    }
     game.currentDimensionTab = 2;
     game.currentSectorFilter = 'all';
     populateStageMenu();
     const menuModal = document.getElementById('modal-menu');
-    if (menuModal) menuModal.classList.remove('hidden');
+    if (menuModal) {
+        menuModal.classList.remove('hidden');
+        menuModal.style.display = '';
+    }
 });
 
 bindClick('dim-tab-1', () => {
@@ -6258,17 +6307,26 @@ bindClick('dim-tab-2', () => {
 
 bindClick('btn-main-howtoplay', () => {
     const howModal = document.getElementById('modal-howtoplay');
-    if (howModal) howModal.classList.remove('hidden');
+    if (howModal) {
+        howModal.classList.remove('hidden');
+        howModal.style.display = '';
+    }
 });
 
 bindClick('btn-close-howtoplay', () => {
     const howModal = document.getElementById('modal-howtoplay');
-    if (howModal) howModal.classList.add('hidden');
+    if (howModal) {
+        howModal.classList.add('hidden');
+        howModal.style.display = 'none';
+    }
 });
 
 bindClick('btn-howtoplay-confirm', () => {
     const howModal = document.getElementById('modal-howtoplay');
-    if (howModal) howModal.classList.add('hidden');
+    if (howModal) {
+        howModal.classList.add('hidden');
+        howModal.style.display = 'none';
+    }
     audio.init();
     startLevel(game.currentLevelIdx);
 });
@@ -6290,26 +6348,41 @@ bindClick('btn-menu', () => {
     setPause(true);
     populateStageMenu();
     const menuModal = document.getElementById('modal-menu');
-    if (menuModal) menuModal.classList.remove('hidden');
+    if (menuModal) {
+        menuModal.classList.remove('hidden');
+        menuModal.style.display = '';
+    }
 });
 
 function closeMenuModal() {
     const menuModal = document.getElementById('modal-menu');
-    if (menuModal) menuModal.classList.add('hidden');
+    if (menuModal) {
+        menuModal.classList.add('hidden');
+        menuModal.style.display = 'none';
+    }
     if (!game.inMainMenu) setPause(false);
 }
 window.closeMenuModal = closeMenuModal;
 
 function closeLeaderboardModal() {
     const lbModal = document.getElementById('modal-leaderboard');
-    if (lbModal) lbModal.classList.add('hidden');
+    if (lbModal) {
+        lbModal.classList.add('hidden');
+        lbModal.style.display = 'none';
+    }
     if (game.openedLeaderboardFrom === 'victory') {
         const vicModal = document.getElementById('modal-victory');
-        if (vicModal) vicModal.classList.remove('hidden');
+        if (vicModal) {
+            vicModal.classList.remove('hidden');
+            vicModal.style.display = '';
+        }
         game.openedLeaderboardFrom = null;
     } else if (game.openedLeaderboardFrom === 'pause') {
         const pauseModal = document.getElementById('modal-pause');
-        if (pauseModal) pauseModal.classList.remove('hidden');
+        if (pauseModal) {
+            pauseModal.classList.remove('hidden');
+            pauseModal.style.display = '';
+        }
         game.openedLeaderboardFrom = null;
     } else if (!game.inMainMenu) {
         setPause(false);
@@ -6329,12 +6402,18 @@ bindClick('btn-daily-open', () => {
     setPause(true);
     populateDailyModal();
     const dailyModal = document.getElementById('modal-daily');
-    if (dailyModal) dailyModal.classList.remove('hidden');
+    if (dailyModal) {
+        dailyModal.classList.remove('hidden');
+        dailyModal.style.display = '';
+    }
 });
 
 bindClick('btn-close-daily', () => {
     const dailyModal = document.getElementById('modal-daily');
-    if (dailyModal) dailyModal.classList.add('hidden');
+    if (dailyModal) {
+        dailyModal.classList.add('hidden');
+        dailyModal.style.display = 'none';
+    }
     if (!game.inMainMenu) setPause(false);
 });
 
@@ -6343,14 +6422,20 @@ bindClick('btn-leaderboard-open', () => {
     setPause(true);
     populateLeaderboard(game.currentLevelIdx);
     const lbModal = document.getElementById('modal-leaderboard');
-    if (lbModal) lbModal.classList.remove('hidden');
+    if (lbModal) {
+        lbModal.classList.remove('hidden');
+        lbModal.style.display = '';
+    }
 });
 
 bindClick('btn-close-leaderboard', closeLeaderboardModal);
 
 bindClick('btn-leaderboard-back-main', () => {
     const lbModal = document.getElementById('modal-leaderboard');
-    if (lbModal) lbModal.classList.add('hidden');
+    if (lbModal) {
+        lbModal.classList.add('hidden');
+        lbModal.style.display = 'none';
+    }
     returnToMainMenu();
 });
 
@@ -6385,10 +6470,16 @@ bindClick('btn-pause-restart', () => {
 
 bindClick('btn-pause-stages', () => {
     const pauseModal = document.getElementById('modal-pause');
-    if (pauseModal) pauseModal.classList.add('hidden');
+    if (pauseModal) {
+        pauseModal.classList.add('hidden');
+        pauseModal.style.display = 'none';
+    }
     populateStageMenu();
     const menuModal = document.getElementById('modal-menu');
-    if (menuModal) menuModal.classList.remove('hidden');
+    if (menuModal) {
+        menuModal.classList.remove('hidden');
+        menuModal.style.display = '';
+    }
 });
 
 bindClick('btn-pause-main-menu', () => returnToMainMenu());
@@ -6409,7 +6500,10 @@ bindClick('btn-audio', () => {
 
 bindClick('btn-victory-main-menu', () => {
     const vicModal = document.getElementById('modal-victory');
-    if (vicModal) vicModal.classList.add('hidden');
+    if (vicModal) {
+        vicModal.classList.add('hidden');
+        vicModal.style.display = 'none';
+    }
     returnToMainMenu();
 });
 
@@ -6425,10 +6519,16 @@ bindClick('btn-victory-next', () => {
 bindClick('btn-victory-ranks', () => {
     game.openedLeaderboardFrom = 'victory';
     const vicModal = document.getElementById('modal-victory');
-    if (vicModal) vicModal.classList.add('hidden');
+    if (vicModal) {
+        vicModal.classList.add('hidden');
+        vicModal.style.display = 'none';
+    }
     populateLeaderboard(game.currentLevelIdx);
     const lbModal = document.getElementById('modal-leaderboard');
-    if (lbModal) lbModal.classList.remove('hidden');
+    if (lbModal) {
+        lbModal.classList.remove('hidden');
+        lbModal.style.display = '';
+    }
 });
 
 const skinSelect = document.getElementById('skin-select-dropdown');
@@ -6499,12 +6599,18 @@ bindClick('dim-tab-endless', () => {
 const openMultiplayerModal = () => {
     setPause(true, false);
     const pauseModal = document.getElementById('modal-pause');
-    if (pauseModal) pauseModal.classList.add('hidden');
+    if (pauseModal) {
+        pauseModal.classList.add('hidden');
+        pauseModal.style.display = 'none';
+    }
     if (typeof populateMultiplayerStageSelect === 'function') {
         populateMultiplayerStageSelect();
     }
     const mpModal = document.getElementById('modal-multiplayer');
-    if (mpModal) mpModal.classList.remove('hidden');
+    if (mpModal) {
+        mpModal.classList.remove('hidden');
+        mpModal.style.display = '';
+    }
     if (typeof MP !== 'undefined' && (!MP.peer || !MP.roomCode)) {
         MP.createRoom();
     }
@@ -6515,7 +6621,10 @@ bindClick('btn-multiplayer-open', openMultiplayerModal);
 
 bindClick('btn-close-multiplayer', () => {
     const mpModal = document.getElementById('modal-multiplayer');
-    if (mpModal) mpModal.classList.add('hidden');
+    if (mpModal) {
+        mpModal.classList.add('hidden');
+        mpModal.style.display = 'none';
+    }
     if (!game.inMainMenu) setPause(false);
 });
 

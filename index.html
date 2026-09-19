@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PeerJS WebRTC P2P Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.3">
 </head>
 <body class="w-screen h-screen flex flex-col items-center justify-center p-0 m-0 bg-neutral-950 text-neutral-100 select-none">
 
@@ -317,10 +317,10 @@
                         <p class="text-xs text-neutral-400">Master 2 dimensions: Dimension α Cyber Prime & Dimension β Quantum Rift with unique mission objectives.</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button id="btn-menu-back-main" onclick="returnToMainMenu()" class="px-3 py-1 bg-neutral-950 hover:bg-neutral-800 text-cyan-400 hover:text-cyan-300 text-xs font-cyber font-bold rounded border border-cyan-500/50 hover:border-cyan-400 transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                        <button id="btn-menu-back-main" onclick="const m=document.getElementById('modal-menu');if(m){m.classList.add('hidden');m.style.display='none';}if(window.returnToMainMenu)window.returnToMainMenu();" class="cursor-pointer pointer-events-auto px-3 py-1 bg-neutral-950 hover:bg-neutral-800 text-cyan-400 hover:text-cyan-300 text-xs font-cyber font-bold rounded border border-cyan-500/50 hover:border-cyan-400 transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
                             <span>🏠</span> MAIN MENU
                         </button>
-                        <button id="btn-close-menu" onclick="closeMenuModal()" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition">
+                        <button id="btn-close-menu" onclick="const m=document.getElementById('modal-menu');if(m){m.classList.add('hidden');m.style.display='none';}if(window.closeMenuModal)window.closeMenuModal();" class="cursor-pointer pointer-events-auto px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition">
                             ✕ CLOSE
                         </button>
                     </div>
@@ -413,8 +413,8 @@
         </div>
 
         <!-- MODAL: Leaderboards & Personal Bests -->
-        <div id="modal-leaderboard" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-            <div class="w-full max-w-2xl bg-neutral-900 border border-amber-500/80 rounded-xl p-6 shadow-[0_0_40px_rgba(245,158,11,0.2)] flex flex-col gap-4 max-h-[90vh] overflow-hidden">
+        <div id="modal-leaderboard" class="hidden modal-backdrop absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="relative z-10 pointer-events-auto w-full max-w-2xl bg-neutral-900 border border-amber-500/80 rounded-xl p-6 shadow-[0_0_40px_rgba(245,158,11,0.2)] flex flex-col gap-4 max-h-[90vh] overflow-hidden">
                 <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
                     <div class="flex items-center gap-2">
                         <span class="text-2xl">🏆</span>
@@ -424,10 +424,10 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button id="btn-leaderboard-back-main" onclick="returnToMainMenu()" class="px-3 py-1 bg-neutral-950 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 text-xs font-cyber font-bold rounded border border-amber-500/50 hover:border-amber-400 transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                        <button id="btn-leaderboard-back-main" onclick="const m=document.getElementById('modal-leaderboard');if(m){m.classList.add('hidden');m.style.display='none';}if(window.returnToMainMenu)window.returnToMainMenu();" class="cursor-pointer pointer-events-auto px-3 py-1 bg-neutral-950 hover:bg-neutral-800 text-amber-400 hover:text-amber-300 text-xs font-cyber font-bold rounded border border-amber-500/50 hover:border-amber-400 transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
                             <span>🏠</span> MAIN MENU
                         </button>
-                        <button id="btn-close-leaderboard" onclick="closeLeaderboardModal()" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition">
+                        <button id="btn-close-leaderboard" onclick="const m=document.getElementById('modal-leaderboard');if(m){m.classList.add('hidden');m.style.display='none';}if(window.closeLeaderboardModal)window.closeLeaderboardModal();" class="cursor-pointer pointer-events-auto px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition">
                             ✕ CLOSE
                         </button>
                     </div>
@@ -529,7 +529,7 @@
                     <button id="btn-pause-stages" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition">
                         ☰ STAGES & SKILLS
                     </button>
-                    <button id="btn-pause-main-menu" class="py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-800 transition">
+                    <button id="btn-pause-main-menu" onclick="const m=document.getElementById('modal-pause');if(m){m.classList.add('hidden');m.style.display='none';}if(window.returnToMainMenu)window.returnToMainMenu();" class="cursor-pointer pointer-events-auto py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-800 transition">
                         🏠 MAIN MENU
                     </button>
                 </div>
@@ -585,10 +585,10 @@
                 </div>
 
                 <div class="flex gap-2 w-full mt-1">
-                    <button id="btn-victory-main-menu" onclick="returnToMainMenu()" class="py-2.5 px-3 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-cyan-300 font-cyber text-xs tracking-wider rounded border border-neutral-800 hover:border-cyan-500/50 transition flex items-center justify-center gap-1" title="Return to Main Menu">
+                    <button id="btn-victory-main-menu" onclick="const m=document.getElementById('modal-victory');if(m){m.classList.add('hidden');m.style.display='none';}if(window.returnToMainMenu)window.returnToMainMenu();" class="cursor-pointer pointer-events-auto py-2.5 px-3 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-cyan-300 font-cyber text-xs tracking-wider rounded border border-neutral-800 hover:border-cyan-500/50 transition flex items-center justify-center gap-1" title="Return to Main Menu">
                         <span>🏠</span> MENU
                     </button>
-                    <button id="btn-victory-ranks" class="py-2.5 px-3 bg-neutral-800 hover:bg-neutral-700 text-amber-300 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition flex items-center justify-center gap-1">
+                    <button id="btn-victory-ranks" class="cursor-pointer pointer-events-auto py-2.5 px-3 bg-neutral-800 hover:bg-neutral-700 text-amber-300 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition flex items-center justify-center gap-1">
                         <span>🏆</span> RANKS
                     </button>
                     <button id="btn-victory-replay" class="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition">
@@ -822,6 +822,6 @@
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=2.2"></script>
+    <script src="game.js?v=2.3"></script>
 </body>
 </html>
