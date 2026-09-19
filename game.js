@@ -1858,6 +1858,7 @@ if (tagInput) {
         populateLeaderboard(game.currentLevelIdx);
     });
 }
+window.game = game;
 
 function formatTime(sec) {
     const m = Math.floor(sec / 60);
@@ -4531,6 +4532,7 @@ function startVisualRaceCountdown(config = {}) {
     // Freeze runner and stopwatch during countdown
     game.isCountingDown = true;
     game.isPaused = false;
+    game.victory = false;
     game.runTime = 0;
     const stopwatch = document.getElementById('hud-stopwatch');
     if (stopwatch) stopwatch.innerText = "00:00.000";
@@ -5250,7 +5252,8 @@ const MP = {
         } else if (data.type === 'FINISH') {
             this.rivalFinishTime = data.time;
             if (this.myFinishTime !== null) {
-                this.showPodium();
+                if (this.finishTimeout) clearTimeout(this.finishTimeout);
+                this.finishTimeout = setTimeout(() => this.showPodium(), 500);
             } else {
                 showNotification(`⚠️ RIVAL FINISHED IN ${formatTime(data.time)}! RUN!`);
             }
@@ -5281,45 +5284,55 @@ const MP = {
     broadcastFinish(time) {
         this.myFinishTime = time;
         this.sendMsg({ type: 'FINISH', time: time });
+        if (this.finishTimeout) clearTimeout(this.finishTimeout);
+
         if (this.rivalFinishTime !== null) {
-            setTimeout(() => this.showPodium(), 500);
+            this.finishTimeout = setTimeout(() => this.showPodium(), 500);
         } else if (game.mpRival && game.mpRival.isAI) {
             const lvl = game.level;
             const r = game.mpRival;
             if (lvl && r && r.x < lvl.length) {
                 const remainingDist = Math.max(1, lvl.length - r.x);
                 const estTime = time + (remainingDist / Math.max(100, r.vx || 320));
-                setTimeout(() => {
-                    if (this.rivalFinishTime === null) {
-                        this.rivalFinishTime = estTime;
-                        this.showPodium();
-                    }
-                }, Math.min(2500, Math.max(500, (estTime - time) * 1000)));
+                this.rivalFinishTime = estTime;
+                this.finishTimeout = setTimeout(() => this.showPodium(), 600);
             } else {
-                setTimeout(() => this.showPodium(), 500);
+                this.finishTimeout = setTimeout(() => this.showPodium(), 500);
             }
         } else {
-            // Safety fallback: if remote peer doesn't finish within 3.5s, display podium anyway
-            setTimeout(() => {
+            // Safety fallback: if remote peer doesn't finish within 4s, display podium anyway
+            showNotification("🏁 WAITING FOR RIVAL TO CROSS...");
+            this.finishTimeout = setTimeout(() => {
                 if (this.rivalFinishTime === null) {
                     this.rivalFinishTime = time + 5;
-                    this.showPodium();
                 }
-            }, 3500);
+                this.showPodium();
+            }, 4000);
         }
     },
 
     playVisualCountdown(stageIdx, chosenBy) {
+        game.isMultiplayer = true;
         const mpModal = document.getElementById('modal-multiplayer');
         const resModal = document.getElementById('modal-race-result');
         const pauseModal = document.getElementById('modal-pause');
-        if (mpModal) mpModal.classList.add('hidden');
-        if (resModal) resModal.classList.add('hidden');
-        if (pauseModal) pauseModal.classList.add('hidden');
+        if (mpModal) {
+            mpModal.classList.add('hidden');
+            mpModal.style.display = 'none';
+        }
+        if (resModal) {
+            resModal.classList.add('hidden');
+            resModal.style.display = 'none';
+        }
+        if (pauseModal) {
+            pauseModal.classList.add('hidden');
+            pauseModal.style.display = 'none';
+        }
 
         this.resetMatch();
         this.series.activeTrackIdx = stageIdx;
         startLevel(stageIdx, true);
+        game.isMultiplayer = true;
 
         const isDecider = (this.series.currentRound === 3) || (this.series.myScore === 1 && this.series.rivalScore === 1);
         startVisualRaceCountdown({
@@ -5333,6 +5346,13 @@ const MP = {
     },
 
     showPodium() {
+        if (this.finishTimeout) {
+            clearTimeout(this.finishTimeout);
+            this.finishTimeout = null;
+        }
+        if (this.roundFinished) return;
+        this.roundFinished = true;
+
         const modal = document.getElementById('modal-race-result');
         if (!modal) return;
 
@@ -5398,9 +5418,13 @@ const MP = {
                 if (subtitle) subtitle.innerText = "OPPONENT SECURED 2 ROUND WINS";
                 if (seriesStatus) seriesStatus.innerText = `MATCH CONCLUDED — OPPONENT WON 2 - ${this.series.myScore}!`;
             }
-            if (btnNextRound) btnNextRound.classList.add('hidden');
+            if (btnNextRound) {
+                btnNextRound.classList.add('hidden');
+                btnNextRound.style.display = 'none';
+            }
             if (btnRaceAgain) {
                 btnRaceAgain.classList.remove('hidden');
+                btnRaceAgain.style.display = '';
                 btnRaceAgain.innerText = "🏆 PLAY NEW MATCH (BEST OF 3)";
             }
         } else {
@@ -5420,9 +5444,13 @@ const MP = {
 
             if (btnNextRound) {
                 btnNextRound.classList.remove('hidden');
+                btnNextRound.style.display = '';
                 btnNextRound.innerText = nextRound === 3 ? "🔥 START FINAL ROUND 3 (DECIDER)" : "🏁 START ROUND 2";
             }
-            if (btnRaceAgain) btnRaceAgain.classList.add('hidden');
+            if (btnRaceAgain) {
+                btnRaceAgain.classList.add('hidden');
+                btnRaceAgain.style.display = 'none';
+            }
         }
 
         if (myName) myName.innerText = game.pilotTag;
@@ -5438,13 +5466,20 @@ const MP = {
 
         this.updateHUDSeriesBadge();
         modal.classList.remove('hidden');
+        modal.style.display = 'flex';
     },
 
     resetMatch() {
+        if (this.finishTimeout) {
+            clearTimeout(this.finishTimeout);
+            this.finishTimeout = null;
+        }
         this.myFinishTime = null;
         this.rivalFinishTime = null;
+        this.roundFinished = false;
     }
 };
+window.MP = MP;
 
 function updateAiRival(dt) {
     if (!game.isMultiplayer || !game.mpRival || !game.mpRival.isAI) return;
@@ -6752,9 +6787,12 @@ bindClick('btn-victory-share-ghost', () => {
     exportGhostRun();
 });
 
-bindClick('btn-next-round', () => {
+function handleNextRoundClick() {
     const modal = document.getElementById('modal-race-result');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
     if (typeof MP !== 'undefined') {
         if (game.mpRival && game.mpRival.isAI) {
             MP.hostTriggerStartRound();
@@ -6765,11 +6803,16 @@ bindClick('btn-next-round', () => {
             showNotification("⏳ WAITING FOR HOST TO START NEXT ROUND...");
         }
     }
-});
+}
+window.handleNextRoundClick = handleNextRoundClick;
+bindClick('btn-next-round', handleNextRoundClick);
 
-bindClick('btn-race-again', () => {
+function handleRaceAgainClick() {
     const modal = document.getElementById('modal-race-result');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
     if (typeof MP !== 'undefined') {
         MP.resetSeries();
         if (game.mpRival && game.mpRival.isAI) {
@@ -6781,7 +6824,9 @@ bindClick('btn-race-again', () => {
             showNotification("⏳ WAITING FOR HOST TO START NEW MATCH...");
         }
     }
-});
+}
+window.handleRaceAgainClick = handleRaceAgainClick;
+bindClick('btn-race-again', handleRaceAgainClick);
 
 const hostStageSelect = document.getElementById('mp-stage-select');
 if (hostStageSelect) {
@@ -6809,11 +6854,16 @@ if (guestStageSelect) {
     });
 }
 
-bindClick('btn-race-close', () => {
+function handleRaceCloseClick() {
     const modal = document.getElementById('modal-race-result');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
     returnToMainMenu();
-});
+}
+window.handleRaceCloseClick = handleRaceCloseClick;
+bindClick('btn-race-close', handleRaceCloseClick);
 
 // ============================================================================
 // 14. GAME LOOP & BOOTSTRAP
