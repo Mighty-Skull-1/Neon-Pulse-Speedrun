@@ -4749,6 +4749,9 @@ const MP = {
     isHost: false,
     roomCode: '',
     connected: false,
+    sessionExpired: false,
+    lastRivalSeen: 0,
+    heartbeatTimer: null,
     rivalData: null,
     lastBroadcast: 0,
     myFinishTime: null,
@@ -4772,7 +4775,8 @@ const MP = {
         myVote: null,
         rivalVote: null,
         status: 'idle',
-        decisionTimer: null
+        decisionTimer: null,
+        expiryTimer: null
     },
 
     resetRematch() {
@@ -4780,11 +4784,16 @@ const MP = {
             clearTimeout(this.rematch.decisionTimer);
             this.rematch.decisionTimer = null;
         }
+        if (this.rematch && this.rematch.expiryTimer) {
+            clearTimeout(this.rematch.expiryTimer);
+            this.rematch.expiryTimer = null;
+        }
         this.rematch = {
             myVote: null,
             rivalVote: null,
             status: 'idle',
-            decisionTimer: null
+            decisionTimer: null,
+            expiryTimer: null
         };
         this.updateRematchUI();
     },
@@ -4798,33 +4807,140 @@ const MP = {
         this.updateHUDSeriesBadge();
     },
 
-    disconnectSession(notify = true) {
-        if (notify && this.connected && (!game.mpRival || !game.mpRival.isAI)) {
+    startHeartbeat() {
+        this.stopHeartbeat();
+        this.lastRivalSeen = Date.now();
+        this.heartbeatTimer = setInterval(() => {
+            if (!this.connected) {
+                this.stopHeartbeat();
+                return;
+            }
+            if (game.mpRival && game.mpRival.isAI) {
+                this.lastRivalSeen = Date.now();
+                return;
+            }
+            if (Date.now() - this.lastRivalSeen > 4000) {
+                console.warn("[MP] Heartbeat timeout — rival connection lost or cancelled");
+                this.expireSession('RIVAL DISCONNECTED / TIMED OUT');
+                return;
+            }
+            this.sendMsg({ type: 'HEARTBEAT', time: Date.now() });
+        }, 1500);
+    },
+
+    stopHeartbeat() {
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
+        }
+    },
+
+    expireSession(reason = "RIVAL LEFT / CANCELLED") {
+        this.sessionExpired = true;
+        this.stopHeartbeat();
+        if (this.rematch && this.rematch.decisionTimer) {
+            clearTimeout(this.rematch.decisionTimer);
+            this.rematch.decisionTimer = null;
+        }
+        if (this.rematch && this.rematch.expiryTimer) {
+            clearTimeout(this.rematch.expiryTimer);
+            this.rematch.expiryTimer = null;
+        }
+        if (this.finishTimeout) {
+            clearTimeout(this.finishTimeout);
+            this.finishTimeout = null;
+        }
+
+        if (this.connected && (!game.mpRival || !game.mpRival.isAI)) {
             try {
-                this.sendMsg({ type: 'PLAYER_LEFT', tag: game.pilotTag });
+                this.sendMsg({ type: 'SESSION_EXPIRED', reason, tag: game.pilotTag });
+                this.sendMsg({ type: 'PLAYER_LEFT', reason, tag: game.pilotTag });
             } catch(e) {}
         }
-        if (this.conn) {
-            try { this.conn.close(); } catch(e) {}
-            this.conn = null;
-        }
-        if (this.peer) {
-            try { this.peer.destroy(); } catch(e) {}
-            this.peer = null;
-        }
-        if (this.channel) {
-            try { this.channel.close(); } catch(e) {}
-            this.channel = null;
-        }
+
+        const oldCode = this.roomCode;
         this.connected = false;
         game.isMultiplayer = false;
         this.rivalData = null;
         game.mpRival = null;
         this.roomCode = '';
+
+        setTimeout(() => {
+            if (this.conn) {
+                try { this.conn.close(); } catch(e) {}
+                this.conn = null;
+            }
+            if (this.peer) {
+                try { this.peer.destroy(); } catch(e) {}
+                this.peer = null;
+            }
+            if (this.channel) {
+                try { this.channel.close(); } catch(e) {}
+                this.channel = null;
+            }
+        }, 80);
+
+        // Update Host Lobby Elements
+        const codeDisplay = document.getElementById('mp-room-code');
+        const hostStatus = document.getElementById('mp-opponent-status');
+        const btnStart = document.getElementById('btn-mp-start-race');
+        const expiryBanner = document.getElementById('mp-session-expiry-banner');
+        const rivalTrack = document.getElementById('mp-rival-track-display');
+
+        if (codeDisplay) {
+            codeDisplay.innerHTML = `<span class="line-through text-neutral-600">${oldCode || '----'}</span> <span class="text-rose-400 text-xs font-cyber">(EXPIRED)</span>`;
+        }
+        if (hostStatus) {
+            hostStatus.innerHTML = `<span class="text-rose-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>SESSION EXPIRED (${reason})</span>`;
+        }
+        if (btnStart) {
+            btnStart.disabled = true;
+            btnStart.className = "mt-1 w-full py-2.5 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5 cursor-not-allowed";
+            btnStart.innerText = "⚠️ SESSION EXPIRED — START NEW ROOM";
+        }
+        if (rivalTrack) {
+            rivalTrack.innerText = "NONE (SESSION EXPIRED)";
+        }
+        if (expiryBanner) {
+            expiryBanner.classList.remove('hidden');
+            expiryBanner.innerText = `⚠️ MATCH SESSION EXPIRED: ${reason}`;
+        }
+
+        // Update Join Lobby Elements
+        const joinStatus = document.getElementById('mp-join-status');
+        const joinBanner = document.getElementById('mp-join-expiry-banner');
+        const guestLobby = document.getElementById('mp-guest-lobby-view');
+        const joinInput = document.getElementById('input-room-code');
+        if (joinStatus) {
+            joinStatus.innerHTML = `<span class="text-rose-400 font-bold">⚠️ SESSION EXPIRED — ${reason}</span>`;
+        }
+        if (joinBanner) {
+            joinBanner.classList.remove('hidden');
+            joinBanner.innerText = `⚠️ SESSION EXPIRED: ${reason}`;
+        }
+        if (guestLobby) guestLobby.classList.add('hidden');
+        if (joinInput) joinInput.value = '';
+
+        // Rematch panel update
+        const rivalRematchStatus = document.getElementById('rematch-rival-status');
+        const feedback = document.getElementById('rematch-feedback-msg');
+        if (rivalRematchStatus) {
+            rivalRematchStatus.innerHTML = `<span class="text-rose-400 font-bold">✗ CANCELLED / EXPIRED</span>`;
+        }
+        if (feedback) {
+            feedback.classList.remove('hidden');
+            feedback.className = "text-xs font-cyber font-bold text-rose-400 text-center py-1 bg-rose-950/60 border border-rose-500/50 rounded animate-pulse";
+            feedback.innerText = `❌ SESSION EXPIRED — ${reason}`;
+        }
+
         this.resetSeries();
         this.resetMatch();
-        this.resetRematch();
-        this.resetLobbyUI();
+        this.updateHUDSeriesBadge();
+        showNotification(`⚠️ SESSION EXPIRED: ${reason}`);
+    },
+
+    disconnectSession(notify = true) {
+        this.expireSession(notify ? "SESSION DISCONNECTED" : "ROOM RESET");
     },
 
     resetLobbyUI() {
@@ -4832,6 +4948,7 @@ const MP = {
         const codeDisplay = document.getElementById('mp-room-code');
         const hostStatus = document.getElementById('mp-opponent-status');
         const btnStart = document.getElementById('btn-mp-start-race');
+        const expiryBanner = document.getElementById('mp-session-expiry-banner');
         if (codeDisplay) codeDisplay.innerText = this.roomCode || 'READY';
         if (hostStatus) hostStatus.innerText = 'WAITING FOR RIVAL...';
         if (btnStart) {
@@ -4841,16 +4958,25 @@ const MP = {
         }
         const rivalTrackDisplay = document.getElementById('mp-rival-track-display');
         if (rivalTrackDisplay) rivalTrackDisplay.innerText = '🎲 RANDOM (ALL 20 MODES)';
+        if (expiryBanner) {
+            expiryBanner.classList.add('hidden');
+            expiryBanner.innerText = '';
+        }
 
         // Reset Join box elements
         const joinInput = document.getElementById('input-room-code');
         const joinStatus = document.getElementById('mp-join-status');
         const guestLobby = document.getElementById('mp-guest-lobby-view');
         const guestHostTrackDisplay = document.getElementById('mp-guest-host-track-display');
+        const joinBanner = document.getElementById('mp-join-expiry-banner');
         if (joinInput) joinInput.value = '';
         if (joinStatus) joinStatus.innerText = 'Ready to connect to host room.';
         if (guestLobby) guestLobby.classList.add('hidden');
         if (guestHostTrackDisplay) guestHostTrackDisplay.innerText = '🎲 RANDOM (ALL 20 MODES)';
+        if (joinBanner) {
+            joinBanner.classList.add('hidden');
+            joinBanner.innerText = '';
+        }
 
         // Reset HUD multiplayer badges & dots
         this.updateHUDSeriesBadge();
@@ -5020,7 +5146,7 @@ const MP = {
                     modal.classList.add('hidden');
                     modal.style.display = 'none';
                 }
-                this.disconnectSession(true);
+                this.expireSession('REMATCH DECLINED');
                 returnToMainMenu();
             }, 1800);
             return;
@@ -5056,14 +5182,14 @@ const MP = {
         this.rematch.status = 'declined';
         this.rematch.rivalVote = false;
         this.updateRematchUI();
-        showNotification("⚠️ RIVAL LEFT — ROOM CLEARED");
+        showNotification("⚠️ RIVAL LEFT — SESSION EXPIRED");
         setTimeout(() => {
             const modal = document.getElementById('modal-race-result');
             if (modal) {
                 modal.classList.add('hidden');
                 modal.style.display = 'none';
             }
-            this.disconnectSession(false);
+            this.expireSession('RIVAL LEFT / CANCELLED');
             returnToMainMenu();
         }, 1500);
     },
@@ -5168,7 +5294,10 @@ const MP = {
 
         if (data.type === 'JOIN_REQUEST' && this.isHost) {
             this.connected = true;
+            this.sessionExpired = false;
             game.isMultiplayer = true;
+            this.startHeartbeat();
+
             this.rivalData = {
                 tag: data.tag || 'RIVAL',
                 skin: data.skin || 'neon_rose',
@@ -5199,6 +5328,11 @@ const MP = {
 
             const hostStatus = document.getElementById('mp-opponent-status');
             const btnStart = document.getElementById('btn-mp-start-race');
+            const expiryBanner = document.getElementById('mp-session-expiry-banner');
+            if (expiryBanner) {
+                expiryBanner.classList.add('hidden');
+                expiryBanner.innerText = '';
+            }
             if (hostStatus) {
                 hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● ${data.tag || 'RIVAL'} CONNECTED!</span>`;
             }
@@ -5210,7 +5344,10 @@ const MP = {
             showNotification(`⚔️ ${data.tag || 'RIVAL'} JOINED YOUR ROOM!`);
         } else if (data.type === 'JOIN_ACCEPT' && !this.isHost) {
             this.connected = true;
+            this.sessionExpired = false;
             game.isMultiplayer = true;
+            this.startHeartbeat();
+
             this.rivalData = {
                 tag: data.tag || 'HOST',
                 skin: data.skin || 'neon_cyan',
@@ -5232,6 +5369,11 @@ const MP = {
 
             const joinStatus = document.getElementById('mp-join-status');
             const guestLobby = document.getElementById('mp-guest-lobby-view');
+            const joinBanner = document.getElementById('mp-join-expiry-banner');
+            if (joinBanner) {
+                joinBanner.classList.add('hidden');
+                joinBanner.innerText = '';
+            }
             if (joinStatus) {
                 joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST (${data.tag || 'HOST'})!</span> Ready for Best of 3...`;
             }
@@ -5266,8 +5408,16 @@ const MP = {
     },
 
     createRoom(forceFresh = false) {
+        this.sessionExpired = false;
+        this.stopHeartbeat();
         if (this.conn || this.connected || this.rivalData || forceFresh) {
-            this.disconnectSession(false);
+            if (this.conn) { try { this.conn.close(); } catch(e) {} this.conn = null; }
+            if (this.peer) { try { this.peer.destroy(); } catch(e) {} this.peer = null; }
+            if (this.channel) { try { this.channel.close(); } catch(e) {} this.channel = null; }
+            this.connected = false;
+            game.isMultiplayer = false;
+            this.rivalData = null;
+            game.mpRival = null;
         }
         this.roomCode = this.generateRoomCode();
         this.isHost = true;
@@ -5278,7 +5428,19 @@ const MP = {
         const codeDisplay = document.getElementById('mp-room-code');
         const hostStatus = document.getElementById('mp-opponent-status');
         const btnStart = document.getElementById('btn-mp-start-race');
+        const expiryBanner = document.getElementById('mp-session-expiry-banner');
+        const joinBanner = document.getElementById('mp-join-expiry-banner');
+        const rivalTrackDisplay = document.getElementById('mp-rival-track-display');
 
+        if (expiryBanner) {
+            expiryBanner.classList.add('hidden');
+            expiryBanner.innerText = '';
+        }
+        if (joinBanner) {
+            joinBanner.classList.add('hidden');
+            joinBanner.innerText = '';
+        }
+        if (rivalTrackDisplay) rivalTrackDisplay.innerText = '🎲 RANDOM (ALL 20 MODES)';
         if (codeDisplay) codeDisplay.innerText = this.roomCode;
         if (hostStatus) hostStatus.innerText = "WAITING FOR RIVAL TO CONNECT...";
         if (btnStart) {
@@ -5308,7 +5470,13 @@ const MP = {
 
                 this.peer.on('connection', (c) => {
                     this.conn = c;
+                    this.sessionExpired = false;
                     this.setupConnection();
+                    this.startHeartbeat();
+                    if (expiryBanner) {
+                        expiryBanner.classList.add('hidden');
+                        expiryBanner.innerText = '';
+                    }
                     if (hostStatus) {
                         hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● RIVAL CONNECTED!</span>`;
                     }
@@ -5341,10 +5509,16 @@ const MP = {
         if (this.conn || this.connected || this.rivalData) {
             this.disconnectSession(false);
         }
+        this.sessionExpired = false;
         this.isHost = false;
         this.resetSeries();
         this.resetMatch();
         const joinStatus = document.getElementById('mp-join-status');
+        const joinBanner = document.getElementById('mp-join-expiry-banner');
+        if (joinBanner) {
+            joinBanner.classList.add('hidden');
+            joinBanner.innerText = '';
+        }
 
         let cleanCode = code.trim();
         if (cleanCode.includes('race=') || cleanCode.includes('room=')) {
@@ -5398,9 +5572,17 @@ const MP = {
 
         this.conn.on('open', () => {
             this.connected = true;
+            this.sessionExpired = false;
             game.isMultiplayer = true;
+            this.startHeartbeat();
+
             const joinStatus = document.getElementById('mp-join-status');
             const guestLobby = document.getElementById('mp-guest-lobby-view');
+            const joinBanner = document.getElementById('mp-join-expiry-banner');
+            if (joinBanner) {
+                joinBanner.classList.add('hidden');
+                joinBanner.innerText = '';
+            }
             if (joinStatus) {
                 joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST!</span> Ready for Best of 3...`;
             }
@@ -5423,41 +5605,12 @@ const MP = {
         });
 
         this.conn.on('close', () => {
-            this.handleRivalDisconnected();
+            this.expireSession('RIVAL DISCONNECTED');
         });
     },
 
     handleRivalDisconnected() {
-        if (!this.connected) return;
-        showNotification("⚠️ RIVAL DISCONNECTED");
-        const mpModal = document.getElementById('modal-multiplayer');
-        const inLobby = mpModal && !mpModal.classList.contains('hidden') && mpModal.style.display !== 'none';
-        if (game.inMainMenu || inLobby) {
-            this.rivalData = null;
-            game.mpRival = null;
-            this.connected = false;
-            game.isMultiplayer = false;
-            const hostStatus = document.getElementById('mp-opponent-status');
-            const btnStart = document.getElementById('btn-mp-start-race');
-            if (hostStatus && this.isHost) {
-                hostStatus.innerText = "RIVAL DISCONNECTED. WAITING FOR NEW RIVAL...";
-            }
-            if (btnStart) {
-                btnStart.disabled = true;
-                btnStart.className = "mt-1 w-full py-2.5 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5";
-                btnStart.innerText = "WAITING FOR OPPONENT TO CONNECT...";
-            }
-            const joinStatus = document.getElementById('mp-join-status');
-            if (joinStatus && !this.isHost) {
-                joinStatus.innerText = "Disconnected from host. Ready to connect.";
-            }
-            const guestLobby = document.getElementById('mp-guest-lobby-view');
-            if (guestLobby && !this.isHost) {
-                guestLobby.classList.add('hidden');
-            }
-        } else {
-            this.handleRivalLeft();
-        }
+        this.expireSession('RIVAL DISCONNECTED');
     },
 
     copyInviteLink() {
@@ -5603,7 +5756,20 @@ const MP = {
     handleMessage(data) {
         if (!data || !data.type) return;
 
-        if (data.type === 'HANDSHAKE') {
+        this.lastRivalSeen = Date.now();
+
+        if (data.type === 'HEARTBEAT') {
+            this.sendMsg({ type: 'HEARTBEAT_ACK', time: Date.now() });
+            return;
+        } else if (data.type === 'HEARTBEAT_ACK') {
+            return;
+        } else if (data.type === 'SESSION_EXPIRED') {
+            this.expireSession(data.reason || 'RIVAL LEFT / CANCELLED');
+            return;
+        } else if (data.type === 'PLAYER_LEFT') {
+            this.expireSession(data.reason || 'RIVAL CANCELLED MATCH');
+            return;
+        } else if (data.type === 'HANDSHAKE') {
             this.rivalData = {
                 tag: data.tag || 'RIVAL',
                 skin: data.skin || 'neon_cyan',
@@ -5658,13 +5824,8 @@ const MP = {
             }
         } else if (data.type === 'REMATCH_VOTE') {
             this.handleRivalRematchVote(data.vote);
-        } else if (data.type === 'PLAYER_LEFT') {
-            const mpModal = document.getElementById('modal-multiplayer');
-            const inLobby = mpModal && !mpModal.classList.contains('hidden') && mpModal.style.display !== 'none';
-            if (game.inMainMenu || inLobby) {
-                this.handleRivalDisconnected();
-            } else {
-                this.handleRivalLeft();
+            if (data.vote === false) {
+                this.expireSession('RIVAL DECLINED REMATCH');
             }
         } else if (data.type === 'PILOT_UPDATE') {
             if (data.tag) {
@@ -5877,6 +6038,13 @@ const MP = {
             this.rematch.myVote = null;
             this.rematch.rivalVote = null;
             this.updateRematchUI();
+
+            if (this.rematch.expiryTimer) clearTimeout(this.rematch.expiryTimer);
+            this.rematch.expiryTimer = setTimeout(() => {
+                if (this.rematch.status === 'voting' && (this.rematch.myVote !== true || this.rematch.rivalVote !== true)) {
+                    this.expireSession('MATCH CONCLUDED / REMATCH EXPIRED');
+                }
+            }, 45000);
         } else {
             // Series continues!
             this.series.currentRound++;
@@ -6274,7 +6442,7 @@ function returnToMainMenu() {
     game.openedLeaderboardFrom = null;
     game.mpRival = null;
     if (typeof MP !== 'undefined') {
-        MP.disconnectSession(true);
+        MP.expireSession('RETURNED TO MENU');
     }
     audio.stopMusic();
 
@@ -7194,8 +7362,10 @@ const openMultiplayerModal = () => {
         mpModal.classList.remove('hidden');
         mpModal.style.display = '';
     }
-    if (typeof MP !== 'undefined' && (!MP.peer || !MP.roomCode)) {
-        MP.createRoom();
+    if (typeof MP !== 'undefined') {
+        if (MP.sessionExpired || !MP.connected || !MP.roomCode || !MP.peer) {
+            MP.createRoom(true);
+        }
     }
 };
 
@@ -7303,13 +7473,16 @@ bindClick('btn-mp-spawn-ai-rival', () => {
 
 bindClick('btn-mp-start-race', () => {
     if (typeof MP !== 'undefined') {
+        if (MP.sessionExpired || !MP.connected) {
+            showNotification("⚠️ SESSION EXPIRED — CREATE OR JOIN A NEW ROOM");
+            return;
+        }
         MP.hostTriggerStart();
     }
 });
 
 bindClick('btn-mp-new-room', () => {
     if (typeof MP !== 'undefined') {
-        MP.disconnectSession(true);
         MP.createRoom(true);
         showNotification("🔄 PREVIOUS CONNECTION ENDED — NEW ROOM READY");
     }
@@ -7324,7 +7497,7 @@ bindClick('btn-mp-connect', () => {
 
 bindClick('btn-mp-leave-room', () => {
     if (typeof MP !== 'undefined') {
-        MP.disconnectSession(true);
+        MP.expireSession('LEFT ROOM');
         showNotification("🚪 DISCONNECTED FROM ROOM — READY FOR NEW QUEUE");
     }
 });
@@ -7406,12 +7579,30 @@ function handleRaceCloseClick() {
         modal.style.display = 'none';
     }
     if (typeof MP !== 'undefined') {
-        MP.disconnectSession(true);
+        MP.expireSession('CANCELLED BY PLAYER');
     }
     returnToMainMenu();
 }
 window.handleRaceCloseClick = handleRaceCloseClick;
 bindClick('btn-race-close', handleRaceCloseClick);
+
+window.addEventListener('beforeunload', () => {
+    if (typeof MP !== 'undefined' && MP.connected) {
+        try {
+            MP.sendMsg({ type: 'SESSION_EXPIRED', reason: 'PLAYER CLOSED TAB', tag: game.pilotTag });
+            MP.sendMsg({ type: 'PLAYER_LEFT', reason: 'PLAYER CLOSED TAB', tag: game.pilotTag });
+        } catch(e) {}
+    }
+});
+
+window.addEventListener('pagehide', () => {
+    if (typeof MP !== 'undefined' && MP.connected) {
+        try {
+            MP.sendMsg({ type: 'SESSION_EXPIRED', reason: 'PLAYER NAVIGATED AWAY', tag: game.pilotTag });
+            MP.sendMsg({ type: 'PLAYER_LEFT', reason: 'PLAYER NAVIGATED AWAY', tag: game.pilotTag });
+        } catch(e) {}
+    }
+});
 
 // ============================================================================
 // 14. GAME LOOP & BOOTSTRAP
