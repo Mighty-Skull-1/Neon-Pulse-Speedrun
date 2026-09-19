@@ -34,6 +34,9 @@
                 <button id="btn-pause" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition" title="Pause [ESC]">
                     <span>⏸</span>
                 </button>
+                <button id="btn-fullscreen" onclick="toggleFullscreen()" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-green-400 text-xs font-cyber tracking-wider text-green-300 rounded transition flex items-center gap-1" title="Fullscreen [G]">
+                    <span>⛶</span> <span class="hidden sm:inline">FULLSCREEN</span>
+                </button>
             </div>
 
             <!-- Central Speedrun Stopwatch & Progress Bar -->
@@ -240,6 +243,9 @@
                             <span id="menu-audio-icon">🔊</span>
                             <span id="menu-audio-text">AUDIO: ON</span>
                         </button>
+                        <button onclick="toggleFullscreen()" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-green-400 text-xs font-cyber text-green-400 rounded flex items-center gap-1 transition" title="Toggle Fullscreen [G]">
+                            <span>⛶</span> FULLSCREEN
+                        </button>
                         <div class="text-xs font-cyber text-neutral-400">
                             SYSTEM: <span class="text-emerald-400 font-bold">OPERATIONAL</span>
                         </div>
@@ -444,7 +450,7 @@
 
                 <div class="flex items-center gap-2 bg-neutral-950 px-3 py-2 rounded-lg border border-neutral-800">
                     <span class="text-xs font-cyber text-neutral-400">PILOT HANDLE:</span>
-                    <input id="input-pilot-tag" type="text" maxlength="14" value="PULSE_PILOT" class="bg-neutral-900 border border-neutral-700 px-2 py-0.5 rounded text-xs font-mono text-cyan-300 uppercase tracking-wider focus:outline-none focus:border-cyan-400">
+                    <input id="lb-input-pilot-tag" type="text" maxlength="14" value="PULSE_PILOT" class="bg-neutral-900 border border-neutral-700 px-2 py-0.5 rounded text-xs font-mono text-cyan-300 uppercase tracking-wider focus:outline-none focus:border-cyan-400">
                     <span class="text-[10px] text-neutral-500 ml-auto">Saved locally</span>
                 </div>
 
@@ -891,6 +897,6 @@
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=3.0"></script>
+    <script src="game.js?v=3.1"></script>
 </body>
 </html>

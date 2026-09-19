@@ -1849,6 +1849,9 @@ function setPilotTag(newTag, broadcast = true) {
     const mpTagInput = document.getElementById('mp-input-pilot-tag');
     if (mpTagInput && mpTagInput.value !== sanitized) mpTagInput.value = sanitized;
 
+    const lbTagInput = document.getElementById('lb-input-pilot-tag');
+    if (lbTagInput && lbTagInput.value !== sanitized) lbTagInput.value = sanitized;
+
     const mainDisplay = document.getElementById('main-pilot-display');
     if (mainDisplay) mainDisplay.innerText = sanitized;
 
@@ -1872,7 +1875,7 @@ function setupPilotTagInputs() {
     } catch(e) {}
     setPilotTag(savedTag, false);
 
-    const inputs = ['input-pilot-tag', 'mp-input-pilot-tag'];
+    const inputs = ['input-pilot-tag', 'mp-input-pilot-tag', 'lb-input-pilot-tag'];
     inputs.forEach(id => {
         const el = document.getElementById(id);
         if (!el || el._boundPilot) return;
@@ -1880,9 +1883,12 @@ function setupPilotTagInputs() {
         el.addEventListener('input', (e) => {
             const val = e.target.value.toUpperCase();
             e.target.value = val;
-            const otherId = id === 'input-pilot-tag' ? 'mp-input-pilot-tag' : 'input-pilot-tag';
-            const otherEl = document.getElementById(otherId);
-            if (otherEl && otherEl.value !== val) otherEl.value = val;
+            // Sync all other pilot tag inputs
+            inputs.forEach(otherId => {
+                if (otherId === id) return;
+                const otherEl = document.getElementById(otherId);
+                if (otherEl && otherEl.value !== val) otherEl.value = val;
+            });
         });
         el.addEventListener('change', (e) => {
             setPilotTag(e.target.value, true);
@@ -4819,13 +4825,13 @@ const MP = {
                 this.lastRivalSeen = Date.now();
                 return;
             }
-            if (Date.now() - this.lastRivalSeen > 4000) {
-                console.warn("[MP] Heartbeat timeout — rival connection lost or cancelled");
+            if (Date.now() - this.lastRivalSeen > 30000) {
+                console.warn("[MP] Heartbeat timeout (30s) — rival connection lost or cancelled");
                 this.expireSession('RIVAL DISCONNECTED / TIMED OUT');
                 return;
             }
             this.sendMsg({ type: 'HEARTBEAT', time: Date.now() });
-        }, 1500);
+        }, 5000);
     },
 
     stopHeartbeat() {
@@ -6491,6 +6497,8 @@ function returnToMainMenu() {
     if (tagInput) tagInput.value = game.pilotTag;
     const mpTagInput = document.getElementById('mp-input-pilot-tag');
     if (mpTagInput) mpTagInput.value = game.pilotTag;
+    const lbTagInput = document.getElementById('lb-input-pilot-tag');
+    if (lbTagInput) lbTagInput.value = game.pilotTag;
 
     dailySystem.updateBadge();
 }
@@ -6782,8 +6790,76 @@ function toggleBotDemo(forceState) {
 // ============================================================================
 // 13. INPUT & EVENT LISTENERS
 // ============================================================================
+
+// Fullscreen toggle — removes size caps so game fills the screen
+function toggleFullscreen() {
+    const wrapper = document.getElementById('game-wrapper');
+    if (!wrapper) return;
+
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        }
+    } else {
+        // Enter fullscreen
+        if (wrapper.requestFullscreen) {
+            wrapper.requestFullscreen();
+        } else if (wrapper.webkitRequestFullscreen) {
+            wrapper.webkitRequestFullscreen();
+        }
+    }
+}
+window.toggleFullscreen = toggleFullscreen;
+
+// Listen for fullscreen changes to toggle size constraints
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+function handleFullscreenChange() {
+    const wrapper = document.getElementById('game-wrapper');
+    if (!wrapper) return;
+    const fsBtn = document.getElementById('btn-fullscreen');
+
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        // In fullscreen — remove size caps, fill screen
+        wrapper.style.maxWidth = 'none';
+        wrapper.style.maxHeight = 'none';
+        wrapper.style.width = '100vw';
+        wrapper.style.height = '100vh';
+        wrapper.style.borderRadius = '0';
+        wrapper.style.border = 'none';
+        if (fsBtn) fsBtn.title = 'Exit Fullscreen [G]';
+        if (fsBtn) fsBtn.innerHTML = '<span>⛶</span> <span class="hidden sm:inline">EXIT FS</span>';
+    } else {
+        // Exited fullscreen — restore constraints
+        wrapper.style.maxWidth = '';
+        wrapper.style.maxHeight = '';
+        wrapper.style.width = '';
+        wrapper.style.height = '';
+        wrapper.style.borderRadius = '';
+        wrapper.style.border = '';
+        if (fsBtn) fsBtn.title = 'Fullscreen [G]';
+        if (fsBtn) fsBtn.innerHTML = '<span>⛶</span> <span class="hidden sm:inline">FULLSCREEN</span>';
+    }
+    // Re-sync canvas size
+    updateCanvasViewport();
+}
 window.addEventListener('keydown', (e) => {
     audio.init();
+
+    // Allow typing in input fields without game controls intercepting keys
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+        // Only handle Escape to blur out of the field
+        if (e.code === 'Escape') {
+            active.blur();
+            e.preventDefault();
+        }
+        return;
+    }
 
     if (e.repeat) return;
 
@@ -6861,9 +6937,15 @@ window.addEventListener('keydown', (e) => {
         if (menuModal) menuModal.classList.remove('hidden');
         setPause(true);
     }
+    if (e.code === 'KeyG') toggleFullscreen();
 });
 
 window.addEventListener('keyup', (e) => {
+    // Don't process game keyup when typing in input fields
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+        return;
+    }
     if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
         game.inputs.jumpHeld = false;
     }
