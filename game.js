@@ -6326,8 +6326,14 @@ bindClick('btn-leaderboard-open', () => {
 
 bindClick('btn-close-leaderboard', () => {
     const lbModal = document.getElementById('modal-leaderboard');
-    if (lbModal) lbModal.classList.remove('hidden');
+    if (lbModal) lbModal.classList.add('hidden');
     if (!game.inMainMenu) setPause(false);
+});
+
+bindClick('btn-leaderboard-back-main', () => {
+    const lbModal = document.getElementById('modal-leaderboard');
+    if (lbModal) lbModal.classList.add('hidden');
+    returnToMainMenu();
 });
 
 const pauseBtn = document.getElementById('btn-pause');
