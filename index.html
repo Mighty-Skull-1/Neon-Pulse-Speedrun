@@ -614,54 +614,127 @@
         </div>
 
         <!-- MODAL: How to Play -->
-        <div id="modal-howtoplay" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-            <div class="w-full max-w-xl bg-neutral-900 border border-cyan-500/80 rounded-xl p-6 shadow-[0_0_40px_rgba(6,182,212,0.25)] flex flex-col gap-4 max-h-[90vh] overflow-hidden">
-                <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
+        <div id="modal-howtoplay" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+            <div class="w-full max-w-2xl bg-neutral-900 border border-cyan-500/80 rounded-xl p-5 sm:p-6 shadow-[0_0_50px_rgba(6,182,212,0.25)] flex flex-col gap-3 max-h-[92vh] overflow-hidden">
+                <div class="flex items-center justify-between border-b border-neutral-800 pb-2.5">
                     <div class="flex items-center gap-2">
                         <span class="text-2xl">⚡</span>
-                        <h2 class="text-lg font-cyber font-bold tracking-wider text-cyan-400">HOW TO PLAY // PILOT PROTOCOLS</h2>
+                        <div>
+                            <h2 class="text-base sm:text-lg font-cyber font-bold tracking-wider text-cyan-400">HOW TO PLAY // PILOT PROTOCOLS</h2>
+                            <p class="text-[11px] text-neutral-400 font-cyber">Master precision movement, supersonic slide-hops, cyber custom suits, and daily challenges.</p>
+                        </div>
                     </div>
-                    <button id="btn-close-howtoplay" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700">
+                    <button id="btn-close-howtoplay" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition cursor-pointer">
                         ✕ CLOSE
                     </button>
                 </div>
 
-                <div class="space-y-3 text-xs text-neutral-300 font-mono overflow-y-auto pr-1 max-h-[360px]">
-                    <div class="bg-neutral-950 p-3 rounded border border-neutral-800">
-                        <span class="text-cyan-400 font-cyber font-bold">1. FLUID AIR MOBILITY & DOUBLE JUMP</span>
-                        <p class="text-neutral-400 mt-1">
-                            Press <strong class="text-cyan-300">[SPACE / W]</strong> to jump. Hold to leap higher, release early for precise short hops. Press <strong class="text-cyan-300">[SPACE]</strong> again in mid-air to execute a crisp double jump air-boost!
+                <div class="space-y-2.5 text-xs text-neutral-300 font-mono overflow-y-auto pr-1 max-h-[62vh]">
+                    <!-- 1. FLUID AIR MOBILITY & DOUBLE JUMP -->
+                    <div class="bg-neutral-950/90 p-3 rounded-lg border border-cyan-500/40">
+                        <div class="flex items-center justify-between">
+                            <span class="text-cyan-400 font-cyber font-bold text-xs">1. 🏃 FLUID AIR MOBILITY & DOUBLE JUMP</span>
+                            <span class="text-[10px] text-cyan-300 font-mono bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/50">[SPACE / W / UP]</span>
+                        </div>
+                        <p class="text-neutral-400 mt-1 leading-relaxed">
+                            Press <strong class="text-cyan-300">[SPACE / W]</strong> or touch <strong class="text-cyan-300">[JUMP]</strong> to leap. Hold longer to jump higher, or release early for precise short hops. Press again in mid-air to execute an aerodynamic double jump air-boost!
                         </p>
                     </div>
 
-                    <div class="bg-neutral-950 p-3 rounded border border-neutral-800">
-                        <span class="text-amber-400 font-cyber font-bold">2. SLIDE & RAPID AIR-DIVE</span>
-                        <p class="text-neutral-400 mt-1">
-                            Press and hold <strong class="text-amber-300">[S / DOWN]</strong> on the ground to slide smoothly under low laser beams. Press in the air to execute an instant kinetic dive to the surface.
+                    <!-- 2. SLIDE & SLIDE-HOP MOMENTUM CHAINING -->
+                    <div class="bg-neutral-950/90 p-3 rounded-lg border border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                        <div class="flex items-center justify-between">
+                            <span class="text-amber-400 font-cyber font-bold text-xs">2. ⚡ SLIDE & SLIDE-HOP (+15% SPEED BOOST)</span>
+                            <span class="text-[10px] text-amber-300 font-mono bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/50">[S / DOWN]</span>
+                        </div>
+                        <p class="text-neutral-400 mt-1 leading-relaxed">
+                            • <strong class="text-amber-300">Ground Slide:</strong> Hold <strong class="text-amber-300">[S / DOWN]</strong> or touch <strong class="text-amber-300">[SLIDE]</strong> to duck cleanly under low laser fences.<br>
+                            • <strong class="text-amber-300">Kinetic Air-Dive:</strong> Press slide while airborne to slam directly onto platforms.<br>
+                            • <strong class="text-amber-300">⚡ PRO SLIDE-HOP TECH:</strong> Tap <strong class="text-cyan-300">[JUMP]</strong> during a slide or within 160ms of ending a slide to trigger a <strong>+15% instant velocity burst</strong>! Chain multiple slide-hops across consecutive platforms to blow past <strong>500+ km/h</strong>!
                         </p>
                     </div>
 
-                    <div class="bg-neutral-950 p-3 rounded border border-neutral-800">
-                        <span class="text-pink-400 font-cyber font-bold">3. SPECIAL ABILITIES [SHIFT / E]</span>
-                        <p class="text-neutral-400 mt-1">
-                            • <strong class="text-cyan-300">Phase Dash:</strong> Warp forward with momentary invulnerability through hazardous spikes & lasers.<br>
-                            • <strong class="text-pink-300">Thruster Burst:</strong> Extra velocity pulse in mid-flight.<br>
-                            • <strong class="text-purple-300">Chrono Pulse:</strong> Dilate time to slow down tricky obstacle sections.
+                    <!-- 3. KINETIC SPECIAL ABILITIES -->
+                    <div class="bg-neutral-950/90 p-3 rounded-lg border border-purple-500/40">
+                        <div class="flex items-center justify-between">
+                            <span class="text-purple-400 font-cyber font-bold text-xs">3. 🚀 KINETIC SPECIAL ABILITIES</span>
+                            <span class="text-[10px] text-purple-300 font-mono bg-purple-950/80 px-2 py-0.5 rounded border border-purple-500/50">[SHIFT / E]</span>
+                        </div>
+                        <p class="text-neutral-400 mt-1 leading-relaxed">
+                            • <strong class="text-cyan-300">Phase Dash [SHIFT / E / DASH]:</strong> Warp forward with invulnerability, slicing safely through hazard spikes and lethal lasers.<br>
+                            • <strong class="text-amber-300">Thruster Burst [THRUST]:</strong> Fire upward rocket pulses for extended mid-air hang time.<br>
+                            • <strong class="text-purple-300">Chrono Pulse [CHRONO]:</strong> Dilate local spacetime to maneuver through dense hazard gauntlets.
                         </p>
                     </div>
 
-                    <div class="bg-neutral-950 p-3 rounded border border-neutral-800">
-                        <span class="text-emerald-400 font-cyber font-bold">4. SECTOR MECHANICS</span>
-                        <p class="text-neutral-400 mt-1">
-                            • <strong class="text-amber-400">Speed Pads:</strong> Launch runner at supersonic speed.<br>
-                            • <strong class="text-emerald-400">Trampolines:</strong> Spring up to high-altitude skyline platforms.<br>
-                            • <strong class="text-pink-400">Jump Rings:</strong> Touch in mid-air to refresh your jumps and launch higher.<br>
-                            • <strong class="text-sky-400">Gravity Rings (Blue Orbs):</strong> Geometry Dash-style mid-air rings that flip gravity to run along ceilings or plunge back down!
+                    <!-- 4. SECTOR BOOSTERS & INTERACTIVE MECHANICS -->
+                    <div class="bg-neutral-950/90 p-3 rounded-lg border border-emerald-500/40">
+                        <div class="flex items-center justify-between">
+                            <span class="text-emerald-400 font-cyber font-bold text-xs">4. 🌀 BOOSTERS, RINGS & GRAVITY WARP</span>
+                            <span class="text-[10px] text-emerald-300 font-mono bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/50">INTERACTIVE</span>
+                        </div>
+                        <p class="text-neutral-400 mt-1 leading-relaxed">
+                            • <strong class="text-amber-400">⚡ Speed Booster Rings:</strong> Mid-air golden hexagonal rings catapult you at <strong>620+ km/h</strong> with sonic boom shockwaves and screen-warp!<br>
+                            • <strong class="text-orange-400">🚀 Kinetic Launch Pads:</strong> Angled amber ramps fling you skyward and forward at steep diagonal trajectories.<br>
+                            • <strong class="text-sky-400">🌀 Gravity Rings (Blue Orbs):</strong> Flip gravity in mid-air to sprint upside-down along ceilings or dive back down.<br>
+                            • <strong class="text-pink-400">💎 Cyber Shards:</strong> Collect shards across the course (plays harmonic musical arpeggios). Collect all 3 to secure Author Diamond Medals!
+                        </p>
+                    </div>
+
+                    <!-- 5. CYBER LOCKER: SKINS & ENERGY TRAILS -->
+                    <div class="bg-neutral-950/90 p-3 rounded-lg border border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
+                        <div class="flex items-center justify-between">
+                            <span class="text-cyan-400 font-cyber font-bold text-xs">5. 🎨 CYBER LOCKER (EXOSUITS & TRAILS)</span>
+                            <span class="text-[10px] text-cyan-300 font-mono bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/50">[🎨 LOCKER]</span>
+                        </div>
+                        <p class="text-neutral-400 mt-1 leading-relaxed">
+                            • Open the <strong class="text-cyan-300">Cyber Locker</strong> from the Main Menu or in-game header at any time.<br>
+                            • <strong class="text-cyan-300">10 Exosuit Skins:</strong> Unlock suits with custom headgear, visors, crowns, and auras (Cyan, Phantom Violet, Neo Emerald, Solar Flare, Blood Crimson, Glitch Shifter, Apex Champion, Vaporwave Sunset, Matrix Overdrive, Void Shadow).<br>
+                            • <strong class="text-pink-300">6 Energy Particle Trails:</strong> Pulse Dash, Laser Ribbon, Stardust Sparkles, Afterburner Ember, Hyperdrive Rainbow, Matrix Binary Rain.<br>
+                            • <strong class="text-emerald-300">1-Click Equip:</strong> Click any owned suit or trail card to <strong>immediately equip it</strong> for your runs!
+                        </p>
+                    </div>
+
+                    <!-- 6. DAILY SEEDED SPEEDRUN CHALLENGE -->
+                    <div class="bg-neutral-950/90 p-3 rounded-lg border border-pink-500/40 shadow-[0_0_15px_rgba(236,72,153,0.1)]">
+                        <div class="flex items-center justify-between">
+                            <span class="text-pink-400 font-cyber font-bold text-xs">6. 📅 DAILY SEEDED SPEEDRUN CHALLENGE</span>
+                            <span class="text-[10px] text-pink-300 font-mono bg-pink-950/80 px-2 py-0.5 rounded border border-pink-500/50">24H RESET</span>
+                        </div>
+                        <p class="text-neutral-400 mt-1 leading-relaxed">
+                            • Generated every day at <strong class="text-pink-300">00:00 UTC</strong> using a deterministic PRNG. Every runner worldwide faces the identical track.<br>
+                            • Compete on the global <strong class="text-pink-300">Dreamlo Daily Leaderboard</strong> for the world record time of the day.<br>
+                            • Completing today's challenge unlocks the exclusive <strong class="text-pink-400">Vaporwave Sunset</strong> skin and <strong class="text-emerald-400">Matrix Binary Rain</strong> trail!
+                        </p>
+                    </div>
+
+                    <!-- 7. GHOST RACER, SPEEDOMETER & SPLITS -->
+                    <div class="bg-neutral-950/90 p-3 rounded-lg border border-yellow-500/40">
+                        <div class="flex items-center justify-between">
+                            <span class="text-yellow-400 font-cyber font-bold text-xs">7. ⏱️ PB GHOST & LIVE SPEEDOMETER SPLITS</span>
+                            <span class="text-[10px] text-yellow-300 font-mono bg-yellow-950/80 px-2 py-0.5 rounded border border-yellow-500/50">HUD STATS</span>
+                        </div>
+                        <p class="text-neutral-400 mt-1 leading-relaxed">
+                            • <strong class="text-cyan-300">Solo PB Hologram Ghost:</strong> Your fastest run auto-records and races alongside you as a glowing hologram.<br>
+                            • <strong class="text-amber-300">Live Speedometer:</strong> Real-time km/h readout with Turbo (250+ km/h) and Hyperdrive (400+ km/h) visual tiers.<br>
+                            • <strong class="text-emerald-300">Checkpoint Splits:</strong> Popups at 25%, 50%, and 75% show whether you are ahead (<span class="text-emerald-400">-0.35s</span>) or behind (<span class="text-rose-400">+0.40s</span>) your personal best pace!
+                        </p>
+                    </div>
+
+                    <!-- 8. MOBILE CONTROLS & MULTIPLAYER -->
+                    <div class="bg-neutral-950/90 p-3 rounded-lg border border-neutral-700">
+                        <div class="flex items-center justify-between">
+                            <span class="text-neutral-300 font-cyber font-bold text-xs">8. 📱 MOBILE & ONLINE RACING</span>
+                            <span class="text-[10px] text-neutral-400 font-mono bg-neutral-900 px-2 py-0.5 rounded border border-neutral-700">CONTROLS</span>
+                        </div>
+                        <p class="text-neutral-400 mt-1 leading-relaxed">
+                            • <strong class="text-neutral-200">Mobile Touch:</strong> Fully responsive on-screen buttons for Jump, Slide, Dash, Thrust, and Chrono in both portrait and landscape mode.<br>
+                            • <strong class="text-rose-400">1v1 Online Racing:</strong> Share room links to race live against friends in real-time with P2P WebRTC networking.
                         </p>
                     </div>
                 </div>
 
-                <button id="btn-howtoplay-confirm" class="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-cyber font-bold text-xs tracking-wider rounded transition">
+                <button id="btn-howtoplay-confirm" class="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-cyber font-bold text-xs tracking-wider rounded transition shadow-[0_0_20px_rgba(6,182,212,0.4)] cursor-pointer">
                     ROGER THAT, LET'S RUN ▶
                 </button>
             </div>
@@ -1064,6 +1137,6 @@
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=3.6"></script>
+    <script src="game.js?v=3.7"></script>
 </body>
 </html>

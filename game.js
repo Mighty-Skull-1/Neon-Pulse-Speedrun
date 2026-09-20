@@ -528,8 +528,22 @@ const lockerSystem = {
     previewRunCycle: 0,
     previewParticles: [],
     activeTab: 'skins',
+    unlockedSkins: new Set(["cyan"]),
+    unlockedTrails: new Set(["pulse_dash"]),
 
     load() {
+        try {
+            const savedSkins = localStorage.getItem('neon_pulse_unlocked_skins');
+            if (savedSkins) {
+                const arr = JSON.parse(savedSkins);
+                if (Array.isArray(arr)) arr.forEach(s => this.unlockedSkins.add(s));
+            }
+            const savedTrails = localStorage.getItem('neon_pulse_unlocked_trails');
+            if (savedTrails) {
+                const arr = JSON.parse(savedTrails);
+                if (Array.isArray(arr)) arr.forEach(t => this.unlockedTrails.add(t));
+            }
+        } catch(e) {}
         try {
             const sk = localStorage.getItem('neon_pulse_active_skin');
             if (sk && SKINS.some(s => s.id === sk)) {
@@ -542,6 +556,8 @@ const lockerSystem = {
                 this.activeTrail = tr;
             }
         } catch(e) {}
+        if (this.activeSkin) this.unlockedSkins.add(this.activeSkin);
+        if (this.activeTrail) this.unlockedTrails.add(this.activeTrail);
         this.previewSkin = this.activeSkin;
         this.previewTrail = this.activeTrail;
         this.checkUnlocks();
@@ -551,8 +567,13 @@ const lockerSystem = {
         try {
             localStorage.setItem('neon_pulse_active_skin', this.activeSkin);
             localStorage.setItem('neon_pulse_active_trail', this.activeTrail);
+            localStorage.setItem('neon_pulse_unlocked_skins', JSON.stringify(Array.from(this.unlockedSkins)));
+            localStorage.setItem('neon_pulse_unlocked_trails', JSON.stringify(Array.from(this.unlockedTrails)));
             if (dailySystem) {
                 dailySystem.activeSkin = this.activeSkin;
+                if (dailySystem.unlockedSkins) {
+                    this.unlockedSkins.forEach(s => dailySystem.unlockedSkins.add(s));
+                }
                 dailySystem.save();
             }
         } catch(e) {}
@@ -560,29 +581,42 @@ const lockerSystem = {
 
     isSkinUnlocked(id) {
         if (id === 'cyan') return true;
+        if (this.unlockedSkins && this.unlockedSkins.has(id)) return true;
         if (dailySystem && dailySystem.unlockedSkins && dailySystem.unlockedSkins.has(id)) return true;
         const metrics = this.getMetrics();
-        if (id === 'violet' && (metrics.clearedStages >= 5 || metrics.streak >= 2)) return true;
-        if (id === 'emerald' && (metrics.totalShards >= 15 || metrics.streak >= 3)) return true;
-        if (id === 'solar' && (metrics.goldMedals >= 3 || metrics.streak >= 4)) return true;
-        if (id === 'crimson' && (metrics.topSpeed >= 400 || metrics.streak >= 5)) return true;
-        if (id === 'glitch' && (metrics.diamondMedals >= 1 || metrics.streak >= 6)) return true;
-        if (id === 'apex_gold' && (metrics.clearedStages >= 10 || metrics.streak >= 7)) return true;
-        if (id === 'vaporwave' && metrics.dailyCleared) return true;
-        if (id === 'matrix' && (metrics.topSpeed >= 500 || metrics.maxSlideHops >= 3)) return true;
-        if (id === 'void_shadow' && (metrics.clearedStages >= 15 || metrics.stage20Cleared)) return true;
-        return false;
+        let unlocked = false;
+        if (id === 'violet' && (metrics.clearedStages >= 5 || metrics.streak >= 2)) unlocked = true;
+        else if (id === 'emerald' && (metrics.totalShards >= 15 || metrics.streak >= 3)) unlocked = true;
+        else if (id === 'solar' && (metrics.goldMedals >= 3 || metrics.streak >= 4)) unlocked = true;
+        else if (id === 'crimson' && (metrics.topSpeed >= 400 || metrics.streak >= 5)) unlocked = true;
+        else if (id === 'glitch' && (metrics.diamondMedals >= 1 || metrics.streak >= 6)) unlocked = true;
+        else if (id === 'apex_gold' && (metrics.clearedStages >= 10 || metrics.streak >= 7)) unlocked = true;
+        else if (id === 'vaporwave' && metrics.dailyCleared) unlocked = true;
+        else if (id === 'matrix' && (metrics.topSpeed >= 500 || metrics.maxSlideHops >= 3)) unlocked = true;
+        else if (id === 'void_shadow' && (metrics.clearedStages >= 15 || metrics.stage20Cleared)) unlocked = true;
+
+        if (unlocked) {
+            this.unlockedSkins.add(id);
+            if (dailySystem && dailySystem.unlockedSkins) dailySystem.unlockedSkins.add(id);
+        }
+        return unlocked;
     },
 
     isTrailUnlocked(id) {
         if (id === 'pulse_dash') return true;
+        if (this.unlockedTrails && this.unlockedTrails.has(id)) return true;
         const metrics = this.getMetrics();
-        if (id === 'laser_ribbon' && metrics.clearedStages >= 3) return true;
-        if (id === 'stardust' && metrics.totalShards >= 20) return true;
-        if (id === 'fire_ember' && metrics.topSpeed >= 350) return true;
-        if (id === 'rainbow_hyper' && metrics.goldMedals >= 5) return true;
-        if (id === 'matrix_rain' && metrics.dailyCleared) return true;
-        return false;
+        let unlocked = false;
+        if (id === 'laser_ribbon' && metrics.clearedStages >= 3) unlocked = true;
+        else if (id === 'stardust' && metrics.totalShards >= 20) unlocked = true;
+        else if (id === 'fire_ember' && metrics.topSpeed >= 350) unlocked = true;
+        else if (id === 'rainbow_hyper' && metrics.goldMedals >= 5) unlocked = true;
+        else if (id === 'matrix_rain' && metrics.dailyCleared) unlocked = true;
+
+        if (unlocked) {
+            this.unlockedTrails.add(id);
+        }
+        return unlocked;
     },
 
     getMetrics() {
@@ -628,30 +662,51 @@ const lockerSystem = {
 
     checkUnlocks() {
         SKINS.forEach(s => {
-            if (this.isSkinUnlocked(s.id) && dailySystem) {
-                dailySystem.unlockedSkins.add(s.id);
+            if (this.isSkinUnlocked(s.id)) {
+                this.unlockedSkins.add(s.id);
+                if (dailySystem && dailySystem.unlockedSkins) {
+                    dailySystem.unlockedSkins.add(s.id);
+                }
             }
         });
+        TRAILS.forEach(t => {
+            if (this.isTrailUnlocked(t.id)) {
+                this.unlockedTrails.add(t.id);
+            }
+        });
+        try {
+            localStorage.setItem('neon_pulse_unlocked_skins', JSON.stringify(Array.from(this.unlockedSkins)));
+            localStorage.setItem('neon_pulse_unlocked_trails', JSON.stringify(Array.from(this.unlockedTrails)));
+        } catch(e) {}
     },
 
     equipSkin(id) {
         if (!this.isSkinUnlocked(id)) return;
         this.activeSkin = id;
         this.previewSkin = id;
+        this.unlockedSkins.add(id);
         this.save();
         audio.playEquip();
         this.updateUI();
-        showNotification(`🎨 EQUIPPED EXOSUIT: ${getActiveSkinData().name}`);
+        const skinData = getActiveSkinData();
+        showNotification(`🎨 EQUIPPED EXOSUIT: ${skinData.name}`);
+        const equippedName = document.getElementById('equipped-skin-name');
+        if (equippedName) {
+            equippedName.innerText = skinData.name;
+            equippedName.style.color = skinData.color;
+        }
     },
 
     equipTrail(id) {
         if (!this.isTrailUnlocked(id)) return;
         this.activeTrail = id;
         this.previewTrail = id;
+        this.unlockedTrails.add(id);
         this.save();
         audio.playEquip();
         this.updateUI();
-        showNotification(`✨ EQUIPPED TRAIL: ${getActiveTrailData().name}`);
+        const trailData = getActiveTrailData();
+        showNotification(`✨ EQUIPPED TRAIL: ${trailData.name}`);
     },
 
     updateUI() {
@@ -7672,29 +7727,44 @@ function populateLockerModal() {
             const isSelected = skin.id === lockerSystem.previewSkin;
 
             const card = document.createElement('div');
-            card.className = `p-2 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1 text-left ${
-                isSelected ? 'border-cyan-400 bg-cyan-950/60 shadow-[0_0_12px_rgba(6,182,212,0.3)]' :
-                (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-neutral-500' : 'border-neutral-800 bg-neutral-950/80 opacity-70')
+            card.className = `p-2.5 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1.5 text-left relative select-none ${
+                isEquipped ? 'border-emerald-400/90 bg-emerald-950/40 shadow-[0_0_14px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/40' :
+                (isSelected ? 'border-cyan-400 bg-cyan-950/60 shadow-[0_0_12px_rgba(6,182,212,0.3)]' :
+                (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-cyan-400 hover:bg-neutral-800' : 'border-neutral-800 bg-neutral-950/80 opacity-65 hover:border-neutral-700'))
             }`;
-            card.onclick = () => {
-                lockerSystem.previewSkin = skin.id;
-                lockerSystem.updateUI();
+            card.onclick = (e) => {
+                if (e) e.stopPropagation();
+                if (unlocked) {
+                    lockerSystem.equipSkin(skin.id);
+                } else {
+                    lockerSystem.previewSkin = skin.id;
+                    lockerSystem.updateUI();
+                    audio.playLaser();
+                    showNotification(`🔒 LOCKED: ${skin.unlockDesc}`);
+                }
                 populateLockerModal();
             };
 
             card.innerHTML = `
                 <div class="flex items-center justify-between">
-                    <span class="text-base">${skin.icon || '🦿'}</span>
-                    <span class="text-[9px] font-cyber px-1 py-0.2 rounded ${
-                        isEquipped ? 'bg-emerald-950 text-emerald-300 border border-emerald-500' :
-                        (unlocked ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-700')
-                    }">
-                        ${isEquipped ? 'EQUIPPED' : (unlocked ? 'OWNED' : 'LOCKED')}
-                    </span>
+                    <span class="text-lg">${skin.icon || '🦿'}</span>
+                    ${isEquipped ? `
+                        <span class="text-[9px] font-cyber px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500 font-bold shadow-[0_0_8px_rgba(16,185,129,0.3)] flex items-center gap-1">
+                            <span>✓</span> EQUIPPED
+                        </span>
+                    ` : unlocked ? `
+                        <button class="text-[9px] font-cyber px-2 py-0.5 rounded bg-cyan-950 hover:bg-cyan-800 text-cyan-300 border border-cyan-500/80 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)] transition cursor-pointer flex items-center gap-1">
+                            <span>⚡</span> EQUIP
+                        </button>
+                    ` : `
+                        <span class="text-[9px] font-cyber px-1.5 py-0.5 rounded bg-neutral-900 text-neutral-500 border border-neutral-700 flex items-center gap-1">
+                            <span>🔒</span> LOCKED
+                        </span>
+                    `}
                 </div>
                 <div>
-                    <div class="text-[11px] font-cyber font-bold truncate" style="color:${skin.color};">${skin.name}</div>
-                    <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${unlocked ? 'Ready to equip' : skin.unlockDesc}</div>
+                    <div class="text-[11px] font-cyber font-bold truncate flex items-center gap-1" style="color:${skin.color};">${skin.name}</div>
+                    <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${isEquipped ? 'Currently active • Running' : unlocked ? 'Owned • Tap to equip' : skin.unlockDesc}</div>
                 </div>
             `;
             skinsGrid.appendChild(card);
@@ -7709,29 +7779,44 @@ function populateLockerModal() {
             const isSelected = trail.id === lockerSystem.previewTrail;
 
             const card = document.createElement('div');
-            card.className = `p-2 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1 text-left ${
-                isSelected ? 'border-pink-400 bg-pink-950/60 shadow-[0_0_12px_rgba(236,72,153,0.3)]' :
-                (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-neutral-500' : 'border-neutral-800 bg-neutral-950/80 opacity-70')
+            card.className = `p-2.5 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1.5 text-left relative select-none ${
+                isEquipped ? 'border-emerald-400/90 bg-emerald-950/40 shadow-[0_0_14px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/40' :
+                (isSelected ? 'border-pink-400 bg-pink-950/60 shadow-[0_0_12px_rgba(236,72,153,0.3)]' :
+                (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-pink-400 hover:bg-neutral-800' : 'border-neutral-800 bg-neutral-950/80 opacity-65 hover:border-neutral-700'))
             }`;
-            card.onclick = () => {
-                lockerSystem.previewTrail = trail.id;
-                lockerSystem.updateUI();
+            card.onclick = (e) => {
+                if (e) e.stopPropagation();
+                if (unlocked) {
+                    lockerSystem.equipTrail(trail.id);
+                } else {
+                    lockerSystem.previewTrail = trail.id;
+                    lockerSystem.updateUI();
+                    audio.playLaser();
+                    showNotification(`🔒 LOCKED: ${trail.unlockDesc}`);
+                }
                 populateLockerModal();
             };
 
             card.innerHTML = `
                 <div class="flex items-center justify-between">
-                    <span class="text-base">${trail.icon || '✨'}</span>
-                    <span class="text-[9px] font-cyber px-1 py-0.2 rounded ${
-                        isEquipped ? 'bg-emerald-950 text-emerald-300 border border-emerald-500' :
-                        (unlocked ? 'bg-pink-950 text-pink-300 border border-pink-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-700')
-                    }">
-                        ${isEquipped ? 'EQUIPPED' : (unlocked ? 'OWNED' : 'LOCKED')}
-                    </span>
+                    <span class="text-lg">${trail.icon || '✨'}</span>
+                    ${isEquipped ? `
+                        <span class="text-[9px] font-cyber px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500 font-bold shadow-[0_0_8px_rgba(16,185,129,0.3)] flex items-center gap-1">
+                            <span>✓</span> EQUIPPED
+                        </span>
+                    ` : unlocked ? `
+                        <button class="text-[9px] font-cyber px-2 py-0.5 rounded bg-pink-950 hover:bg-pink-800 text-pink-300 border border-pink-500/80 font-bold shadow-[0_0_8px_rgba(236,72,153,0.3)] transition cursor-pointer flex items-center gap-1">
+                            <span>✨</span> EQUIP
+                        </button>
+                    ` : `
+                        <span class="text-[9px] font-cyber px-1.5 py-0.5 rounded bg-neutral-900 text-neutral-500 border border-neutral-700 flex items-center gap-1">
+                            <span>🔒</span> LOCKED
+                        </span>
+                    `}
                 </div>
                 <div>
                     <div class="text-[11px] font-cyber font-bold truncate" style="color:${trail.color};">${trail.name}</div>
-                    <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${unlocked ? trail.desc : trail.unlockDesc}</div>
+                    <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${isEquipped ? 'Currently active • Running' : unlocked ? trail.desc + ' • Tap to equip' : trail.unlockDesc}</div>
                 </div>
             `;
             trailsGrid.appendChild(card);
@@ -8334,12 +8419,12 @@ function populateDailyModal() {
     if (select) {
         select.innerHTML = '';
         SKINS.forEach(skin => {
-            const isUnlocked = dailySystem.unlockedSkins.has(skin.id);
+            const isUnlocked = lockerSystem.isSkinUnlocked(skin.id);
             const opt = document.createElement('option');
             opt.value = skin.id;
-            opt.innerText = isUnlocked ? skin.name : `🔒 ${skin.name} (Day ${skin.unlockDay})`;
+            opt.innerText = isUnlocked ? `${skin.name} (OWNED)` : `🔒 ${skin.name} (${skin.unlockDesc})`;
             opt.disabled = !isUnlocked;
-            if (skin.id === dailySystem.activeSkin) opt.selected = true;
+            if (skin.id === lockerSystem.activeSkin) opt.selected = true;
             select.appendChild(opt);
         });
     }
@@ -8751,11 +8836,18 @@ bindClick('btn-locker-back-main', () => {
 });
 
 bindClick('btn-locker-equip', () => {
-    if (lockerSystem.activeTab === 'skins' || lockerSystem.previewSkin !== lockerSystem.activeSkin) {
+    let equippedAny = false;
+    if (lockerSystem.isSkinUnlocked(lockerSystem.previewSkin)) {
         lockerSystem.equipSkin(lockerSystem.previewSkin);
+        equippedAny = true;
     }
-    if (lockerSystem.previewTrail !== lockerSystem.activeTrail) {
+    if (lockerSystem.isTrailUnlocked(lockerSystem.previewTrail)) {
         lockerSystem.equipTrail(lockerSystem.previewTrail);
+        equippedAny = true;
+    }
+    if (!equippedAny) {
+        audio.playLaser();
+        showNotification("🔒 ITEM IS CURRENTLY LOCKED");
     }
     populateLockerModal();
 });
@@ -9053,11 +9145,10 @@ const skinSelect = document.getElementById('skin-select-dropdown');
 if (skinSelect) {
     skinSelect.addEventListener('change', (e) => {
         const selected = e.target.value;
-        if (dailySystem.unlockedSkins.has(selected)) {
-            dailySystem.activeSkin = selected;
-            dailySystem.save();
+        if (lockerSystem.isSkinUnlocked(selected)) {
+            lockerSystem.equipSkin(selected);
             populateDailyModal();
-            showNotification(`EXOSUIT EQUIPPED: ${getActiveSkinData().name}`);
+            populateLockerModal();
         }
     });
 }
