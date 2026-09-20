@@ -17,8 +17,8 @@ function executeGlobalProgressReset(force = false) {
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key && (key.startsWith('neon_pulse_') || key.startsWith('neon_runner_'))) {
-                    // Retain audio preferences, but wipe all gameplay progress, PBs, shards, medals, ghosts, skins
-                    if (key !== 'neon_pulse_vol_music' && key !== 'neon_pulse_vol_sfx') {
+                    // Retain audio preferences and ghost setting, but wipe all gameplay progress, PBs, shards, medals, ghosts, skins
+                    if (key !== 'neon_pulse_vol_music' && key !== 'neon_pulse_vol_sfx' && key !== 'neon_pulse_setting_ghost') {
                         keysToRemove.push(key);
                     }
                 }
@@ -88,32 +88,109 @@ class SoundEngine {
         this.lastRingTime = 0;
         this.musicVolume = 0.7;
         this.sfxVolume = 0.8;
+        this.musicGainNode = null;
+        this.sfxGainNode = null;
         try {
             const sm = localStorage.getItem('neon_pulse_vol_music');
-            if (sm !== null) this.musicVolume = parseFloat(sm) / 100;
+            if (sm !== null) this.musicVolume = Math.max(0, Math.min(1, parseFloat(sm) / 100));
             const ss = localStorage.getItem('neon_pulse_vol_sfx');
-            if (ss !== null) this.sfxVolume = parseFloat(ss) / 100;
+            if (ss !== null) this.sfxVolume = Math.max(0, Math.min(1, parseFloat(ss) / 100));
         } catch(e) {}
-    }
-
-    setMusicVolume(pct) {
-        this.musicVolume = Math.max(0, Math.min(1, pct / 100));
-        try { localStorage.setItem('neon_pulse_vol_music', pct); } catch(e) {}
-    }
-
-    setSfxVolume(pct) {
-        this.sfxVolume = Math.max(0, Math.min(1, pct / 100));
-        try { localStorage.setItem('neon_pulse_vol_sfx', pct); } catch(e) {}
     }
 
     init() {
         if (!this.ctx) {
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
-            if (AudioCtx) this.ctx = new AudioCtx();
+            if (AudioCtx) {
+                this.ctx = new AudioCtx();
+                this.getMusicDestination();
+                this.getSfxDestination();
+            }
         }
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume();
         }
+    }
+
+    getSfxDestination() {
+        if (!this.ctx) return null;
+        if (!this.sfxGainNode) {
+            try {
+                this.sfxGainNode = this.ctx.createGain();
+                const vol = this.muted ? 0 : (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
+                this.sfxGainNode.gain.setValueAtTime(vol, this.ctx.currentTime);
+                this.sfxGainNode.connect(this.ctx.destination);
+            } catch(e) {}
+        }
+        return this.sfxGainNode;
+    }
+
+    getMusicDestination() {
+        if (!this.ctx) return null;
+        if (!this.musicGainNode) {
+            try {
+                this.musicGainNode = this.ctx.createGain();
+                const vol = this.muted ? 0 : (this.musicVolume !== undefined ? this.musicVolume : 0.7);
+                this.musicGainNode.gain.setValueAtTime(vol, this.ctx.currentTime);
+                this.musicGainNode.connect(this.ctx.destination);
+            } catch(e) {}
+        }
+        return this.musicGainNode;
+    }
+
+    setMusicVolume(pct) {
+        const val = parseFloat(pct);
+        this.musicVolume = Math.max(0, Math.min(1, isNaN(val) ? 0.7 : val / 100));
+        try { localStorage.setItem('neon_pulse_vol_music', Math.round(this.musicVolume * 100)); } catch(e) {}
+        if (this.ctx) {
+            const dest = this.getMusicDestination();
+            if (dest) {
+                try {
+                    dest.gain.cancelScheduledValues(this.ctx.currentTime);
+                    dest.gain.setValueAtTime(this.muted ? 0 : this.musicVolume, this.ctx.currentTime);
+                } catch(e) {}
+            }
+        }
+        if (typeof syncAudioSliders === 'function') syncAudioSliders();
+    }
+
+    setSfxVolume(pct) {
+        const val = parseFloat(pct);
+        this.sfxVolume = Math.max(0, Math.min(1, isNaN(val) ? 0.8 : val / 100));
+        try { localStorage.setItem('neon_pulse_vol_sfx', Math.round(this.sfxVolume * 100)); } catch(e) {}
+        if (this.ctx) {
+            const dest = this.getSfxDestination();
+            if (dest) {
+                try {
+                    dest.gain.cancelScheduledValues(this.ctx.currentTime);
+                    dest.gain.setValueAtTime(this.muted ? 0 : this.sfxVolume, this.ctx.currentTime);
+                } catch(e) {}
+            }
+        }
+        if (typeof syncAudioSliders === 'function') syncAudioSliders();
+    }
+
+    toggleMute() {
+        this.muted = !this.muted;
+        if (this.ctx) {
+            const mDest = this.getMusicDestination();
+            if (mDest) {
+                try {
+                    mDest.gain.cancelScheduledValues(this.ctx.currentTime);
+                    mDest.gain.setValueAtTime(this.muted ? 0 : this.musicVolume, this.ctx.currentTime);
+                } catch(e) {}
+            }
+            const sDest = this.getSfxDestination();
+            if (sDest) {
+                try {
+                    sDest.gain.cancelScheduledValues(this.ctx.currentTime);
+                    sDest.gain.setValueAtTime(this.muted ? 0 : this.sfxVolume, this.ctx.currentTime);
+                } catch(e) {}
+            }
+        }
+        if (typeof syncAudioSliders === 'function') syncAudioSliders();
+        if (typeof updateAudioUI === 'function') updateAudioUI();
+        return this.muted;
     }
 
     playJump(isDouble = false) {
@@ -138,7 +215,7 @@ class SoundEngine {
             }
 
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.14);
         } catch(e) {}
@@ -156,7 +233,7 @@ class SoundEngine {
             gain.gain.setValueAtTime(0.3, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.18);
         } catch(e) {}
@@ -174,7 +251,7 @@ class SoundEngine {
             gain.gain.setValueAtTime(0.25, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.35);
         } catch(e) {}
@@ -192,7 +269,7 @@ class SoundEngine {
             gain.gain.setValueAtTime(0.14, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.12);
         } catch(e) {}
@@ -210,7 +287,7 @@ class SoundEngine {
             gain.gain.setValueAtTime(0.22, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.16);
         } catch(e) {}
@@ -228,7 +305,7 @@ class SoundEngine {
             gain.gain.setValueAtTime(0.32, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.22);
         } catch(e) {}
@@ -245,7 +322,6 @@ class SoundEngine {
             }
             this.lastRingTime = now;
 
-            // Arpeggio notes: C5 (523Hz), E5 (659Hz), G5 (784Hz), C6 (1046Hz)
             const notes = [523.25, 659.25, 783.99, 1046.50];
             const baseFreq = notes[this.ringCombo];
 
@@ -257,7 +333,7 @@ class SoundEngine {
             gain.gain.setValueAtTime(0.26, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.16);
         } catch(e) {}
@@ -267,7 +343,6 @@ class SoundEngine {
         if (this.muted || !this.ctx) return;
         try {
             const now = this.ctx.currentTime;
-            // Geometry Dash-style reverse-synth warp chord (D5 + F#5 + A5 collapsing downward)
             const freqs = [587.33, 739.99, 880.00];
             freqs.forEach((freq, idx) => {
                 const osc = this.ctx.createOscillator();
@@ -278,7 +353,7 @@ class SoundEngine {
                 gain.gain.setValueAtTime(0.20, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
                 osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                gain.connect(this.getSfxDestination() || this.ctx.destination);
                 osc.start(now);
                 osc.stop(now + 0.22);
             });
@@ -289,23 +364,21 @@ class SoundEngine {
         if (this.muted || !this.ctx) return;
         try {
             const now = this.ctx.currentTime;
-            // Escalating chord frequencies: Shard 1 (C5), Shard 2 (E5), Shard 3 (G5 + C6 arpeggio)
-            let chord = [523.25, 783.99]; // C5, G5
+            let chord = [523.25, 783.99];
             if (shardCount === 2) {
-                chord = [659.25, 987.77]; // E5, B5
+                chord = [659.25, 987.77];
             } else if (shardCount >= 3) {
-                chord = [783.99, 1046.50, 1318.51]; // G5, C6, E6
+                chord = [783.99, 1046.50, 1318.51];
             }
             chord.forEach((freq, i) => {
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(freq, now + i * 0.05);
-                const sfxVol = (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
-                gain.gain.setValueAtTime(0.24 * sfxVol, now + i * 0.05);
+                gain.gain.setValueAtTime(0.24, now + i * 0.05);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.38);
                 osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                gain.connect(this.getSfxDestination() || this.ctx.destination);
                 osc.start(now + i * 0.05);
                 osc.stop(now + i * 0.05 + 0.38);
             });
@@ -322,11 +395,10 @@ class SoundEngine {
             osc.frequency.setValueAtTime(440, now);
             osc.frequency.exponentialRampToValueAtTime(880, now + 0.07);
             osc.frequency.exponentialRampToValueAtTime(1100, now + 0.14);
-            const sfxVol = (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
-            gain.gain.setValueAtTime(0.25 * sfxVol, now);
+            gain.gain.setValueAtTime(0.25, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.14);
         } catch(e) {}
@@ -341,11 +413,10 @@ class SoundEngine {
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(260, now);
             osc.frequency.exponentialRampToValueAtTime(1040, now + 0.18);
-            const sfxVol = (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
-            gain.gain.setValueAtTime(0.28 * sfxVol, now);
+            gain.gain.setValueAtTime(0.28, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.18);
         } catch(e) {}
@@ -360,11 +431,10 @@ class SoundEngine {
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(200, now);
             osc.frequency.exponentialRampToValueAtTime(650, now + 0.16);
-            const sfxVol = (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
-            gain.gain.setValueAtTime(0.26 * sfxVol, now);
+            gain.gain.setValueAtTime(0.26, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.16);
         } catch(e) {}
@@ -379,13 +449,49 @@ class SoundEngine {
                 const gain = this.ctx.createGain();
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(freq, now + idx * 0.06);
-                const sfxVol = (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
-                gain.gain.setValueAtTime(0.22 * sfxVol, now + idx * 0.06);
+                gain.gain.setValueAtTime(0.22, now + idx * 0.06);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.15);
                 osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                gain.connect(this.getSfxDestination() || this.ctx.destination);
                 osc.start(now + idx * 0.06);
                 osc.stop(now + idx * 0.06 + 0.15);
+            });
+        } catch(e) {}
+    }
+
+    playLaser() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const now = this.ctx.currentTime;
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+            gain.gain.setValueAtTime(0.20, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            osc.connect(gain);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.12);
+        } catch(e) {}
+    }
+
+    playStartCountdown() {
+        if (this.muted || !this.ctx) return;
+        try {
+            [523.25, 659.25, 783.99].forEach((freq, idx) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                const now = this.ctx.currentTime;
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+                gain.gain.setValueAtTime(0.18, now + idx * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.18);
+                osc.connect(gain);
+                gain.connect(this.getSfxDestination() || this.ctx.destination);
+                osc.start(now + idx * 0.1);
+                osc.stop(now + idx * 0.1 + 0.18);
             });
         } catch(e) {}
     }
@@ -402,7 +508,7 @@ class SoundEngine {
             gain.gain.setValueAtTime(0.28, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
             osc.connect(gain);
-            gain.connect(this.ctx.destination);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
             osc.start(now);
             osc.stop(now + 0.26);
         } catch(e) {}
@@ -421,7 +527,7 @@ class SoundEngine {
                 gain.gain.setValueAtTime(0.22, now + idx * 0.08);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.4);
                 osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                gain.connect(this.getSfxDestination() || this.ctx.destination);
                 osc.start(now + idx * 0.08);
                 osc.stop(now + idx * 0.08 + 0.4);
             });
@@ -449,7 +555,7 @@ class SoundEngine {
                 gain.gain.setValueAtTime(0.05, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
                 osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                gain.connect(this.getMusicDestination() || this.ctx.destination);
                 osc.start(now);
                 osc.stop(now + 0.12);
             } catch(e) {}
@@ -476,8 +582,52 @@ class SoundEngine {
 }
 
 const audio = new SoundEngine();
-window.setMusicVolume = (v) => audio.setMusicVolume(v);
-window.setSfxVolume = (v) => audio.setSfxVolume(v);
+window.audio = audio;
+
+function updateAudioUI() {
+    const isMuted = audio.muted;
+    const menuAudioText = document.getElementById('menu-audio-text');
+    const menuAudioIcon = document.getElementById('menu-audio-icon');
+    const inGameAudioBtn = document.getElementById('btn-audio');
+
+    if (menuAudioText) menuAudioText.innerText = isMuted ? "AUDIO: OFF" : "AUDIO: ON";
+    if (menuAudioIcon) menuAudioIcon.innerText = isMuted ? "🔇" : "🔊";
+    if (inGameAudioBtn) inGameAudioBtn.innerText = isMuted ? "🔇 MUTED" : "🔊 SFX";
+}
+window.updateAudioUI = updateAudioUI;
+
+function syncAudioSliders() {
+    try {
+        const musPct = Math.round((audio.musicVolume !== undefined ? audio.musicVolume : 0.7) * 100);
+        const sfxPct = Math.round((audio.sfxVolume !== undefined ? audio.sfxVolume : 0.8) * 100);
+
+        const sMus = document.getElementById('slider-music-vol');
+        const sSfx = document.getElementById('slider-sfx-vol');
+        const lblMus = document.getElementById('label-music-vol');
+        const lblSfx = document.getElementById('label-sfx-vol');
+        const readout = document.getElementById('audio-levels-readout');
+
+        if (sMus && document.activeElement !== sMus) sMus.value = musPct;
+        if (sSfx && document.activeElement !== sSfx) sSfx.value = sfxPct;
+        if (lblMus) lblMus.innerText = `${musPct}%`;
+        if (lblSfx) lblSfx.innerText = `${sfxPct}%`;
+        if (readout) readout.innerText = `MUS: ${musPct}% | SFX: ${sfxPct}%`;
+    } catch(e) {}
+}
+window.syncAudioSliders = syncAudioSliders;
+
+window.setMusicVolume = (v) => {
+    audio.setMusicVolume(v);
+    if (audio.muted && parseFloat(v) > 0) {
+        audio.toggleMute();
+    }
+};
+window.setSfxVolume = (v) => {
+    audio.setSfxVolume(v);
+    if (audio.muted && parseFloat(v) > 0) {
+        audio.toggleMute();
+    }
+};
 
 // ============================================================================
 // 2. CYBER LOCKER (10 SKINS & 6 CUSTOM ENERGY TRAILS) + DAILY SYSTEM
@@ -2207,6 +2357,12 @@ const game = {
     endlessLastSpawnX: 0,
     endlessNextWarpMeters: 1000,
     // Ghost Challenge System (Async Racing)
+    ghostEnabled: (function() {
+        try {
+            const saved = localStorage.getItem('neon_pulse_setting_ghost');
+            return saved === null ? true : saved !== 'false';
+        } catch(e) { return true; }
+    })(),
     ghostActive: false,
     ghostData: null,
     ghostRecord: [],
@@ -2970,6 +3126,10 @@ function resetPlayerState() {
     }
     game.ghostRecord = [];
     game.lastGhostRecordTime = 0;
+    if (!game.ghostEnabled || game.isMultiplayer || game.isEndless) {
+        game.ghostActive = false;
+        game.ghostData = null;
+    }
 
     if (game.isEndless && game.level) {
         game.level.platforms = [{ x: 0, y: 400, w: 1400, h: 40 }];
@@ -3130,7 +3290,7 @@ function updatePhysics(rawDt) {
             if (!game.splitsCrossed[cp.id] && pX >= cpX) {
                 game.splitsCrossed[cp.id] = true;
                 let delta = null;
-                if (game.ghostActive && game.ghostData && game.ghostData.path && game.ghostData.path.length > 0) {
+                if (game.ghostEnabled && !game.isMultiplayer && !game.isEndless && game.ghostActive && game.ghostData && game.ghostData.path && game.ghostData.path.length > 0) {
                     const ghostFrame = game.ghostData.path.find(f => f.x >= cpX);
                     if (ghostFrame) {
                         delta = game.runTime - ghostFrame.t;
@@ -3455,7 +3615,7 @@ function updatePhysics(rawDt) {
     let rivalX = null;
     if (game.isMultiplayer && game.mpRival) {
         rivalX = game.mpRival.x;
-    } else if (game.ghostActive && game.ghostData && game.ghostData.path) {
+    } else if (game.ghostEnabled && !game.isMultiplayer && !game.isEndless && game.ghostActive && game.ghostData && game.ghostData.path) {
         const path = game.ghostData.path;
         if (path.length > 0) {
             const t = game.runTime;
@@ -4542,8 +4702,8 @@ function render() {
     drawPlayerTrail();
     drawAcrobaticHuman(game.player);
 
-    // Render Ghost Replay Phantom
-    if (game.ghostActive && typeof drawGhostRunner === 'function') {
+    // Render Ghost Replay Phantom (Single player time trials only, when enabled)
+    if (game.ghostEnabled && !game.isMultiplayer && !game.isEndless && game.ghostActive && typeof drawGhostRunner === 'function') {
         drawGhostRunner(ctx);
     }
 
@@ -5590,6 +5750,7 @@ function triggerDimensionWarp() {
 // 11C. GHOST CHALLENGE & ASYNC REPLAY ENGINE
 // ============================================================================
 function drawGhostRunner(ctx) {
+    if (!game.ghostEnabled || game.isMultiplayer || game.isEndless) return;
     if (!game.ghostActive || !game.ghostData || !game.ghostData.path || game.ghostData.path.length === 0) return;
     const path = game.ghostData.path;
     const t = game.runTime;
@@ -5729,6 +5890,82 @@ function loadGhostChallenge(raw) {
         return false;
     }
 }
+
+function setGhostEnabled(enabled) {
+    game.ghostEnabled = !!enabled;
+    try {
+        localStorage.setItem('neon_pulse_setting_ghost', game.ghostEnabled ? 'true' : 'false');
+    } catch(e) {}
+
+    if (!game.ghostEnabled || game.isMultiplayer || game.isEndless) {
+        game.ghostActive = false;
+        game.ghostData = null;
+    } else if (!game.inMainMenu && !game.isPaused && game.level) {
+        // Attempt restoring PB ghost for current level if available
+        try {
+            const pbRaw = localStorage.getItem(`neon_pulse_pb_ghost_${game.currentLevelIdx}`);
+            if (pbRaw) {
+                const pbGhost = JSON.parse(pbRaw);
+                if (pbGhost && pbGhost.path && pbGhost.path.length > 0) {
+                    game.ghostData = pbGhost;
+                    game.ghostData.isPB = true;
+                    game.ghostActive = true;
+                }
+            }
+        } catch(e) {}
+    }
+
+    updateGhostToggleUI();
+    if (typeof showNotification === 'function') {
+        showNotification(game.ghostEnabled ? "👻 SOLO HOLOGRAM: ENABLED" : "👻 SOLO HOLOGRAM: DISABLED");
+    }
+}
+
+function toggleGhostSetting() {
+    setGhostEnabled(!game.ghostEnabled);
+}
+
+function updateGhostToggleUI() {
+    const isEn = (typeof game !== 'undefined' && game.ghostEnabled !== undefined) ? game.ghostEnabled : true;
+
+    // 1. In-Game Header Button
+    const btnGhost = document.getElementById('btn-ghost-toggle');
+    const lblGhost = document.getElementById('btn-ghost-label');
+    if (btnGhost) {
+        btnGhost.className = isEn
+            ? "px-2 py-1 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/70 text-cyan-300 font-cyber text-[11px] rounded transition flex items-center gap-1 cursor-pointer shadow-[0_0_8px_rgba(6,182,212,0.3)]"
+            : "px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-500 font-cyber text-[11px] rounded transition flex items-center gap-1 cursor-pointer";
+        btnGhost.title = isEn ? "Solo Hologram Ghost: ON [H] - Click to Turn OFF" : "Solo Hologram Ghost: OFF [H] - Click to Turn ON";
+    }
+    if (lblGhost) {
+        lblGhost.innerText = isEn ? "GHOST: ON" : "GHOST: OFF";
+    }
+
+    // 2. Pause Menu Button
+    const btnPauseGhost = document.getElementById('btn-pause-ghost-toggle');
+    if (btnPauseGhost) {
+        btnPauseGhost.innerText = isEn ? "ENABLED" : "DISABLED";
+        btnPauseGhost.className = isEn
+            ? "px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/70 text-cyan-300 font-cyber text-[10px] rounded transition cursor-pointer font-bold shadow-[0_0_10px_rgba(6,182,212,0.3)]"
+            : "px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-400 font-cyber text-[10px] rounded transition cursor-pointer";
+    }
+
+    // 3. Main Menu Button
+    const btnMenuGhost = document.getElementById('btn-menu-ghost');
+    const txtMenuGhost = document.getElementById('menu-ghost-text');
+    if (btnMenuGhost) {
+        btnMenuGhost.className = isEn
+            ? "px-2.5 py-1 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/70 text-xs font-cyber text-cyan-300 rounded flex items-center gap-1 transition cursor-pointer shadow-[0_0_8px_rgba(6,182,212,0.3)]"
+            : "px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-cyber text-neutral-400 rounded flex items-center gap-1 transition cursor-pointer";
+    }
+    if (txtMenuGhost) {
+        txtMenuGhost.innerText = isEn ? "HOLOGRAM: ON" : "HOLOGRAM: OFF";
+    }
+}
+
+window.setGhostEnabled = setGhostEnabled;
+window.toggleGhostSetting = toggleGhostSetting;
+window.updateGhostToggleUI = updateGhostToggleUI;
 
 // ============================================================================
 // 11C. RACE COUNTDOWN SYSTEM (3-2-1-GO & 50/50 Track Roulette)
@@ -7707,24 +7944,29 @@ function startDailyChallenge() {
     setPause(false);
     resetPlayerState();
 
-    const todayStr = getTodayDateStr();
-    try {
-        const pbGhostRaw = localStorage.getItem(`neon_pulse_daily_pb_ghost_${todayStr}`);
-        if (pbGhostRaw) {
-            const pbGhost = JSON.parse(pbGhostRaw);
-            if (pbGhost && pbGhost.path && pbGhost.path.length > 0) {
-                game.ghostData = pbGhost;
-                game.ghostData.isPB = true;
-                game.ghostActive = true;
+    if (game.ghostEnabled && !game.isMultiplayer && !game.isEndless) {
+        const todayStr = getTodayDateStr();
+        try {
+            const pbGhostRaw = localStorage.getItem(`neon_pulse_daily_pb_ghost_${todayStr}`);
+            if (pbGhostRaw) {
+                const pbGhost = JSON.parse(pbGhostRaw);
+                if (pbGhost && pbGhost.path && pbGhost.path.length > 0) {
+                    game.ghostData = pbGhost;
+                    game.ghostData.isPB = true;
+                    game.ghostActive = true;
+                } else {
+                    game.ghostActive = false;
+                    game.ghostData = null;
+                }
             } else {
                 game.ghostActive = false;
                 game.ghostData = null;
             }
-        } else {
+        } catch(e) {
             game.ghostActive = false;
             game.ghostData = null;
         }
-    } catch(e) {
+    } else {
         game.ghostActive = false;
         game.ghostData = null;
     }
@@ -8099,7 +8341,7 @@ function startLevel(idx, skipCountdown = false) {
     resetPlayerState();
 
     // Auto-load Solo PB Ghost in time trials
-    if (!game.isMultiplayer && !game.isChallengeMode) {
+    if (!game.isMultiplayer && !game.isChallengeMode && !game.isEndless && game.ghostEnabled) {
         try {
             const pbGhostRaw = localStorage.getItem(`neon_pulse_pb_ghost_${idx}`);
             if (pbGhostRaw) {
@@ -8120,6 +8362,9 @@ function startLevel(idx, skipCountdown = false) {
             game.ghostActive = false;
             game.ghostData = null;
         }
+    } else if (!game.isChallengeMode) {
+        game.ghostActive = false;
+        game.ghostData = null;
     }
 
     const mainMenu = document.getElementById('screen-main-menu');
@@ -8183,6 +8428,8 @@ function returnToMainMenu() {
     game.isEndless = false;
     game.isDailyChallenge = false;
     game.isMultiplayer = false;
+    game.ghostActive = false;
+    game.ghostData = null;
     game.victory = false;
     game.openedLeaderboardFrom = null;
     game.mpRival = null;
@@ -8241,6 +8488,9 @@ function returnToMainMenu() {
     if (lbTagInput) lbTagInput.value = game.pilotTag;
 
     dailySystem.updateBadge();
+    updateGhostToggleUI();
+    syncAudioSliders();
+    updateAudioUI();
 }
 window.returnToMainMenu = returnToMainMenu;
 
@@ -8254,6 +8504,8 @@ function setPause(paused, showModal = true) {
             if (showModal) {
                 pauseModal.classList.remove('hidden');
                 pauseModal.style.display = '';
+                syncAudioSliders();
+                updateGhostToggleUI();
             } else {
                 pauseModal.classList.add('hidden');
                 pauseModal.style.display = 'none';
@@ -8646,6 +8898,11 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
+    if (e.code === 'KeyH') {
+        toggleGhostSetting();
+        return;
+    }
+
     if (game.isPaused || game.isCountingDown) return;
 
     if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
@@ -9013,15 +9270,13 @@ bindClick('btn-howtoplay-confirm', () => {
 
 bindClick('btn-menu-audio', () => {
     audio.init();
-    audio.muted = !audio.muted;
-    const menuAudioText = document.getElementById('menu-audio-text');
-    const menuAudioIcon = document.getElementById('menu-audio-icon');
-    const inGameAudioBtn = document.getElementById('btn-audio');
-    if (menuAudioText) menuAudioText.innerText = audio.muted ? "AUDIO: OFF" : "AUDIO: ON";
-    if (menuAudioIcon) menuAudioIcon.innerText = audio.muted ? "🔇" : "🔊";
-    if (inGameAudioBtn) inGameAudioBtn.innerText = audio.muted ? "🔇 MUTED" : "🔊 SFX";
+    audio.toggleMute();
     if (audio.muted) audio.stopMusic();
-    else if (!game.inMainMenu && !game.isPaused) audio.startMusic(game.level.bpm);
+    else if (!game.inMainMenu && !game.isPaused && game.level) audio.startMusic(game.level.bpm);
+});
+
+bindClick('btn-menu-ghost', () => {
+    toggleGhostSetting();
 });
 
 bindClick('btn-menu', () => {
@@ -9167,15 +9422,17 @@ bindClick('btn-bot', () => toggleBotDemo());
 
 bindClick('btn-audio', () => {
     audio.init();
-    audio.muted = !audio.muted;
-    const audioBtn = document.getElementById('btn-audio');
-    const menuAudioText = document.getElementById('menu-audio-text');
-    const menuAudioIcon = document.getElementById('menu-audio-icon');
-    if (audioBtn) audioBtn.innerText = audio.muted ? "🔇 MUTED" : "🔊 SFX";
-    if (menuAudioText) menuAudioText.innerText = audio.muted ? "AUDIO: OFF" : "AUDIO: ON";
-    if (menuAudioIcon) menuAudioIcon.innerText = audio.muted ? "🔇" : "🔊";
+    audio.toggleMute();
     if (audio.muted) audio.stopMusic();
-    else if (!game.inMainMenu && !game.isPaused) audio.startMusic(game.level.bpm);
+    else if (!game.inMainMenu && !game.isPaused && game.level) audio.startMusic(game.level.bpm);
+});
+
+bindClick('btn-ghost-toggle', () => {
+    toggleGhostSetting();
+});
+
+bindClick('btn-pause-ghost-toggle', () => {
+    toggleGhostSetting();
 });
 
 bindClick('btn-victory-main-menu', () => {
@@ -9572,6 +9829,9 @@ window.onload = function() {
     game.level = JSON.parse(JSON.stringify(LEVELS[0]));
     resetPlayerState();
     returnToMainMenu();
+    syncAudioSliders();
+    updateGhostToggleUI();
+    updateAudioUI();
 
     if (wasResetOnLoad) {
         setTimeout(() => {
