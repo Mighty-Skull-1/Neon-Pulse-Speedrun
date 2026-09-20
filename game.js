@@ -193,8 +193,14 @@ class SoundEngine {
         return this.muted;
     }
 
+    canPlayGameplaySfx() {
+        if (this.muted || !this.ctx) return false;
+        if (typeof game !== 'undefined' && game && game.inMainMenu) return false;
+        return true;
+    }
+
     playJump(isDouble = false) {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
@@ -222,7 +228,7 @@ class SoundEngine {
     }
 
     playDash() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
@@ -240,7 +246,7 @@ class SoundEngine {
     }
 
     playChrono() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
@@ -258,7 +264,7 @@ class SoundEngine {
     }
 
     playWaveDash() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const now = this.ctx.currentTime;
             [440, 880, 1320].forEach((freq, i) => {
@@ -278,7 +284,7 @@ class SoundEngine {
     }
 
     playRocketThruster() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const now = this.ctx.currentTime;
             const osc = this.ctx.createOscillator();
@@ -296,7 +302,7 @@ class SoundEngine {
     }
 
     playAbilityReady() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const now = this.ctx.currentTime;
             [1046.50, 1567.98].forEach((freq, idx) => {
@@ -315,7 +321,7 @@ class SoundEngine {
     }
 
     playSlide() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
@@ -333,7 +339,7 @@ class SoundEngine {
     }
 
     playBoostPad() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
@@ -351,7 +357,7 @@ class SoundEngine {
     }
 
     playTrampoline() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
@@ -369,7 +375,7 @@ class SoundEngine {
     }
 
     playRing() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const now = this.ctx.currentTime;
             if (now - this.lastRingTime < 1.8) {
@@ -397,7 +403,7 @@ class SoundEngine {
     }
 
     playGravityRing() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const now = this.ctx.currentTime;
             const freqs = [587.33, 739.99, 880.00];
@@ -418,7 +424,7 @@ class SoundEngine {
     }
 
     playShard(shardCount = 1) {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const now = this.ctx.currentTime;
             let chord = [523.25, 783.99];
@@ -443,7 +449,7 @@ class SoundEngine {
     }
 
     playSlideHop() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const now = this.ctx.currentTime;
             const osc = this.ctx.createOscillator();
@@ -462,7 +468,7 @@ class SoundEngine {
     }
 
     playBoostRing() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const now = this.ctx.currentTime;
             const osc = this.ctx.createOscillator();
@@ -480,7 +486,7 @@ class SoundEngine {
     }
 
     playLaunchPad() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const now = this.ctx.currentTime;
             const osc = this.ctx.createOscillator();
@@ -517,7 +523,7 @@ class SoundEngine {
     }
 
     playLaser() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
@@ -554,7 +560,7 @@ class SoundEngine {
     }
 
     playDeath() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
@@ -572,7 +578,7 @@ class SoundEngine {
     }
 
     playVictory() {
-        if (this.muted || !this.ctx) return;
+        if (!this.canPlayGameplaySfx()) return;
         try {
             const notes = [440, 554.37, 659.25, 880];
             const now = this.ctx.currentTime;
@@ -594,7 +600,7 @@ class SoundEngine {
     startMusic(bpm) {
         this.stopMusic();
         this.currentBpm = bpm || 128;
-        if (this.muted || !this.ctx) return;
+        if (this.muted || !this.ctx || (typeof game !== 'undefined' && game && game.inMainMenu)) return;
         const interval = (60 / this.currentBpm) * 1000 * 0.5;
         const bassNotes = [55, 55, 65, 55, 49, 49, 73, 65];
         this.bassNoteIdx = 0;
@@ -3190,7 +3196,8 @@ function updateAbilityHUD() {
     }
 }
 
-function showNotification(text) {
+function showNotification(text, forceOnMenu = false) {
+    if (!forceOnMenu && typeof game !== 'undefined' && game && game.inMainMenu) return;
     const toast = document.getElementById('toast-banner');
     if (!toast) return;
     toast.innerText = text;
@@ -3253,13 +3260,28 @@ function resetPlayerState() {
     game.shardsCollected.clear();
     updateShardHUD();
 
+    // Reset Dimension 2 objective trackers
     const lvl = game.level;
-    game.chronoTimer = (lvl && lvl.objective && lvl.objective.type === 'CHRONO_COUNTDOWN') ? 7.0 : (lvl && lvl.objective && lvl.objective.type === 'THE_OMNI_RIFT') ? 8.5 : 0;
+    if (lvl && lvl.objective) {
+        if (lvl.objective.type === 'CHRONO_COUNTDOWN' || lvl.objective.type === 'THE_OMNI_RIFT') {
+            game.chronoTimer = lvl.objective.timeLimit || 22.0;
+        }
+        if (lvl.objective.type === 'SENTINEL_CHASE' || lvl.objective.type === 'THE_OMNI_RIFT') {
+            game.sentinelX = -360;
+        }
+        if (lvl.objective.type === 'SPEED_LOCK') {
+            game.speedGraceTimer = 1.5;
+        }
+        if (lvl.objective.type === 'RING_CHAIN') {
+            game.ringStreak = 0;
+            game.maxRingStreak = 0;
+        }
+    }
+
     game.speedGraceTimer = 1.5;
-    game.sentinelX = (lvl && lvl.objective && (lvl.objective.type === 'SENTINEL_CHASE' || lvl.objective.type === 'THE_OMNI_RIFT')) ? -260 : -9999;
     game.phaseColor = 'CYAN';
-    game.ringStreak = 0;
-    game.maxRingStreak = 0;
+    game.ringStreak = game.ringStreak || 0;
+    game.maxRingStreak = game.maxRingStreak || 0;
 
     if (lvl && lvl.objective && lvl.objective.type === 'NO_DOUBLE_JUMP') {
         p.canDoubleJump = false;
@@ -3315,6 +3337,24 @@ function resetPlayerState() {
 
 function killPlayer(force = false) {
     if (!force && game.player.isInvulnerable) return;
+
+    if (game.inMainMenu) {
+        const skin = (typeof getActiveSkinData === 'function') ? getActiveSkinData() : { color: '#06b6d4' };
+        for (let i = 0; i < 16; i++) {
+            game.particles.push({
+                x: game.player.x + 11,
+                y: game.player.y + 20,
+                vx: (Math.random() - 0.5) * 350,
+                vy: (Math.random() - 0.5) * 350,
+                life: 0.35,
+                maxLife: 0.35,
+                color: Math.random() < 0.5 ? skin.color : '#ec4899',
+                size: Math.random() * 3 + 2
+            });
+        }
+        resetPlayerState();
+        return;
+    }
 
     audio.playDeath();
     game.screenShake = 14;
@@ -3400,7 +3440,7 @@ function triggerSplitPopup(label, delta) {
 }
 
 function updatePhysics(rawDt) {
-    if (game.victory || game.isPaused || game.inMainMenu || game.isCountingDown) return;
+    if (game.victory || game.isPaused || game.isCountingDown) return;
 
     const dt = rawDt * game.timeScale;
     game.runTime += dt;
@@ -3412,7 +3452,7 @@ function updatePhysics(rawDt) {
     if (speedVal) {
         const kmh = Math.round(game.player.vx * 1.05);
         speedVal.innerText = kmh;
-        if (kmh > (game.topSpeedAchieved || 0)) {
+        if (!game.inMainMenu && kmh > (game.topSpeedAchieved || 0)) {
             game.topSpeedAchieved = kmh;
             try {
                 const prevTop = parseInt(localStorage.getItem('neon_pulse_top_speed') || '0', 10);
@@ -3432,7 +3472,7 @@ function updatePhysics(rawDt) {
     }
 
     // Checkpoint Speedrun Splits (25%, 50%, 75%)
-    if (!game.isEndless && game.level && game.level.length) {
+    if (!game.isEndless && !game.inMainMenu && game.level && game.level.length) {
         const pX = game.player.x;
         const totalL = game.level.length;
         if (!game.splitsCrossed) game.splitsCrossed = {};
@@ -3548,7 +3588,7 @@ function updatePhysics(rawDt) {
     }
 
     // Dimension 2 Objective Rule Verifications
-    if (lvl.objective && lvl.objective.type === 'SPEED_LOCK') {
+    if (!game.inMainMenu && lvl.objective && lvl.objective.type === 'SPEED_LOCK') {
         if (p.vx < 380) {
             game.speedGraceTimer -= dt;
             if (game.speedGraceTimer <= 0) {
@@ -3560,7 +3600,7 @@ function updatePhysics(rawDt) {
         }
     }
 
-    if (lvl.objective && (lvl.objective.type === 'CHRONO_COUNTDOWN' || lvl.objective.type === 'THE_OMNI_RIFT')) {
+    if (!game.inMainMenu && lvl.objective && (lvl.objective.type === 'CHRONO_COUNTDOWN' || lvl.objective.type === 'THE_OMNI_RIFT')) {
         game.chronoTimer -= dt;
         if (game.chronoTimer <= 0) {
             killPlayer();
@@ -3578,7 +3618,7 @@ function updatePhysics(rawDt) {
     }
 
     // 2. Autonomous Bot AI Pilot
-    if (game.botDemo) {
+    if (game.botDemo || game.inMainMenu) {
         runBotPilotAI();
     }
 
@@ -3611,8 +3651,10 @@ function updatePhysics(rawDt) {
             p.vx = Math.min(680, p.vx + 140);
             if (audio.playSlideHop) audio.playSlideHop();
             createSlideHopParticles(p);
-            showNotification(`⚡ SLIDE-HOP BOOST! (${Math.round(p.vx * 1.05)} KM/H)`);
-            game.screenShake = 3;
+            if (!game.inMainMenu) {
+                showNotification(`⚡ SLIDE-HOP BOOST! (${Math.round(p.vx * 1.05)} KM/H)`);
+                game.screenShake = 3;
+            }
             if (p.isSliding) {
                 p.isSliding = false;
                 p.h = 44;
@@ -3645,7 +3687,7 @@ function updatePhysics(rawDt) {
         game.inputs.jumpPressedThisFrame = false;
         audio.playJump(true);
         createJumpParticles(p, true);
-        game.screenShake = 4;
+        if (!game.inMainMenu) game.screenShake = 4;
     }
 
     game.inputs.jumpPressedThisFrame = false;
@@ -3865,6 +3907,13 @@ function updatePhysics(rawDt) {
 
         // 16. Level Completion
         if (p.x >= lvl.length && !game.victory) {
+            if (game.inMainMenu) {
+                const nextIdx = (game.currentLevelIdx + 1) % LEVELS.length;
+                game.currentLevelIdx = nextIdx;
+                game.level = JSON.parse(JSON.stringify(LEVELS[nextIdx]));
+                resetPlayerState();
+                return;
+            }
             triggerVictory();
         }
     }
@@ -4253,6 +4302,13 @@ function getStageMedal(idx, time, shardsCount) {
 window.getStageMedal = getStageMedal;
 
 function triggerVictory() {
+    if (game.inMainMenu) {
+        const nextIdx = (game.currentLevelIdx + 1) % LEVELS.length;
+        game.currentLevelIdx = nextIdx;
+        game.level = JSON.parse(JSON.stringify(LEVELS[nextIdx]));
+        resetPlayerState();
+        return;
+    }
     if (game.victory) return;
     game.victory = true;
     audio.playVictory();
@@ -4389,6 +4445,7 @@ function triggerVictory() {
 function runBotPilotAI() {
     const p = game.player;
     const lvl = game.level;
+    if (!lvl || !p) return;
     const lookahead = Math.max(85, p.vx * 0.32);
 
     let mustJump = false;
@@ -8740,6 +8797,12 @@ function returnToMainMenu() {
     }
     audio.stopMusic();
 
+    if (game.currentLevelIdx < 0 || !game.level || !game.level.platforms || game.level.platforms.length === 0) {
+        game.currentLevelIdx = 0;
+        game.level = JSON.parse(JSON.stringify(LEVELS[0]));
+    }
+    resetPlayerState();
+
     const ingameHeader = document.getElementById('ingame-header');
     const mainMenu = document.getElementById('screen-main-menu');
     const pauseModal = document.getElementById('modal-pause');
@@ -9330,6 +9393,7 @@ window.addEventListener('keyup', (e) => {
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
         return;
     }
+    if (game.inMainMenu) return;
     if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
         game.inputs.jumpHeld = false;
     }
@@ -10184,7 +10248,7 @@ function mainLoop(timestamp) {
     game.lastTime = timestamp;
     game.lastFrameDelta = frameDelta;
 
-    if (!game.isPaused && !game.inMainMenu && !game.isCountingDown) {
+    if (!game.isPaused && !game.isCountingDown) {
         game.physicsAccumulator += frameDelta;
         if (game.physicsAccumulator > 0.2) game.physicsAccumulator = 0.2;
         while (game.physicsAccumulator >= FIXED_DT) {
