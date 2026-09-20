@@ -8506,6 +8506,11 @@ function setPause(paused, showModal = true) {
                 pauseModal.style.display = '';
                 syncAudioSliders();
                 updateGhostToggleUI();
+                const pauseFsBtn = document.getElementById('btn-pause-fullscreen');
+                if (pauseFsBtn) {
+                    const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+                    pauseFsBtn.innerHTML = isFS ? '<span>⛶</span> EXIT FULLSCREEN [G]' : '<span>⛶</span> FULLSCREEN [G]';
+                }
             } else {
                 pauseModal.classList.add('hidden');
                 pauseModal.style.display = 'none';
@@ -8795,23 +8800,30 @@ function toggleFullscreen() {
 
     if (document.fullscreenElement || document.webkitFullscreenElement) {
         // Exit fullscreen
+        if (navigator.keyboard && navigator.keyboard.unlock) {
+            try { navigator.keyboard.unlock(); } catch(e) {}
+        }
         if (document.exitFullscreen) {
-            document.exitFullscreen();
+            document.exitFullscreen().catch(() => {});
         } else if (document.webkitExitFullscreen) {
             document.webkitExitFullscreen();
         }
     } else {
         // Enter fullscreen
-        if (wrapper.requestFullscreen) {
-            wrapper.requestFullscreen();
-        } else if (wrapper.webkitRequestFullscreen) {
-            wrapper.webkitRequestFullscreen();
+        const req = wrapper.requestFullscreen ? wrapper.requestFullscreen() :
+                    wrapper.webkitRequestFullscreen ? wrapper.webkitRequestFullscreen() : null;
+        if (req && req.then) {
+            req.then(() => {
+                if (navigator.keyboard && navigator.keyboard.lock) {
+                    navigator.keyboard.lock(['Escape']).catch(() => {});
+                }
+            }).catch(() => {});
         }
     }
 }
 window.toggleFullscreen = toggleFullscreen;
 
-// Listen for fullscreen changes to toggle size constraints
+// Listen for fullscreen changes to toggle size constraints and lock/unlock Escape key
 document.addEventListener('fullscreenchange', handleFullscreenChange);
 document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
@@ -8819,27 +8831,51 @@ function handleFullscreenChange() {
     const wrapper = document.getElementById('game-wrapper');
     if (!wrapper) return;
     const fsBtn = document.getElementById('btn-fullscreen');
+    const pauseFsBtn = document.getElementById('btn-pause-fullscreen');
+    const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
 
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-        // In fullscreen — remove size caps, fill screen
+    if (isFS) {
+        // In fullscreen — lock Escape so ESC pauses the game smoothly without browser exiting fullscreen
+        if (navigator.keyboard && navigator.keyboard.lock) {
+            try {
+                navigator.keyboard.lock(['Escape']).catch(() => {});
+            } catch(e) {}
+        }
+        // Remove size caps, fill screen
         wrapper.style.maxWidth = 'none';
         wrapper.style.maxHeight = 'none';
         wrapper.style.width = '100vw';
         wrapper.style.height = '100vh';
         wrapper.style.borderRadius = '0';
         wrapper.style.border = 'none';
-        if (fsBtn) fsBtn.title = 'Exit Fullscreen [G]';
-        if (fsBtn) fsBtn.innerHTML = '<span>⛶</span> <span class="hidden sm:inline">EXIT FS</span>';
+        if (fsBtn) {
+            fsBtn.title = 'Exit Fullscreen [G]';
+            fsBtn.innerHTML = '<span>⛶</span> <span class="hidden sm:inline">EXIT FS</span>';
+        }
+        if (pauseFsBtn) {
+            pauseFsBtn.innerHTML = '<span>⛶</span> EXIT FULLSCREEN [G]';
+        }
     } else {
-        // Exited fullscreen — restore constraints
+        // Exited fullscreen — unlock keyboard
+        if (navigator.keyboard && navigator.keyboard.unlock) {
+            try {
+                navigator.keyboard.unlock();
+            } catch(e) {}
+        }
+        // Restore constraints
         wrapper.style.maxWidth = '';
         wrapper.style.maxHeight = '';
         wrapper.style.width = '';
         wrapper.style.height = '';
         wrapper.style.borderRadius = '';
         wrapper.style.border = '';
-        if (fsBtn) fsBtn.title = 'Fullscreen [G]';
-        if (fsBtn) fsBtn.innerHTML = '<span>⛶</span> <span class="hidden sm:inline">FULLSCREEN</span>';
+        if (fsBtn) {
+            fsBtn.title = 'Fullscreen [G]';
+            fsBtn.innerHTML = '<span>⛶</span> <span class="hidden sm:inline">FULLSCREEN</span>';
+        }
+        if (pauseFsBtn) {
+            pauseFsBtn.innerHTML = '<span>⛶</span> FULLSCREEN [G]';
+        }
     }
     // Re-sync canvas size
     updateCanvasViewport();

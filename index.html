@@ -34,7 +34,7 @@
                 <button id="btn-leaderboard-open" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition flex items-center gap-1">
                     <span>🏆</span>
                 </button>
-                <button id="btn-pause" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition" title="Pause [ESC]">
+                <button id="btn-pause" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition" title="Pause [ESC / P]">
                     <span>⏸</span>
                 </button>
                 <button id="btn-fullscreen" onclick="toggleFullscreen()" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-green-400 text-xs font-cyber tracking-wider text-green-300 rounded transition flex items-center gap-1" title="Fullscreen [G]">
@@ -360,15 +360,19 @@
 
                 <!-- Footer Keys Quick Bar -->
                 <div class="w-full flex flex-wrap items-center justify-center gap-2.5 text-[10px] font-mono text-neutral-500 border-t border-neutral-900 pt-3">
-                    <span><strong class="text-neutral-300 font-bold">[SPACE]</strong> JUMP & 2X JUMP</span>
+                    <span><strong class="text-neutral-300 font-bold">[SPACE]</strong> JUMP & 2X</span>
                     <span>•</span>
-                    <span><strong class="text-neutral-300 font-bold">[S / DOWN]</strong> SLIDE & DIVE</span>
+                    <span><strong class="text-neutral-300 font-bold">[S / DOWN]</strong> SLIDE</span>
                     <span>•</span>
-                    <span><strong class="text-cyan-400 font-bold">[SHIFT]</strong> PHASE DASH</span>
+                    <span><strong class="text-cyan-400 font-bold">[SHIFT]</strong> DASH</span>
                     <span>•</span>
                     <span><strong class="text-amber-400 font-bold">[E]</strong> THRUST</span>
                     <span>•</span>
-                    <span><strong class="text-purple-400 font-bold">[Q / F]</strong> CHRONO PULSE</span>
+                    <span><strong class="text-purple-400 font-bold">[Q / F]</strong> CHRONO</span>
+                    <span>•</span>
+                    <span><strong class="text-neutral-300 font-bold">[ESC / P]</strong> PAUSE</span>
+                    <span>•</span>
+                    <span><strong class="text-green-400 font-bold">[G]</strong> FULLSCREEN</span>
                     <span>•</span>
                     <span><strong class="text-neutral-300 font-bold">[R]</strong> RESTART</span>
                 </div>
@@ -728,13 +732,15 @@
                         </p>
                     </div>
 
-                    <!-- 8. MOBILE CONTROLS & MULTIPLAYER -->
+                    <!-- 8. MOBILE CONTROLS, FULLSCREEN & MULTIPLAYER -->
                     <div class="bg-neutral-950/90 p-3 rounded-lg border border-neutral-700">
                         <div class="flex items-center justify-between">
-                            <span class="text-neutral-300 font-cyber font-bold text-xs">8. 📱 MOBILE & ONLINE RACING</span>
-                            <span class="text-[10px] text-neutral-400 font-mono bg-neutral-900 px-2 py-0.5 rounded border border-neutral-700">CONTROLS</span>
+                            <span class="text-neutral-300 font-cyber font-bold text-xs">8. 📱 CONTROLS, FULLSCREEN & MULTIPLAYER</span>
+                            <span class="text-[10px] text-neutral-400 font-mono bg-neutral-900 px-2 py-0.5 rounded border border-neutral-700">HOTKEYS</span>
                         </div>
                         <p class="text-neutral-400 mt-1 leading-relaxed">
+                            • <strong class="text-amber-300">Pause & Resume [ESC / P]:</strong> Pauses without dropping out of Fullscreen. When in Fullscreen, your run stays seamlessly in Fullscreen when pausing!<br>
+                            • <strong class="text-green-300">Fullscreen Mode [G]:</strong> Press <strong>[G]</strong> or click Fullscreen in the header or pause menu to enter/exit immersive Fullscreen.<br>
                             • <strong class="text-neutral-200">Mobile Touch:</strong> Fully responsive on-screen buttons for Jump, Slide, Dash, Thrust, and Chrono in both portrait and landscape mode.<br>
                             • <strong class="text-rose-400">1v1 Online Racing:</strong> Share room links to race live against friends in real-time with P2P WebRTC networking.
                         </p>
@@ -755,13 +761,16 @@
                     <p class="text-xs text-neutral-400 mt-1">Press ESC or click Resume to continue</p>
                 </div>
                 <div class="flex flex-col gap-2 w-full mt-2">
-                    <button id="btn-pause-resume" class="py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-cyber font-bold text-xs tracking-wider rounded shadow-[0_0_15px_rgba(6,182,212,0.4)] transition">
-                        ▶ RESUME [ESC]
+                    <button id="btn-pause-resume" class="py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-cyber font-bold text-xs tracking-wider rounded shadow-[0_0_15px_rgba(6,182,212,0.4)] transition cursor-pointer">
+                        ▶ RESUME [ESC / P]
                     </button>
-                    <button id="btn-pause-restart" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition">
+                    <button id="btn-pause-restart" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition cursor-pointer">
                         🔄 RESTART RUN [R]
                     </button>
-                    <button id="btn-pause-stages" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition">
+                    <button id="btn-pause-fullscreen" onclick="toggleFullscreen()" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-green-300 font-cyber text-xs tracking-wider rounded border border-neutral-700 hover:border-green-400 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span>⛶</span> FULLSCREEN [G]
+                    </button>
+                    <button id="btn-pause-stages" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition cursor-pointer">
                         ☰ STAGES & SKILLS
                     </button>
                     <button id="btn-pause-main-menu" onclick="const m=document.getElementById('modal-pause');if(m){m.classList.add('hidden');m.style.display='none';}if(typeof MP!=='undefined'&&MP.connected)MP.expireSession('ABANDONED BY PLAYER');if(window.returnToMainMenu)window.returnToMainMenu();" class="cursor-pointer pointer-events-auto py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-800 transition">
@@ -1161,6 +1170,6 @@
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=3.9"></script>
+    <script src="game.js?v=4.0"></script>
 </body>
 </html>
