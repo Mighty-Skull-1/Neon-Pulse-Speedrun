@@ -9097,30 +9097,43 @@ function toggleBotDemo(forceState) {
 
 // Fullscreen toggle — removes size caps so game fills the screen
 function toggleFullscreen() {
-    const wrapper = document.getElementById('game-wrapper');
+    const wrapper = document.getElementById('game-wrapper') || document.documentElement;
     if (!wrapper) return;
 
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-        // Exit fullscreen
-        if (navigator.keyboard && navigator.keyboard.unlock) {
-            try { navigator.keyboard.unlock(); } catch(e) {}
-        }
-        if (document.exitFullscreen) {
-            document.exitFullscreen().catch(() => {});
-        } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-        }
-    } else {
-        // Enter fullscreen
-        const req = wrapper.requestFullscreen ? wrapper.requestFullscreen() :
-                    wrapper.webkitRequestFullscreen ? wrapper.webkitRequestFullscreen() : null;
-        if (req && req.then) {
-            req.then(() => {
-                if (navigator.keyboard && navigator.keyboard.lock) {
-                    navigator.keyboard.lock(['Escape']).catch(() => {});
+    try {
+        const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+        if (isFS) {
+            // Exit fullscreen
+            if (navigator.keyboard && navigator.keyboard.unlock) {
+                try { navigator.keyboard.unlock(); } catch(e) {}
+            }
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+                document.mozCancelFullScreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        } else {
+            // Enter fullscreen
+            const fn = wrapper.requestFullscreen || wrapper.webkitRequestFullscreen || wrapper.mozRequestFullScreen || wrapper.msRequestFullscreen;
+            if (fn) {
+                const req = fn.call(wrapper);
+                if (req && typeof req.then === 'function') {
+                    req.then(() => {
+                        if (navigator.keyboard && navigator.keyboard.lock) {
+                            navigator.keyboard.lock(['Escape']).catch(() => {});
+                        }
+                    }).catch((err) => {
+                        console.warn('[NeonPulse] Fullscreen error:', err);
+                    });
                 }
-            }).catch(() => {});
+            }
         }
+    } catch(err) {
+        console.warn('[NeonPulse] Fullscreen toggle exception:', err);
     }
 }
 window.toggleFullscreen = toggleFullscreen;
@@ -9134,6 +9147,8 @@ function handleFullscreenChange() {
     if (!wrapper) return;
     const fsBtn = document.getElementById('btn-fullscreen');
     const pauseFsBtn = document.getElementById('btn-pause-fullscreen');
+    const menuFsBtn = document.getElementById('btn-menu-fullscreen');
+    const menuFsText = document.getElementById('btn-menu-fullscreen-text');
     const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
 
     if (isFS) {
@@ -9157,6 +9172,11 @@ function handleFullscreenChange() {
         if (pauseFsBtn) {
             pauseFsBtn.innerHTML = '<span>⛶</span> EXIT FULLSCREEN [G]';
         }
+        if (menuFsText) {
+            menuFsText.innerText = 'EXIT FS';
+        } else if (menuFsBtn) {
+            menuFsBtn.innerHTML = '<span>⛶</span> EXIT FS';
+        }
     } else {
         // Exited fullscreen — unlock keyboard
         if (navigator.keyboard && navigator.keyboard.unlock) {
@@ -9178,27 +9198,53 @@ function handleFullscreenChange() {
         if (pauseFsBtn) {
             pauseFsBtn.innerHTML = '<span>⛶</span> FULLSCREEN [G]';
         }
+        if (menuFsText) {
+            menuFsText.innerText = 'FULLSCREEN';
+        } else if (menuFsBtn) {
+            menuFsBtn.innerHTML = '<span>⛶</span> FULLSCREEN';
+        }
     }
     // Re-sync canvas size
     updateCanvasViewport();
 }
+
 window.addEventListener('keydown', (e) => {
     audio.init();
 
-    // Allow typing in input fields without game controls intercepting keys
+    // 1. Allow typing in input fields without game controls intercepting keys
     const active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
-        // Only handle Escape to blur out of the field
-        if (e.code === 'Escape') {
+        if (e.code === 'Escape' || e.key === 'Escape' || e.key === 'Enter') {
             active.blur();
-            e.preventDefault();
+            if (e.code === 'Escape' || e.key === 'Escape') e.preventDefault();
         }
         return;
     }
 
-    if (e.repeat) return;
+    // 2. Global Hotkeys: G (Fullscreen), H (Ghost Hologram), M (Stage Matrix), ESC / P (Pause / Close Modals)
+    // These must execute ANYWHERE (Main Menu, In-Game, Paused, Modals)!
+    if (e.code === 'KeyG' || e.key === 'g' || e.key === 'G') {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+    }
 
-    if (e.code === 'Escape' || e.code === 'KeyP') {
+    if (e.code === 'KeyH' || e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        toggleGhostSetting();
+        return;
+    }
+
+    if (e.code === 'KeyM' || e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        populateStageMenu();
+        const menuModal = document.getElementById('modal-menu');
+        if (menuModal) menuModal.classList.remove('hidden');
+        if (!game.inMainMenu) setPause(true);
+        return;
+    }
+
+    if (e.code === 'Escape' || e.code === 'KeyP' || e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
         if (game.isCountingDown) return;
         e.preventDefault();
         const menuModal = document.getElementById('modal-menu');
@@ -9206,12 +9252,14 @@ window.addEventListener('keydown', (e) => {
         const dailyModal = document.getElementById('modal-daily');
         const howModal = document.getElementById('modal-howtoplay');
         const mpModal = document.getElementById('modal-multiplayer');
+        const lockerModal = document.getElementById('modal-locker');
 
         const anyOpen = (menuModal && !menuModal.classList.contains('hidden')) ||
                         (lbModal && !lbModal.classList.contains('hidden')) ||
                         (dailyModal && !dailyModal.classList.contains('hidden')) ||
                         (howModal && !howModal.classList.contains('hidden')) ||
-                        (mpModal && !mpModal.classList.contains('hidden'));
+                        (mpModal && !mpModal.classList.contains('hidden')) ||
+                        (lockerModal && !lockerModal.classList.contains('hidden'));
 
         if (anyOpen) {
             if (menuModal) { menuModal.classList.add('hidden'); menuModal.style.display = 'none'; }
@@ -9219,6 +9267,7 @@ window.addEventListener('keydown', (e) => {
             if (dailyModal) { dailyModal.classList.add('hidden'); dailyModal.style.display = 'none'; }
             if (howModal) { howModal.classList.add('hidden'); howModal.style.display = 'none'; }
             if (mpModal) { mpModal.classList.add('hidden'); mpModal.style.display = 'none'; }
+            if (lockerModal) { lockerModal.classList.add('hidden'); }
             if (!game.inMainMenu && !game.victory) setPause(false);
             return;
         }
@@ -9229,19 +9278,24 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
+    // 3. Main Menu Guard: While on the Main Menu, do NOT start the game via Space/Enter/keys!
+    // The player must explicitly click or select a gamemode button.
     if (game.inMainMenu) {
-        if (e.code === 'Space' || e.code === 'Enter') {
-            startLevel(game.currentLevelIdx);
-        }
         return;
     }
 
-    if (e.code === 'KeyH') {
-        toggleGhostSetting();
-        return;
-    }
-
+    // 4. In-Game Pause / Countdown Guard
     if (game.isPaused || game.isCountingDown) return;
+
+    // 5. In-Game Movement & Ability Controls
+    if (e.code === 'KeyB' || e.key === 'b' || e.key === 'B') {
+        toggleBotDemo();
+        return;
+    }
+    if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R') {
+        resetPlayerState();
+        return;
+    }
 
     if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
         e.preventDefault();
@@ -9261,23 +9315,13 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         e.preventDefault();
         triggerPhaseDash();
-    } else if (e.code === 'KeyE') {
+    } else if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E') {
         e.preventDefault();
         triggerThrusterBurst();
-    } else if (e.code === 'KeyQ' || e.code === 'KeyF') {
+    } else if (e.code === 'KeyQ' || e.key === 'q' || e.key === 'Q' || e.code === 'KeyF' || e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         triggerChronoPulse();
     }
-
-    if (e.code === 'KeyB') toggleBotDemo();
-    if (e.code === 'KeyR') resetPlayerState();
-    if (e.code === 'KeyM') {
-        populateStageMenu();
-        const menuModal = document.getElementById('modal-menu');
-        if (menuModal) menuModal.classList.remove('hidden');
-        setPause(true);
-    }
-    if (e.code === 'KeyG') toggleFullscreen();
 });
 
 window.addEventListener('keyup', (e) => {
@@ -9297,7 +9341,7 @@ window.addEventListener('keyup', (e) => {
 canvas.addEventListener('pointerdown', () => {
     audio.init();
     if (game.inMainMenu) {
-        startLevel(game.currentLevelIdx);
+        // Do NOT start level on canvas background click when in main menu
         return;
     }
     if (game.isCountingDown) return;
