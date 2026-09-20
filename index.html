@@ -24,9 +24,12 @@
                 <button id="btn-multiplayer-open" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-500/70 hover:border-rose-400 text-xs font-cyber tracking-wider text-rose-300 rounded transition flex items-center gap-1" title="Online Race / Ghost Challenges">
                     <span>⚔️</span> <span class="hidden md:inline">RACE</span>
                 </button>
-                <button id="btn-daily-open" class="relative px-2 py-1 bg-amber-950/60 hover:bg-amber-900/70 border border-amber-500/70 hover:border-amber-400 text-xs font-cyber tracking-wider text-amber-300 rounded transition flex items-center gap-1">
+                <button id="btn-daily-open" class="relative px-2 py-1 bg-amber-950/60 hover:bg-amber-900/70 border border-amber-500/70 hover:border-amber-400 text-xs font-cyber tracking-wider text-amber-300 rounded transition flex items-center gap-1" title="Daily Rewards">
                     <span>🎁</span>
                     <span id="daily-badge" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-pink-500 rounded-full animate-ping"></span>
+                </button>
+                <button id="btn-locker-open" class="px-2 py-1 bg-cyan-950/60 hover:bg-cyan-900/70 border border-cyan-500/70 hover:border-cyan-400 text-xs font-cyber tracking-wider text-cyan-300 rounded transition flex items-center gap-1" title="Cyber Locker (Skins & Trails)">
+                    <span>🎨</span>
                 </button>
                 <button id="btn-leaderboard-open" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition flex items-center gap-1">
                     <span>🏆</span>
@@ -286,25 +289,51 @@
                         Handcrafted speedrun campaigns, procedural endless marathon, ghost challenges, and real-time online racing.
                     </p>
 
+                    <!-- Daily Seeded Speedrun Banner -->
+                    <div class="w-full max-w-lg mt-4 bg-gradient-to-r from-pink-950/70 via-purple-950/80 to-indigo-950/70 border border-pink-500/60 rounded-xl p-2.5 sm:p-3 flex items-center justify-between shadow-[0_0_30px_rgba(236,72,153,0.3)] relative overflow-hidden">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-pink-500/20 border border-pink-400/60 flex items-center justify-center text-lg sm:text-xl shadow-[0_0_10px_rgba(236,72,153,0.4)]">
+                                📅
+                            </div>
+                            <div class="text-left">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs font-cyber font-bold text-pink-300">DAILY SEEDED SPEEDRUN</span>
+                                    <span id="daily-date-tag" class="text-[9px] px-1.5 py-0.2 rounded bg-pink-950/90 border border-pink-500/60 text-pink-300 font-mono font-bold">TODAY</span>
+                                </div>
+                                <div class="text-[10px] text-neutral-400 flex items-center gap-2 mt-0.5 font-mono">
+                                    <span>RESET: <strong id="daily-countdown-text" class="text-pink-400 font-bold">--:--:--</strong></span>
+                                    <span>•</span>
+                                    <span>PB: <strong id="daily-menu-pb" class="text-amber-400 font-bold">--:--.---</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="btn-main-play-daily" class="btn-shimmer py-2 px-3 sm:px-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(236,72,153,0.6)] transition transform active:scale-95 flex items-center gap-1 cursor-pointer">
+                            <span>⚡</span> PLAY TODAY
+                        </button>
+                    </div>
+
                     <!-- Main Menu Primary Game Modes -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-5 w-full max-w-lg">
-                        <button id="btn-main-play" class="btn-shimmer py-2.5 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.5)] transition transform active:scale-95 flex items-center justify-center gap-1.5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 w-full max-w-lg">
+                        <button id="btn-main-play" class="btn-shimmer py-2 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.5)] transition transform active:scale-95 flex items-center justify-center gap-1.5">
                             <span>▶</span> CAMPAIGN: DIM-α (01–10)
                         </button>
-                        <button id="btn-main-dim2" class="py-2.5 px-4 bg-purple-950/80 hover:bg-purple-900 border border-purple-500/70 hover:border-purple-400 text-purple-200 font-cyber font-bold text-xs tracking-wider rounded-lg transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                        <button id="btn-main-dim2" class="py-2 px-4 bg-purple-950/80 hover:bg-purple-900 border border-purple-500/70 hover:border-purple-400 text-purple-200 font-cyber font-bold text-xs tracking-wider rounded-lg transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
                             <span>🌀</span> CAMPAIGN: DIM-β (11–20)
                         </button>
-                        <button id="btn-main-endless" class="btn-shimmer py-2.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(245,158,11,0.5)] transition transform active:scale-95 flex items-center justify-center gap-1.5">
+                        <button id="btn-main-endless" class="btn-shimmer py-2 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(245,158,11,0.5)] transition transform active:scale-95 flex items-center justify-center gap-1.5">
                             <span>⚡</span> ENDLESS MARATHON
                         </button>
-                        <button id="btn-main-multiplayer" class="py-2.5 px-4 bg-rose-950/80 hover:bg-rose-900 border border-rose-500/70 hover:border-rose-400 text-rose-200 font-cyber font-bold text-xs tracking-wider rounded-lg transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(244,63,94,0.3)]">
+                        <button id="btn-main-multiplayer" class="py-2 px-4 bg-rose-950/80 hover:bg-rose-900 border border-rose-500/70 hover:border-rose-400 text-rose-200 font-cyber font-bold text-xs tracking-wider rounded-lg transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(244,63,94,0.3)]">
                             <span>⚔️</span> ONLINE RACE & GHOSTS
                         </button>
                     </div>
 
-                    <div class="flex flex-wrap items-center justify-center gap-2 mt-3 w-full max-w-lg">
+                    <div class="flex flex-wrap items-center justify-center gap-2 mt-2.5 w-full max-w-lg">
+                        <button id="btn-main-locker" class="py-1.5 px-3 bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/70 hover:border-cyan-400 text-cyan-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.3)] cursor-pointer">
+                            <span>🎨</span> CYBER LOCKER
+                        </button>
                         <button id="btn-main-random" onclick="if(window.playRandomStage)window.playRandomStage();" class="py-1.5 px-3 bg-amber-950/50 hover:bg-amber-900/70 border border-amber-500/60 hover:border-amber-400 text-amber-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.25)] cursor-pointer">
-                            <span>🎲</span> RANDOM QUICK PLAY
+                            <span>🎲</span> RANDOM QUICK
                         </button>
                         <button id="btn-main-stages" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-neutral-300 font-cyber text-xs rounded transition flex items-center gap-1.5">
                             <span>☰</span> STAGE MATRIX
@@ -370,6 +399,9 @@
                     </button>
                     <button id="dim-tab-endless" class="flex-1 py-1.5 px-3 rounded text-xs font-cyber font-bold tracking-wider transition bg-neutral-900 text-amber-400 border border-neutral-800 hover:border-amber-500 hover:text-amber-300 flex items-center justify-center gap-2">
                         <span>⚡</span> ENDLESS MARATHON
+                    </button>
+                    <button id="dim-tab-daily" class="flex-1 py-1.5 px-3 rounded text-xs font-cyber font-bold tracking-wider transition bg-neutral-900 text-pink-400 border border-neutral-800 hover:border-pink-500 hover:text-pink-300 flex items-center justify-center gap-2">
+                        <span>📅</span> DAILY CHALLENGE
                     </button>
                 </div>
 
@@ -446,6 +478,74 @@
             </div>
         </div>
 
+        <!-- MODAL: Cyber Locker (Exosuits & Energy Trails) -->
+        <div id="modal-locker" class="hidden modal-backdrop absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+            <div class="relative z-10 pointer-events-auto w-full max-w-3xl bg-neutral-900 border border-cyan-500/80 rounded-xl p-4 sm:p-5 shadow-[0_0_50px_rgba(6,182,212,0.25)] flex flex-col gap-3 max-h-[92vh] overflow-hidden">
+                <!-- Header -->
+                <div class="flex items-center justify-between border-b border-neutral-800 pb-2.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">🎨</span>
+                        <div>
+                            <h2 class="text-base sm:text-lg font-cyber font-bold tracking-wider text-cyan-400">CYBER LOCKER // EXOSUITS & ENERGY TRAILS</h2>
+                            <p class="text-[11px] text-neutral-400 font-cyber">Customize your runner frame, head accessories, and luminous particle exhaust ribbons.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-locker-back-main" onclick="const m=document.getElementById('modal-locker');if(m){m.classList.add('hidden');m.style.display='none';}if(window.returnToMainMenu)window.returnToMainMenu();" class="cursor-pointer pointer-events-auto px-2.5 py-1 bg-neutral-950 hover:bg-neutral-800 text-cyan-400 hover:text-cyan-300 text-xs font-cyber font-bold rounded border border-cyan-500/50 hover:border-cyan-400 transition flex items-center gap-1">
+                            <span>🏠</span> <span class="hidden sm:inline">MENU</span>
+                        </button>
+                        <button id="btn-close-locker" onclick="const m=document.getElementById('modal-locker');if(m){m.classList.add('hidden');m.style.display='none';}" class="cursor-pointer pointer-events-auto px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Locker Layout: Left Preview + Right Tabs & Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 overflow-hidden flex-1">
+                    <!-- Left Column: Live Hologram Preview -->
+                    <div class="bg-neutral-950/80 border border-neutral-800 rounded-lg p-3 flex flex-col items-center justify-between gap-2">
+                        <div class="w-full flex justify-between items-center text-[10px] font-cyber text-neutral-400">
+                            <span>LIVE PREVIEW</span>
+                            <span class="text-cyan-400 animate-pulse">● HOLOGRAM</span>
+                        </div>
+                        <canvas id="locker-preview-canvas" width="200" height="180" class="w-full h-40 bg-black/60 rounded-lg border border-cyan-900/60 shadow-[inset_0_0_20px_rgba(6,182,212,0.15)]"></canvas>
+                        <div class="w-full text-center space-y-0.5">
+                            <div class="text-[10px] text-neutral-500 font-cyber">EQUIPPED EXOSUIT</div>
+                            <div id="locker-preview-skin-name" class="text-xs font-cyber font-bold text-cyan-300">CYBER CYAN</div>
+                            <div class="text-[10px] text-neutral-500 font-cyber mt-1">EQUIPPED TRAIL</div>
+                            <div id="locker-preview-trail-name" class="text-xs font-cyber font-bold text-pink-400">PULSE DASH</div>
+                        </div>
+                        <button id="btn-locker-equip" class="w-full py-1.5 px-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-cyber font-bold text-xs rounded transition shadow-[0_0_15px_rgba(6,182,212,0.4)] cursor-pointer">
+                            EQUIP SELECTION
+                        </button>
+                    </div>
+
+                    <!-- Right Column: Tabs (Exosuits / Trails) + Cards Grid -->
+                    <div class="md:col-span-2 flex flex-col gap-2 overflow-hidden">
+                        <!-- Tab Bar -->
+                        <div class="flex items-center gap-2 p-1 bg-neutral-950 rounded-lg border border-neutral-800">
+                            <button id="locker-tab-skins" class="flex-1 py-1 px-2 rounded text-xs font-cyber font-bold tracking-wider transition bg-cyan-950 text-cyan-300 border border-cyan-500/80 shadow-[0_0_10px_rgba(6,182,212,0.25)] flex items-center justify-center gap-1.5 cursor-pointer">
+                                <span>🦿</span> EXOSUITS (10)
+                            </button>
+                            <button id="locker-tab-trails" class="flex-1 py-1 px-2 rounded text-xs font-cyber font-bold tracking-wider transition bg-neutral-900 text-neutral-400 border border-neutral-800 hover:border-pink-500 hover:text-pink-300 flex items-center justify-center gap-1.5 cursor-pointer">
+                                <span>✨</span> ENERGY TRAILS (6)
+                            </button>
+                        </div>
+
+                        <!-- Skins Grid -->
+                        <div id="locker-skins-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 overflow-y-auto max-h-[300px] pr-1">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+
+                        <!-- Trails Grid -->
+                        <div id="locker-trails-grid" class="hidden grid grid-cols-2 sm:grid-cols-3 gap-2 overflow-y-auto max-h-[300px] pr-1">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL: Leaderboards & Personal Bests -->
         <div id="modal-leaderboard" class="hidden modal-backdrop absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
             <div class="relative z-10 pointer-events-auto w-full max-w-2xl bg-neutral-900 border border-amber-500/80 rounded-xl p-5 shadow-[0_0_40px_rgba(245,158,11,0.25)] flex flex-col gap-3.5 max-h-[92vh] overflow-hidden">
@@ -486,6 +586,7 @@
                         <span class="text-neutral-400 font-cyber text-[11px]">FILTER:</span>
                         <select id="lb-stage-filter" onchange="if(window.onLeaderboardFilterChange)window.onLeaderboardFilterChange(this.value);" class="bg-neutral-900 border border-neutral-700 text-amber-300 px-2 py-1 rounded text-xs font-cyber focus:outline-none focus:border-amber-400 cursor-pointer">
                             <option value="ALL">🌐 ALL STAGES (GLOBAL TOP)</option>
+                            <option value="DAILY">📅 DAILY SEEDED CHALLENGE</option>
                             <!-- Stage options injected dynamically -->
                         </select>
                     </div>
@@ -963,6 +1064,6 @@
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=3.5"></script>
+    <script src="game.js?v=3.6"></script>
 </body>
 </html>

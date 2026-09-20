@@ -262,6 +262,64 @@ class SoundEngine {
         } catch(e) {}
     }
 
+    playBoostRing() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(260, now);
+            osc.frequency.exponentialRampToValueAtTime(1040, now + 0.18);
+            const sfxVol = (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
+            gain.gain.setValueAtTime(0.28 * sfxVol, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.18);
+        } catch(e) {}
+    }
+
+    playLaunchPad() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.exponentialRampToValueAtTime(650, now + 0.16);
+            const sfxVol = (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
+            gain.gain.setValueAtTime(0.26 * sfxVol, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.16);
+        } catch(e) {}
+    }
+
+    playEquip() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const now = this.ctx.currentTime;
+            [523.25, 783.99].forEach((freq, idx) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                const sfxVol = (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
+                gain.gain.setValueAtTime(0.22 * sfxVol, now + idx * 0.06);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now + idx * 0.06);
+                osc.stop(now + idx * 0.06 + 0.15);
+            });
+        } catch(e) {}
+    }
+
     playDeath() {
         if (this.muted || !this.ctx) return;
         try {
@@ -352,16 +410,28 @@ window.setMusicVolume = (v) => audio.setMusicVolume(v);
 window.setSfxVolume = (v) => audio.setSfxVolume(v);
 
 // ============================================================================
-// 2. SKINS & DAILY REWARDS SYSTEM
+// 2. CYBER LOCKER (10 SKINS & 6 CUSTOM ENERGY TRAILS) + DAILY SYSTEM
 // ============================================================================
 const SKINS = [
-    { id: "cyan", name: "CYBER CYAN", color: "#06b6d4", glow: "rgba(6,182,212,0.8)", unlockDay: 1 },
-    { id: "violet", name: "PHANTOM VIOLET", color: "#a855f7", glow: "rgba(168,85,247,0.8)", unlockDay: 2 },
-    { id: "emerald", name: "NEO EMERALD", color: "#10b981", glow: "rgba(16,185,129,0.8)", unlockDay: 3 },
-    { id: "solar", name: "SOLAR FLARE", color: "#f59e0b", glow: "rgba(245,158,11,0.8)", unlockDay: 4 },
-    { id: "crimson", name: "BLOOD CRIMSON", color: "#ef4444", glow: "rgba(239,68,68,0.8)", unlockDay: 5 },
-    { id: "glitch", name: "GLITCH SHIFTER", color: "#ec4899", glow: "rgba(236,72,153,0.8)", unlockDay: 6 },
-    { id: "apex_gold", name: "APEX CHAMPION", color: "#eab308", glow: "rgba(234,179,8,1.0)", unlockDay: 7 }
+    { id: "cyan", name: "CYBER CYAN", color: "#06b6d4", glow: "rgba(6,182,212,0.8)", icon: "💎", unlockDay: 1, unlockDesc: "Default starter exosuit" },
+    { id: "violet", name: "PHANTOM VIOLET", color: "#a855f7", glow: "rgba(168,85,247,0.8)", icon: "🔮", unlockDay: 2, unlockDesc: "Clear Stage 05 or Day 2 login" },
+    { id: "emerald", name: "NEO EMERALD", color: "#10b981", glow: "rgba(16,185,129,0.8)", icon: "💚", unlockDay: 3, unlockDesc: "Collect 15 total cyber shards" },
+    { id: "solar", name: "SOLAR FLARE", color: "#f59e0b", glow: "rgba(245,158,11,0.8)", icon: "☀️", unlockDay: 4, unlockDesc: "Earn 3 Gold Medals" },
+    { id: "crimson", name: "BLOOD CRIMSON", color: "#ef4444", glow: "rgba(239,68,68,0.8)", icon: "🩸", unlockDay: 5, unlockDesc: "Reach 400+ km/h speed" },
+    { id: "glitch", name: "GLITCH SHIFTER", color: "#ec4899", glow: "rgba(236,72,153,0.8)", icon: "🧬", unlockDay: 6, unlockDesc: "Earn 1 Diamond Author Medal" },
+    { id: "apex_gold", name: "APEX CHAMPION", color: "#eab308", glow: "rgba(234,179,8,1.0)", icon: "👑", unlockDay: 7, unlockDesc: "Clear 10 Stages or 7-day streak" },
+    { id: "vaporwave", name: "VAPORWAVE SUNSET", color: "#f43f5e", glow: "rgba(244,63,94,0.9)", icon: "🌅", unlockDay: 8, unlockDesc: "Clear today's Daily Seeded Challenge" },
+    { id: "matrix", name: "MATRIX OVERDRIVE", color: "#22c55e", glow: "rgba(34,197,94,0.9)", icon: "📟", unlockDay: 9, unlockDesc: "Reach 500+ km/h or chain 3 Slide-Hops" },
+    { id: "void_shadow", name: "VOID SHADOW", color: "#8b5cf6", glow: "rgba(139,92,246,0.9)", icon: "🌌", unlockDay: 10, unlockDesc: "Complete Dimension β (Stage 20)" }
+];
+
+const TRAILS = [
+    { id: "pulse_dash", name: "PULSE DASH", desc: "Classic after-image exosuit ghost frames", color: "#06b6d4", icon: "⚡", unlockDesc: "Default unlocked" },
+    { id: "laser_ribbon", name: "LASER RIBBON", desc: "Continuous luminous neon laser streamer line", color: "#38bdf8", icon: "🎗️", unlockDesc: "Clear Stage 03" },
+    { id: "stardust", name: "STARDUST SPARKLES", desc: "Glittering diamond star sparkles & trail", color: "#fef08a", icon: "✨", unlockDesc: "Collect 20 total shards" },
+    { id: "fire_ember", name: "AFTERBURNER EMBER", desc: "Blazing rocket flame exhaust & ember sparks", color: "#f97316", icon: "🔥", unlockDesc: "Reach 350+ km/h speed" },
+    { id: "rainbow_hyper", name: "HYPERDRIVE RAINBOW", desc: "Prismatic RGB chroma cycle stream", color: "#a855f7", icon: "🌈", unlockDesc: "Earn 5 Gold Medals" },
+    { id: "matrix_rain", name: "MATRIX BINARY RAIN", desc: "Cascading digital binary code glyphs", color: "#22c55e", icon: "👾", unlockDesc: "Clear today's Daily Challenge" }
 ];
 
 const DAILY_REWARDS_DATA = [
@@ -419,6 +489,7 @@ const dailySystem = {
         if (reward.skin) {
             this.unlockedSkins.add(reward.skin);
             this.activeSkin = reward.skin;
+            if (typeof lockerSystem !== 'undefined') lockerSystem.equipSkin(reward.skin);
         }
         this.lastClaimTimestamp = Date.now();
         this.streak = (this.streak % 7) + 1;
@@ -448,7 +519,190 @@ const dailySystem = {
     }
 };
 
+const lockerSystem = {
+    activeSkin: 'cyan',
+    activeTrail: 'pulse_dash',
+    previewSkin: 'cyan',
+    previewTrail: 'pulse_dash',
+    previewAnimId: null,
+    previewRunCycle: 0,
+    previewParticles: [],
+    activeTab: 'skins',
+
+    load() {
+        try {
+            const sk = localStorage.getItem('neon_pulse_active_skin');
+            if (sk && SKINS.some(s => s.id === sk)) {
+                this.activeSkin = sk;
+            } else if (dailySystem && dailySystem.activeSkin) {
+                this.activeSkin = dailySystem.activeSkin;
+            }
+            const tr = localStorage.getItem('neon_pulse_active_trail');
+            if (tr && TRAILS.some(t => t.id === tr)) {
+                this.activeTrail = tr;
+            }
+        } catch(e) {}
+        this.previewSkin = this.activeSkin;
+        this.previewTrail = this.activeTrail;
+        this.checkUnlocks();
+    },
+
+    save() {
+        try {
+            localStorage.setItem('neon_pulse_active_skin', this.activeSkin);
+            localStorage.setItem('neon_pulse_active_trail', this.activeTrail);
+            if (dailySystem) {
+                dailySystem.activeSkin = this.activeSkin;
+                dailySystem.save();
+            }
+        } catch(e) {}
+    },
+
+    isSkinUnlocked(id) {
+        if (id === 'cyan') return true;
+        if (dailySystem && dailySystem.unlockedSkins && dailySystem.unlockedSkins.has(id)) return true;
+        const metrics = this.getMetrics();
+        if (id === 'violet' && (metrics.clearedStages >= 5 || metrics.streak >= 2)) return true;
+        if (id === 'emerald' && (metrics.totalShards >= 15 || metrics.streak >= 3)) return true;
+        if (id === 'solar' && (metrics.goldMedals >= 3 || metrics.streak >= 4)) return true;
+        if (id === 'crimson' && (metrics.topSpeed >= 400 || metrics.streak >= 5)) return true;
+        if (id === 'glitch' && (metrics.diamondMedals >= 1 || metrics.streak >= 6)) return true;
+        if (id === 'apex_gold' && (metrics.clearedStages >= 10 || metrics.streak >= 7)) return true;
+        if (id === 'vaporwave' && metrics.dailyCleared) return true;
+        if (id === 'matrix' && (metrics.topSpeed >= 500 || metrics.maxSlideHops >= 3)) return true;
+        if (id === 'void_shadow' && (metrics.clearedStages >= 15 || metrics.stage20Cleared)) return true;
+        return false;
+    },
+
+    isTrailUnlocked(id) {
+        if (id === 'pulse_dash') return true;
+        const metrics = this.getMetrics();
+        if (id === 'laser_ribbon' && metrics.clearedStages >= 3) return true;
+        if (id === 'stardust' && metrics.totalShards >= 20) return true;
+        if (id === 'fire_ember' && metrics.topSpeed >= 350) return true;
+        if (id === 'rainbow_hyper' && metrics.goldMedals >= 5) return true;
+        if (id === 'matrix_rain' && metrics.dailyCleared) return true;
+        return false;
+    },
+
+    getMetrics() {
+        let clearedStages = 0;
+        let totalShards = 0;
+        let goldMedals = 0;
+        let diamondMedals = 0;
+        let stage20Cleared = false;
+
+        for (let i = 0; i < 20; i++) {
+            try {
+                if (localStorage.getItem(`neon_pulse_pb_${i}`)) {
+                    clearedStages++;
+                    if (i === 19) stage20Cleared = true;
+                }
+                const sh = localStorage.getItem(`neon_pulse_shards_${i}`);
+                if (sh) totalShards += parseInt(sh, 10) || 0;
+                const m = localStorage.getItem(`neon_pulse_medal_${i}`);
+                if (m === 'GOLD' || m === 'DIAMOND') goldMedals++;
+                if (m === 'DIAMOND') diamondMedals++;
+            } catch(e) {}
+        }
+
+        let topSpeed = 0;
+        try {
+            const sp = localStorage.getItem('neon_pulse_top_speed');
+            if (sp) topSpeed = parseInt(sp, 10) || 0;
+        } catch(e) {}
+
+        let dailyCleared = false;
+        try {
+            const todayKey = (typeof getTodayDateStr === 'function') ? getTodayDateStr() : '';
+            if (todayKey && localStorage.getItem(`neon_pulse_daily_pb_${todayKey}`)) {
+                dailyCleared = true;
+            }
+        } catch(e) {}
+
+        let streak = (dailySystem && dailySystem.streak) ? dailySystem.streak : 1;
+        let maxSlideHops = (typeof window !== 'undefined' && window.game && window.game.maxSlideHops) ? window.game.maxSlideHops : 0;
+
+        return { clearedStages, totalShards, goldMedals, diamondMedals, topSpeed, dailyCleared, streak, maxSlideHops, stage20Cleared };
+    },
+
+    checkUnlocks() {
+        SKINS.forEach(s => {
+            if (this.isSkinUnlocked(s.id) && dailySystem) {
+                dailySystem.unlockedSkins.add(s.id);
+            }
+        });
+    },
+
+    equipSkin(id) {
+        if (!this.isSkinUnlocked(id)) return;
+        this.activeSkin = id;
+        this.previewSkin = id;
+        this.save();
+        audio.playEquip();
+        this.updateUI();
+        showNotification(`🎨 EQUIPPED EXOSUIT: ${getActiveSkinData().name}`);
+    },
+
+    equipTrail(id) {
+        if (!this.isTrailUnlocked(id)) return;
+        this.activeTrail = id;
+        this.previewTrail = id;
+        this.save();
+        audio.playEquip();
+        this.updateUI();
+        showNotification(`✨ EQUIPPED TRAIL: ${getActiveTrailData().name}`);
+    },
+
+    updateUI() {
+        const skinData = SKINS.find(s => s.id === this.previewSkin) || SKINS[0];
+        const trailData = TRAILS.find(t => t.id === this.previewTrail) || TRAILS[0];
+
+        const skinEl = document.getElementById('locker-preview-skin-name');
+        if (skinEl) {
+            skinEl.innerText = skinData.name;
+            skinEl.style.color = skinData.color;
+        }
+        const trailEl = document.getElementById('locker-preview-trail-name');
+        if (trailEl) {
+            trailEl.innerText = trailData.name;
+            trailEl.style.color = trailData.color;
+        }
+
+        const equipBtn = document.getElementById('btn-locker-equip');
+        if (equipBtn) {
+            const isEquipped = (this.previewSkin === this.activeSkin && this.previewTrail === this.activeTrail);
+            const canEquip = this.isSkinUnlocked(this.previewSkin) && this.isTrailUnlocked(this.previewTrail);
+            if (isEquipped) {
+                equipBtn.innerText = "EQUIPPED ✓";
+                equipBtn.className = "w-full py-1.5 px-3 bg-neutral-800 text-neutral-400 font-cyber font-bold text-xs rounded border border-neutral-700 cursor-default";
+            } else if (!canEquip) {
+                equipBtn.innerText = "LOCKED 🔒";
+                equipBtn.className = "w-full py-1.5 px-3 bg-neutral-900 text-rose-400 font-cyber font-bold text-xs rounded border border-rose-900/60 cursor-not-allowed";
+            } else {
+                equipBtn.innerText = "EQUIP SELECTION";
+                equipBtn.className = "w-full py-1.5 px-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-cyber font-bold text-xs rounded transition shadow-[0_0_15px_rgba(6,182,212,0.4)] cursor-pointer";
+            }
+        }
+    }
+};
+
 dailySystem.load();
+lockerSystem.load();
+
+function getActiveSkinData() {
+    return SKINS.find(s => s.id === lockerSystem.activeSkin) || SKINS[0];
+}
+
+function getActiveTrailData() {
+    return TRAILS.find(t => t.id === lockerSystem.activeTrail) || TRAILS[0];
+}
+
+window.getActiveSkinData = getActiveSkinData;
+window.getActiveTrailData = getActiveTrailData;
+window.lockerSystem = lockerSystem;
+window.SKINS = SKINS;
+window.TRAILS = TRAILS;
 
 // ============================================================================
 // 3. 10 HANDCRAFTED CURATED LEVELS DATASET
@@ -506,6 +760,7 @@ const CURATED_LEVELS = [
         ],
         glitchPlatforms: [],
         rings: [
+            { x: 2100, y: 240, r: 24, type: 'BOOST', color: "#f59e0b", boostVx: 250 },
             { x: 3350, y: 260, r: 20, color: "#06b6d4", boostY: -560 }
         ],
         portals: [],
@@ -554,12 +809,13 @@ const CURATED_LEVELS = [
             { x: 2320, y: 326, w: 60, boostVx: 250 }
         ],
         trampolines: [
-            { x: 1600, y: 384, w: 50, launchVy: -650 },
+            { x: 1600, y: 384, w: 50, launchVy: -660, launchVx: 180 },
             { x: 3300, y: 374, w: 50, launchVy: -680 }
         ],
         glitchPlatforms: [],
         rings: [
-            { x: 2450, y: 250, r: 26, color: "#14b8a6", boostY: -580 }
+            { x: 2450, y: 250, r: 26, color: "#14b8a6", boostY: -580 },
+            { x: 3000, y: 250, r: 24, type: 'BOOST', color: "#14b8a6", boostVx: 260 }
         ],
         portals: [],
         shards: [
@@ -608,10 +864,11 @@ const CURATED_LEVELS = [
             { x: 3200, y: 396, w: 60, boostVx: 240 }
         ],
         trampolines: [
-            { x: 2220, y: 394, w: 50, launchVy: -640 }
+            { x: 2200, y: 394, w: 55, launchVy: -650 }
         ],
         glitchPlatforms: [],
         rings: [
+            { x: 1950, y: 250, r: 24, type: 'BOOST', color: "#f59e0b", boostVx: 260 },
             { x: 2950, y: 200, r: 20, color: "#f59e0b", boostY: -580 }
         ],
         portals: [],
@@ -1676,7 +1933,8 @@ const CURATED_LEVELS = [
         ],
         rings: [
             { type: 'GRAVITY', targetGravity: -1, x: 2380, y: 200, r: 28, color: "#38bdf8", flipVy: 320 },
-            { type: 'GRAVITY', targetGravity: 1, x: 3420, y: 180, r: 28, color: "#38bdf8", flipVy: 320 }
+            { type: 'GRAVITY', targetGravity: 1, x: 3420, y: 180, r: 28, color: "#38bdf8", flipVy: 320 },
+            { type: 'BOOST', x: 4950, y: 280, r: 26, color: "#fbbf24", boostVx: 300 }
         ],
         chronoOrbs: [
             { id: 1, x: 1180, y: 260, taken: false },
@@ -1960,10 +2218,6 @@ function formatTime(sec) {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
 }
 
-function getActiveSkinData() {
-    return SKINS.find(s => s.id === dailySystem.activeSkin) || SKINS[0];
-}
-
 // ============================================================================
 // 5. GLOBAL ONLINE LEADERBOARD (DREAMLO) & PB SYSTEM
 // ============================================================================
@@ -2160,6 +2414,21 @@ function renderLeaderboardRows(onlineScores, levelIdx, currentFilter) {
                 }
             } catch(e) {}
         }
+    } else if (currentFilter === 'DAILY') {
+        try {
+            const todayStr = (typeof getTodayDateStr === 'function') ? getTodayDateStr() : '';
+            const dailyPb = localStorage.getItem(`neon_pulse_daily_pb_${todayStr}`);
+            if (dailyPb) {
+                localRecords.push({
+                    tag: game.pilotTag || 'PILOT',
+                    time: parseFloat(dailyPb),
+                    shards: 3,
+                    ability: game.selectedAbility || 'DASH',
+                    stageIdx: 99,
+                    date: Date.now()
+                });
+            }
+        } catch(e) {}
     } else {
         const fIdx = parseInt(currentFilter, 10);
         try {
@@ -2176,6 +2445,8 @@ function renderLeaderboardRows(onlineScores, levelIdx, currentFilter) {
     if (onlineScores && onlineScores.length > 0) {
         if (currentFilter === 'ALL') {
             displayList = [...onlineScores];
+        } else if (currentFilter === 'DAILY') {
+            displayList = onlineScores.filter(e => e.stageIdx === 99);
         } else {
             const fIdx = parseInt(currentFilter, 10);
             displayList = onlineScores.filter(e => e.stageIdx === fIdx);
@@ -2194,12 +2465,20 @@ function renderLeaderboardRows(onlineScores, levelIdx, currentFilter) {
 
     // Curated speedrun fallback if no runs recorded yet
     if (displayList.length === 0) {
-        const fIdx = currentFilter === 'ALL' ? (typeof levelIdx !== 'undefined' ? levelIdx : 0) : parseInt(currentFilter, 10);
-        displayList = [
-            { tag: "CYBER_GHOST", time: 14.820 + (fIdx * 0.5), ability: "DASH", shards: 3, stageIdx: fIdx },
-            { tag: "NEXUS_VIPER", time: 15.640 + (fIdx * 0.5), ability: "DOUBLE_JUMP", shards: 3, stageIdx: fIdx },
-            { tag: "PULSE_RUNNER", time: 16.410 + (fIdx * 0.5), ability: "CHRONO", shards: 2, stageIdx: fIdx }
-        ];
+        if (currentFilter === 'DAILY') {
+            displayList = [
+                { tag: "CHRONO_RUNNER", time: 21.450, ability: "CHRONO", shards: 3, stageIdx: 99 },
+                { tag: "QUANTUM_GHOST", time: 23.120, ability: "DASH", shards: 3, stageIdx: 99 },
+                { tag: "PULSE_PILOT", time: 24.890, ability: "DOUBLE_JUMP", shards: 2, stageIdx: 99 }
+            ];
+        } else {
+            const fIdx = currentFilter === 'ALL' ? (typeof levelIdx !== 'undefined' ? levelIdx : 0) : parseInt(currentFilter, 10);
+            displayList = [
+                { tag: "CYBER_GHOST", time: 14.820 + (fIdx * 0.5), ability: "DASH", shards: 3, stageIdx: fIdx },
+                { tag: "NEXUS_VIPER", time: 15.640 + (fIdx * 0.5), ability: "DOUBLE_JUMP", shards: 3, stageIdx: fIdx },
+                { tag: "PULSE_RUNNER", time: 16.410 + (fIdx * 0.5), ability: "CHRONO", shards: 2, stageIdx: fIdx }
+            ];
+        }
         if (liveBadge) {
             liveBadge.className = "inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-500/50 text-amber-300 text-[9px] font-cyber";
             liveBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> LOCAL`;
@@ -2215,7 +2494,7 @@ function renderLeaderboardRows(onlineScores, levelIdx, currentFilter) {
         const rank = idx + 1;
         const isPlayer = row.tag === game.pilotTag;
         const stageIdx = (typeof row.stageIdx !== 'undefined') ? row.stageIdx : levelIdx;
-        const stageName = (typeof LEVELS !== 'undefined' && LEVELS[stageIdx]) ? LEVELS[stageIdx].name.split('//')[0].trim() : `S${stageIdx + 1}`;
+        const stageName = row.stageIdx === 99 ? "DAILY" : ((typeof LEVELS !== 'undefined' && LEVELS[stageIdx]) ? LEVELS[stageIdx].name.split('//')[0].trim() : `S${stageIdx + 1}`);
 
         let rankBadge = `${rank}`;
         if (rank === 1) rankBadge = `<span class="text-amber-400 font-bold">🥇 1</span>`;
@@ -2245,7 +2524,7 @@ function populateLeaderboard(levelIdx) {
 
     // Populate stage filter dropdown if not yet populated
     const filterSelect = document.getElementById('lb-stage-filter');
-    if (filterSelect && filterSelect.options.length <= 1 && typeof LEVELS !== 'undefined') {
+    if (filterSelect && filterSelect.options.length <= 2 && typeof LEVELS !== 'undefined') {
         LEVELS.forEach((lvl, idx) => {
             const opt = document.createElement('option');
             opt.value = String(idx);
@@ -2263,6 +2542,8 @@ function populateLeaderboard(levelIdx) {
     if (subtitle) {
         if (currentFilter === 'ALL') {
             subtitle.innerText = "WORLDWIDE TIME TRIAL RANKINGS // ALL STAGES";
+        } else if (currentFilter === 'DAILY') {
+            subtitle.innerText = "DAILY SEEDED SPEEDRUN // 24-HOUR WORLD RANKINGS";
         } else {
             const fIdx = parseInt(currentFilter, 10);
             const stageName = (typeof LEVELS !== 'undefined' && LEVELS[fIdx]) ? LEVELS[fIdx].name : `STAGE ${fIdx + 1}`;
@@ -2688,6 +2969,16 @@ function updatePhysics(rawDt) {
     if (speedVal) {
         const kmh = Math.round(game.player.vx * 1.05);
         speedVal.innerText = kmh;
+        if (kmh > (game.topSpeedAchieved || 0)) {
+            game.topSpeedAchieved = kmh;
+            try {
+                const prevTop = parseInt(localStorage.getItem('neon_pulse_top_speed') || '0', 10);
+                if (kmh > prevTop) {
+                    localStorage.setItem('neon_pulse_top_speed', kmh.toString());
+                    if (typeof lockerSystem !== 'undefined') lockerSystem.checkUnlocks();
+                }
+            } catch(e) {}
+        }
         if (kmh > 520) {
             speedVal.className = "text-pink-400 font-bold animate-pulse";
         } else if (kmh > 420) {
@@ -3137,28 +3428,34 @@ function checkInteractions() {
         }
     }
 
-    // 2. Kinetic Trampolines
+    // 2. Kinetic Trampolines & Launch Pads
     if (lvl.trampolines) {
         for (let i = 0; i < lvl.trampolines.length; i++) {
             const tramp = lvl.trampolines[i];
             if (p.x + p.w > tramp.x && p.x < tramp.x + tramp.w && Math.abs((p.y + p.h) - tramp.y) < 25) {
                 p.vy = (tramp.launchVy !== undefined ? tramp.launchVy : -640) * p.gravityDir;
+                if (tramp.launchVx) {
+                    p.vx = Math.min(660, p.vx + tramp.launchVx);
+                    audio.playLaunchPad();
+                    showNotification("🚀 KINETIC LAUNCH!");
+                } else {
+                    audio.playTrampoline();
+                }
                 p.isGrounded = false;
                 p.isJumping = false;
                 p.canDoubleJump = true;
                 p.hasDoubleJumped = false;
                 p.airTime = 0.05;
-                audio.playTrampoline();
-                game.screenShake = 7;
+                game.screenShake = tramp.launchVx ? 8 : 7;
                 for (let k = 0; k < 15; k++) {
                     game.particles.push({
                         x: tramp.x + tramp.w / 2,
                         y: tramp.y,
-                        vx: (Math.random() - 0.5) * 160,
+                        vx: (Math.random() - 0.5) * 160 + (tramp.launchVx ? tramp.launchVx * 0.3 : 0),
                         vy: -Math.random() * 220,
                         life: 0.35,
                         maxLife: 0.35,
-                        color: '#10b981',
+                        color: tramp.launchVx ? '#f59e0b' : '#10b981',
                         size: 4
                     });
                 }
@@ -3196,14 +3493,52 @@ function checkInteractions() {
         }
     }
 
-    // 5. Jump Rings & Geometry Dash Gravity Rings
+    // 5. Jump Rings, Gravity Rings & Hyper Speed Booster Rings
     if (lvl.rings) {
         for (let i = 0; i < lvl.rings.length; i++) {
-        const r = lvl.rings[i];
-        const dx = (p.x + p.w / 2) - r.x;
-        const dy = (p.y + p.h / 2) - r.y;
-        const dist = Math.hypot(dx, dy);
-        const radius = r.r || r.radius || 24;
+            const r = lvl.rings[i];
+            const dx = (p.x + p.w / 2) - r.x;
+            const dy = (p.y + p.h / 2) - r.y;
+            const dist = Math.hypot(dx, dy);
+            const radius = r.r || r.radius || 24;
+
+            // Hyper Speed Booster Rings (Passive pass-through trigger)
+            if (r.type === 'BOOST') {
+                if (dist < radius + 22) {
+                    const now = game.runTime;
+                    if (now - (r.lastHitTime || 0) > 0.35) {
+                        r.lastHitTime = now;
+                        p.vx = Math.min(680, Math.max(p.vx + (r.boostVx || 240), 520));
+                        audio.playBoostRing();
+                        game.screenShake = 9;
+                        showNotification(`⚡ HYPER BOOST! ${Math.round(p.vx * 1.05)} KM/H`);
+                        if (game.shockwaves) {
+                            game.shockwaves.push({
+                                x: r.x,
+                                y: r.y,
+                                r: 15,
+                                maxR: 90,
+                                color: r.color || '#f59e0b',
+                                alpha: 1
+                            });
+                        }
+                        for (let k = 0; k < 18; k++) {
+                            const angle = (Math.PI * 2 * k) / 18;
+                            game.particles.push({
+                                x: r.x,
+                                y: r.y,
+                                vx: Math.cos(angle) * 200 + p.vx * 0.5,
+                                vy: Math.sin(angle) * 160,
+                                life: 0.38,
+                                maxLife: 0.38,
+                                color: k % 2 === 0 ? '#fbbf24' : '#f59e0b',
+                                size: 4
+                            });
+                        }
+                    }
+                }
+                continue;
+            }
         if (dist < radius + 26) {
             const now = game.runTime;
             if ((now - (r.lastHitTime || 0) > 0.35) && (!p.isGrounded || game.inputs.jumpHeld || game.inputs.jumpBufferTime > 0 || game.inputs.jumpPressedThisFrame)) {
@@ -3450,14 +3785,29 @@ function triggerVictory() {
     else if (shardsCount >= 2 && finalTime <= targetParTime * 1.15) rank = "A RANK";
     else if (shardsCount >= 1) rank = "B RANK";
 
-    saveRunToLeaderboard(game.currentLevelIdx, finalTime, shardsCount, game.selectedAbility);
+    if (game.isDailyChallenge) {
+        const todayStr = (typeof getTodayDateStr === 'function') ? getTodayDateStr() : 'daily';
+        try {
+            const dailyPbKey = `neon_pulse_daily_pb_${todayStr}`;
+            const prevDailyPb = localStorage.getItem(dailyPbKey);
+            if (!prevDailyPb || finalTime < parseFloat(prevDailyPb)) {
+                localStorage.setItem(dailyPbKey, finalTime.toString());
+            }
+        } catch(e) {}
+        if (typeof DreamloLB !== 'undefined' && DreamloLB && typeof DreamloLB.submitScore === 'function') {
+            DreamloLB.submitScore(99, finalTime, shardsCount, game.selectedAbility);
+        }
+        showNotification("🏆 DAILY CHALLENGE CLEAR! VAPORWAVE EXOSUIT UNLOCKED!");
+    } else {
+        saveRunToLeaderboard(game.currentLevelIdx, finalTime, shardsCount, game.selectedAbility);
+    }
 
     // Save Ghost Run for Challenge Links & Solo PB Ghost
     game.lastCompletedGhost = {
         tag: game.pilotTag,
         stage: game.currentLevelIdx,
         time: finalTime,
-        skin: dailySystem.activeSkin,
+        skin: (typeof getActiveSkinData === 'function') ? getActiveSkinData().id : dailySystem.activeSkin,
         path: [...game.ghostRecord]
     };
 
@@ -3963,16 +4313,33 @@ function render() {
         }
     }
 
-    // 4. Trampolines
+    // 4. Trampolines & Kinetic Launch Pads
     if (lvl.trampolines) {
         for (let i = 0; i < lvl.trampolines.length; i++) {
             const tp = lvl.trampolines[i];
             if (tp.x + tp.w > cameraX && tp.x < cameraX + V_WIDTH) {
-                ctx.fillStyle = '#10b981';
-                ctx.fillRect(tp.x, tp.y, tp.w, 8);
-                ctx.strokeStyle = '#34d399';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(tp.x, tp.y, tp.w, 8);
+                if (tp.launchVx) {
+                    // Kinetic Launch Pad (Angled amber catapult)
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.fillRect(tp.x, tp.y, tp.w, 9);
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 2.5;
+                    ctx.strokeRect(tp.x, tp.y, tp.w, 9);
+                    // Launch Chevron
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(tp.x + tp.w * 0.3, tp.y + 6);
+                    ctx.lineTo(tp.x + tp.w * 0.55, tp.y + 2);
+                    ctx.lineTo(tp.x + tp.w * 0.75, tp.y + 6);
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = '#10b981';
+                    ctx.fillRect(tp.x, tp.y, tp.w, 8);
+                    ctx.strokeStyle = '#34d399';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(tp.x, tp.y, tp.w, 8);
+                }
             }
         }
     }
@@ -4175,6 +4542,54 @@ function drawRing(r) {
     const pulse = Math.sin(Date.now() * 0.008) * 2;
     const outerR = (r.r || 24) + pulse;
 
+    if (r.type === 'BOOST') {
+        // Hyper Speed Booster Ring (Rotating Hexagon with Forward Chevrons >>>)
+        const angle = Date.now() * 0.003;
+        const col = r.color || '#f59e0b';
+        ctx.save();
+        ctx.translate(r.x, r.y);
+
+        // 1. Outer rotating hexagon
+        ctx.strokeStyle = col;
+        ctx.shadowColor = col;
+        ctx.shadowBlur = 18;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = angle + (i * Math.PI / 3);
+            const hx = Math.cos(a) * outerR;
+            const hy = Math.sin(a) * outerR;
+            if (i === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        // 2. Inner translucent amber/gold core
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.22)';
+        ctx.beginPath();
+        ctx.arc(0, 0, outerR * 0.68, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 3. Forward chevrons >>>
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 8;
+        for (let c = -1; c <= 1; c++) {
+            const cx = c * 7;
+            ctx.beginPath();
+            ctx.moveTo(cx - 4, -8);
+            ctx.lineTo(cx + 4, 0);
+            ctx.lineTo(cx - 4, 8);
+            ctx.stroke();
+        }
+        ctx.restore();
+        ctx.restore();
+        return;
+    }
+
     if (r.type === 'GRAVITY') {
         // Geometry Dash Blue Orb (Gravity Inversion Ring)
         // 1. Outer cyan glow ring
@@ -4317,11 +4732,88 @@ function drawFinishGate(x) {
 
 function drawPlayerTrail() {
     const dt = game.lastFrameDelta || 0.016;
+    const trailStyle = (typeof getActiveTrailData === 'function') ? getActiveTrailData().id : 'pulse_dash';
+    const skin = (typeof getActiveSkinData === 'function') ? getActiveSkinData() : { color: '#06b6d4', glow: '#06b6d4' };
+
+    if (trailStyle === 'laser_ribbon') {
+        if (game.player.trail.length > 1) {
+            ctx.save();
+            ctx.strokeStyle = skin.color;
+            ctx.shadowColor = skin.color;
+            ctx.shadowBlur = 14;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(game.player.x + 10, game.player.y + game.player.h / 2);
+            for (let i = 0; i < game.player.trail.length; i++) {
+                const tr = game.player.trail[i];
+                ctx.lineTo(tr.x + 10, tr.y + tr.h / 2);
+                tr.alpha -= dt * 2.5;
+            }
+            ctx.stroke();
+            ctx.restore();
+            for (let i = game.player.trail.length - 1; i >= 0; i--) {
+                if (game.player.trail[i].alpha <= 0) game.player.trail.splice(i, 1);
+            }
+            return;
+        }
+    }
+
     for (let i = game.player.trail.length - 1; i >= 0; i--) {
         const tr = game.player.trail[i];
-        ctx.fillStyle = tr.color;
-        ctx.globalAlpha = Math.max(0, tr.alpha * 0.4);
-        ctx.fillRect(tr.x, tr.y, 20, tr.h);
+        if (trailStyle === 'stardust') {
+            ctx.save();
+            ctx.translate(tr.x + 10, tr.y + tr.h / 2);
+            ctx.rotate(tr.alpha * 6);
+            ctx.fillStyle = '#fef08a';
+            ctx.shadowColor = '#facc15';
+            ctx.shadowBlur = 10;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            const size = 5 * tr.alpha + 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -size); ctx.lineTo(size * 0.3, 0); ctx.lineTo(0, size); ctx.lineTo(-size * 0.3, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(-size, 0); ctx.lineTo(0, size * 0.3); ctx.lineTo(size, 0); ctx.lineTo(0, -size * 0.3);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        } else if (trailStyle === 'fire_ember') {
+            ctx.save();
+            ctx.fillStyle = tr.alpha > 0.4 ? '#f97316' : '#ef4444';
+            ctx.shadowColor = '#f97316';
+            ctx.shadowBlur = 12;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.85);
+            ctx.beginPath();
+            ctx.arc(tr.x + 8, tr.y + tr.h / 2 - (1 - tr.alpha) * 12, (tr.alpha * 4) + 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        } else if (trailStyle === 'rainbow_hyper') {
+            const hue = Math.floor((game.runTime * 360 + i * 45) % 360);
+            ctx.save();
+            ctx.fillStyle = `hsl(${hue}, 100%, 65%)`;
+            ctx.shadowColor = `hsl(${hue}, 100%, 65%)`;
+            ctx.shadowBlur = 12;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.6);
+            ctx.fillRect(tr.x, tr.y, 20, tr.h);
+            ctx.restore();
+        } else if (trailStyle === 'matrix_rain') {
+            ctx.save();
+            ctx.fillStyle = '#22c55e';
+            ctx.shadowColor = '#22c55e';
+            ctx.shadowBlur = 8;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText(i % 2 === 0 ? '1' : '0', tr.x + 8, tr.y + tr.h / 2 + (1 - tr.alpha) * 8);
+            ctx.restore();
+        } else {
+            // pulse_dash (default)
+            ctx.fillStyle = tr.color;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.4);
+            ctx.fillRect(tr.x, tr.y, 20, tr.h);
+        }
         tr.alpha -= dt * 2.6;
         if (tr.alpha <= 0) {
             game.player.trail.splice(i, 1);
@@ -4351,7 +4843,8 @@ function drawAcrobaticHuman(p) {
     ctx.lineWidth = 3.5;
     ctx.lineCap = 'round';
 
-    if (dailySystem.activeSkin === 'apex_gold') {
+    const skinId = skin.id;
+    if (skinId === 'apex_gold') {
         ctx.save();
         ctx.fillStyle = '#fde047';
         ctx.strokeStyle = '#ca8a04';
@@ -4367,6 +4860,55 @@ function drawAcrobaticHuman(p) {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'vaporwave') {
+        ctx.save();
+        ctx.fillStyle = '#f43f5e';
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#f43f5e';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.rect(-3, -19, 9, 4);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'matrix') {
+        ctx.save();
+        ctx.strokeStyle = '#22c55e';
+        ctx.shadowColor = '#22c55e';
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-6, -24, 12, 3);
+        ctx.restore();
+    } else if (skinId === 'void_shadow') {
+        ctx.save();
+        ctx.strokeStyle = '#8b5cf6';
+        ctx.fillStyle = '#4c1d95';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-2, -18); ctx.lineTo(-6, -26); ctx.lineTo(-1, -21);
+        ctx.moveTo(3, -18); ctx.lineTo(7, -26); ctx.lineTo(2, -21);
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'solar') {
+        ctx.save();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.5;
+        for (let k = 0; k < 3; k++) {
+            const sx = -4 + k * 4;
+            ctx.beginPath();
+            ctx.moveTo(sx, -18);
+            ctx.lineTo(sx, -23);
+            ctx.stroke();
+        }
+        ctx.restore();
+    } else if (skinId === 'crimson') {
+        ctx.save();
+        ctx.fillStyle = '#ef4444';
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(0, -18, 6, 3);
         ctx.restore();
     }
 
@@ -6901,7 +7443,479 @@ function playRandomStage(dim = null) {
     startLevel(chosen);
     showNotification(`🎲 RANDOM STAGE SELECTED: ${LEVELS[chosen].name}`);
 }
-window.playRandomStage = playRandomStage;
+// ============================================================================
+// 11C. DAILY SEEDED SPEEDRUN CHALLENGE SYSTEM
+// ============================================================================
+function getTodayDateStr() {
+    const d = new Date();
+    const yr = d.getUTCFullYear();
+    const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const da = String(d.getUTCDate()).padStart(2, '0');
+    return `${yr}-${mo}-${da}`;
+}
+
+function getTodayDisplayDate() {
+    const d = new Date();
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    return `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+
+function getTodaySeed() {
+    const d = new Date();
+    return (d.getUTCFullYear() * 10000) + ((d.getUTCMonth() + 1) * 100) + d.getUTCDate();
+}
+
+function createSeededRng(seed) {
+    let s = (seed >>> 0) || 123456789;
+    return function() {
+        s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+function generateDailyLevel(seed = getTodaySeed()) {
+    const rng = createSeededRng(seed);
+    const displayDate = getTodayDisplayDate();
+
+    const lvl = {
+        id: 99,
+        sectorId: 99,
+        name: `DAILY // ${displayDate}`,
+        sectorName: "DAILY SEEDED SPEEDRUN",
+        subtitle: `SEED #${seed} — 24H WORLD CHALLENGE`,
+        difficulty: "HARD",
+        bpm: 134,
+        startSpeed: 300,
+        maxSpeed: 430,
+        length: 5200,
+        color: "#ec4899",
+        platforms: [],
+        spikes: [],
+        lasers: [],
+        speedPads: [],
+        trampolines: [],
+        glitchPlatforms: [],
+        rings: [],
+        portals: [],
+        shards: []
+    };
+
+    let curX = 0;
+    let curY = 400;
+    lvl.platforms.push({ x: 0, y: curY, w: 900, h: 100 });
+    curX = 900;
+
+    let shardPositions = [1400, 2700, 4200];
+    let shardIdx = 1;
+
+    while (curX < 4700) {
+        const segType = Math.floor(rng() * 4);
+        const segLen = 420 + Math.floor(rng() * 320);
+
+        if (segType === 0) {
+            // Flat highway with low spikes and speed pad
+            lvl.platforms.push({ x: curX, y: curY, w: segLen, h: 100 });
+            if (rng() > 0.35) {
+                lvl.spikes.push({ x: curX + 160, y: curY, w: 30, h: 28, inverted: false });
+            }
+            if (rng() > 0.4) {
+                lvl.speedPads.push({ x: curX + 300, y: curY - 4, w: 60, boostVx: 230 });
+            }
+            curX += segLen;
+        } else if (segType === 1) {
+            // Kinetic launch over gap with mid-air Boost Ring
+            const gap = 170 + Math.floor(rng() * 100);
+            lvl.trampolines.push({ x: curX - 55, y: curY - 6, w: 50, launchVy: -660, launchVx: 180 });
+            curX += gap;
+            curY = Math.max(280, Math.min(420, curY + (rng() > 0.5 ? -40 : 40)));
+            lvl.platforms.push({ x: curX, y: curY, w: segLen, h: 100 });
+            lvl.rings.push({ x: curX - gap / 2, y: curY - 70, r: 24, type: 'BOOST', color: '#f59e0b', boostVx: 260 });
+            curX += segLen;
+        } else if (segType === 2) {
+            // Elevated catwalk with laser gauntlet
+            const elevY = curY - 80;
+            lvl.platforms.push({ x: curX, y: curY, w: segLen, h: 100 });
+            lvl.platforms.push({ x: curX + 80, y: elevY, w: segLen - 160, h: 20 });
+            lvl.lasers.push({ x: curX + 160, y: curY - 45, w: 90, h: 14 });
+            lvl.trampolines.push({ x: curX + 30, y: curY - 6, w: 50, launchVy: -640 });
+            if (shardPositions.length > 0 && curX > shardPositions[0]) {
+                shardPositions.shift();
+                lvl.shards.push({ id: shardIdx++, x: curX + 200, y: elevY - 35, taken: false });
+            }
+            curX += segLen;
+        } else {
+            // Hyper Boost runway with sequential rings
+            lvl.platforms.push({ x: curX, y: curY, w: segLen, h: 100 });
+            lvl.speedPads.push({ x: curX + 40, y: curY - 4, w: 60, boostVx: 250 });
+            lvl.rings.push({ x: curX + 220, y: curY - 55, r: 24, type: 'BOOST', color: '#fbbf24', boostVx: 280 });
+            lvl.spikes.push({ x: curX + 330, y: curY, w: 30, h: 28, inverted: false });
+            curX += segLen;
+        }
+    }
+
+    while (lvl.shards.length < 3) {
+        const sx = 1300 + lvl.shards.length * 1200;
+        lvl.shards.push({ id: shardIdx++, x: sx, y: 310, taken: false });
+    }
+
+    lvl.platforms.push({ x: curX, y: 400, w: 900, h: 100 });
+    lvl.length = curX + 500;
+
+    return lvl;
+}
+
+function startDailyChallenge() {
+    game.inMainMenu = false;
+    game.isEndless = false;
+    game.isDailyChallenge = true;
+    game.isCountingDown = false;
+    game.currentLevelIdx = 99;
+    game.isMultiplayer = false;
+    game.mpRival = null;
+
+    game.level = generateDailyLevel();
+    game.attempts = 1;
+    game.victory = false;
+    game.shardsCollected.clear();
+    setPause(false);
+    resetPlayerState();
+
+    const todayStr = getTodayDateStr();
+    try {
+        const pbGhostRaw = localStorage.getItem(`neon_pulse_daily_pb_ghost_${todayStr}`);
+        if (pbGhostRaw) {
+            const pbGhost = JSON.parse(pbGhostRaw);
+            if (pbGhost && pbGhost.path && pbGhost.path.length > 0) {
+                game.ghostData = pbGhost;
+                game.ghostData.isPB = true;
+                game.ghostActive = true;
+            } else {
+                game.ghostActive = false;
+                game.ghostData = null;
+            }
+        } else {
+            game.ghostActive = false;
+            game.ghostData = null;
+        }
+    } catch(e) {
+        game.ghostActive = false;
+        game.ghostData = null;
+    }
+
+    const mainMenu = document.getElementById('screen-main-menu');
+    const ingameHeader = document.getElementById('ingame-header');
+    if (mainMenu) { mainMenu.classList.add('hidden'); mainMenu.style.display = 'none'; }
+    if (ingameHeader) { ingameHeader.classList.remove('hidden'); ingameHeader.style.display = ''; }
+
+    const hudLevelName = document.getElementById('hud-level-name');
+    const hudDimTag = document.getElementById('hud-dim-tag');
+    if (hudLevelName) hudLevelName.innerText = game.level.name;
+    if (hudDimTag) hudDimTag.innerText = "DAILY";
+
+    ['modal-victory', 'modal-menu', 'modal-leaderboard', 'modal-daily', 'modal-locker', 'modal-howtoplay', 'modal-multiplayer'].forEach(id => {
+        const m = document.getElementById(id);
+        if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
+    });
+
+    audio.init();
+    audio.playStartCountdown();
+    showNotification(`📅 DAILY CHALLENGE STARTED: ${getTodayDisplayDate()}`);
+}
+window.startDailyChallenge = startDailyChallenge;
+
+function updateDailyCountdownUI() {
+    const now = new Date();
+    const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+    const diff = Math.max(0, midnight - now);
+    const hrs = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+    const timeStr = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    const timerEl = document.getElementById('daily-countdown-text');
+    if (timerEl) timerEl.innerText = timeStr;
+
+    const dateTag = document.getElementById('daily-date-tag');
+    if (dateTag && typeof getTodayDisplayDate === 'function') {
+        dateTag.innerText = getTodayDisplayDate();
+    }
+
+    const pbEl = document.getElementById('daily-menu-pb');
+    if (pbEl) {
+        try {
+            const todayStr = getTodayDateStr();
+            const pb = localStorage.getItem(`neon_pulse_daily_pb_${todayStr}`);
+            pbEl.innerText = pb ? formatTime(parseFloat(pb)) : '--:--.---';
+        } catch(e) {}
+    }
+}
+setInterval(updateDailyCountdownUI, 1000);
+setTimeout(updateDailyCountdownUI, 100);
+
+// ============================================================================
+// 11D. CYBER LOCKER UI CONTROLLER & PREVIEW ANIMATOR
+// ============================================================================
+function populateLockerModal() {
+    lockerSystem.load();
+    lockerSystem.checkUnlocks();
+
+    const skinsGrid = document.getElementById('locker-skins-grid');
+    const trailsGrid = document.getElementById('locker-trails-grid');
+
+    if (skinsGrid) {
+        skinsGrid.innerHTML = '';
+        SKINS.forEach(skin => {
+            const unlocked = lockerSystem.isSkinUnlocked(skin.id);
+            const isEquipped = skin.id === lockerSystem.activeSkin;
+            const isSelected = skin.id === lockerSystem.previewSkin;
+
+            const card = document.createElement('div');
+            card.className = `p-2 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1 text-left ${
+                isSelected ? 'border-cyan-400 bg-cyan-950/60 shadow-[0_0_12px_rgba(6,182,212,0.3)]' :
+                (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-neutral-500' : 'border-neutral-800 bg-neutral-950/80 opacity-70')
+            }`;
+            card.onclick = () => {
+                lockerSystem.previewSkin = skin.id;
+                lockerSystem.updateUI();
+                populateLockerModal();
+            };
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-base">${skin.icon || '🦿'}</span>
+                    <span class="text-[9px] font-cyber px-1 py-0.2 rounded ${
+                        isEquipped ? 'bg-emerald-950 text-emerald-300 border border-emerald-500' :
+                        (unlocked ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-700')
+                    }">
+                        ${isEquipped ? 'EQUIPPED' : (unlocked ? 'OWNED' : 'LOCKED')}
+                    </span>
+                </div>
+                <div>
+                    <div class="text-[11px] font-cyber font-bold truncate" style="color:${skin.color};">${skin.name}</div>
+                    <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${unlocked ? 'Ready to equip' : skin.unlockDesc}</div>
+                </div>
+            `;
+            skinsGrid.appendChild(card);
+        });
+    }
+
+    if (trailsGrid) {
+        trailsGrid.innerHTML = '';
+        TRAILS.forEach(trail => {
+            const unlocked = lockerSystem.isTrailUnlocked(trail.id);
+            const isEquipped = trail.id === lockerSystem.activeTrail;
+            const isSelected = trail.id === lockerSystem.previewTrail;
+
+            const card = document.createElement('div');
+            card.className = `p-2 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1 text-left ${
+                isSelected ? 'border-pink-400 bg-pink-950/60 shadow-[0_0_12px_rgba(236,72,153,0.3)]' :
+                (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-neutral-500' : 'border-neutral-800 bg-neutral-950/80 opacity-70')
+            }`;
+            card.onclick = () => {
+                lockerSystem.previewTrail = trail.id;
+                lockerSystem.updateUI();
+                populateLockerModal();
+            };
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-base">${trail.icon || '✨'}</span>
+                    <span class="text-[9px] font-cyber px-1 py-0.2 rounded ${
+                        isEquipped ? 'bg-emerald-950 text-emerald-300 border border-emerald-500' :
+                        (unlocked ? 'bg-pink-950 text-pink-300 border border-pink-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-700')
+                    }">
+                        ${isEquipped ? 'EQUIPPED' : (unlocked ? 'OWNED' : 'LOCKED')}
+                    </span>
+                </div>
+                <div>
+                    <div class="text-[11px] font-cyber font-bold truncate" style="color:${trail.color};">${trail.name}</div>
+                    <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${unlocked ? trail.desc : trail.unlockDesc}</div>
+                </div>
+            `;
+            trailsGrid.appendChild(card);
+        });
+    }
+
+    lockerSystem.updateUI();
+    startLockerPreviewAnimation();
+}
+window.populateLockerModal = populateLockerModal;
+
+function startLockerPreviewAnimation() {
+    if (lockerSystem.previewAnimId) cancelAnimationFrame(lockerSystem.previewAnimId);
+
+    const canvas = document.getElementById('locker-preview-canvas');
+    if (!canvas) return;
+    const pctx = canvas.getContext('2d');
+    if (!pctx) return;
+
+    lockerSystem.previewParticles = [];
+
+    function animatePreview() {
+        const modal = document.getElementById('modal-locker');
+        if (!modal || modal.classList.contains('hidden') || modal.style.display === 'none') {
+            return;
+        }
+
+        pctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Cyber Grid Floor
+        pctx.save();
+        pctx.strokeStyle = 'rgba(6, 182, 212, 0.25)';
+        pctx.lineWidth = 1;
+        pctx.beginPath();
+        pctx.moveTo(0, 140);
+        pctx.lineTo(canvas.width, 140);
+        pctx.stroke();
+
+        const gridOffset = (Date.now() * 0.08) % 20;
+        for (let x = -gridOffset; x < canvas.width + 20; x += 20) {
+            pctx.beginPath();
+            pctx.moveTo(x, 140);
+            pctx.lineTo(x - 15, canvas.height);
+            pctx.stroke();
+        }
+        pctx.restore();
+
+        // 2. Trail Particle Generation & Animation
+        const skinData = SKINS.find(s => s.id === lockerSystem.previewSkin) || SKINS[0];
+        const trailData = TRAILS.find(t => t.id === lockerSystem.previewTrail) || TRAILS[0];
+
+        if (Math.random() < 0.65) {
+            lockerSystem.previewParticles.push({
+                x: 100,
+                y: 105,
+                alpha: 0.8,
+                color: trailData.color,
+                life: 0.6,
+                style: trailData.id
+            });
+        }
+
+        for (let i = lockerSystem.previewParticles.length - 1; i >= 0; i--) {
+            const part = lockerSystem.previewParticles[i];
+            part.x -= 2.4;
+            part.alpha -= 0.035;
+            if (part.alpha <= 0) {
+                lockerSystem.previewParticles.splice(i, 1);
+                continue;
+            }
+            pctx.save();
+            pctx.globalAlpha = Math.max(0, part.alpha);
+            if (part.style === 'stardust') {
+                pctx.fillStyle = '#fef08a';
+                pctx.shadowColor = '#facc15';
+                pctx.shadowBlur = 8;
+                pctx.fillRect(part.x, part.y, 3.5, 3.5);
+            } else if (part.style === 'fire_ember') {
+                pctx.fillStyle = part.alpha > 0.4 ? '#f97316' : '#ef4444';
+                pctx.shadowColor = '#f97316';
+                pctx.shadowBlur = 8;
+                pctx.beginPath();
+                pctx.arc(part.x, part.y - (1 - part.alpha) * 8, 3, 0, Math.PI * 2);
+                pctx.fill();
+            } else if (part.style === 'rainbow_hyper') {
+                const hue = Math.floor((Date.now() * 0.4 + i * 30) % 360);
+                pctx.fillStyle = `hsl(${hue}, 100%, 65%)`;
+                pctx.fillRect(part.x, part.y, 8, 12);
+            } else if (part.style === 'matrix_rain') {
+                pctx.fillStyle = '#22c55e';
+                pctx.font = 'bold 9px monospace';
+                pctx.fillText(i % 2 === 0 ? '1' : '0', part.x, part.y);
+            } else {
+                pctx.fillStyle = skinData.color;
+                pctx.fillRect(part.x, part.y, 10, 16);
+            }
+            pctx.restore();
+        }
+
+        // 3. Mini Animated Human Runner
+        lockerSystem.previewRunCycle = (lockerSystem.previewRunCycle || 0) + 0.18;
+        const runCycle = lockerSystem.previewRunCycle;
+        const legSwing = Math.sin(runCycle) * 11;
+        const armSwing = Math.cos(runCycle) * 9;
+
+        pctx.save();
+        pctx.translate(110, 115);
+        pctx.strokeStyle = skinData.color;
+        pctx.fillStyle = skinData.color;
+        pctx.shadowColor = skinData.glow;
+        pctx.shadowBlur = 12;
+        pctx.lineWidth = 3;
+        pctx.lineCap = 'round';
+
+        if (skinData.id === 'apex_gold') {
+            pctx.save();
+            pctx.fillStyle = '#fde047';
+            pctx.beginPath();
+            pctx.moveTo(-5, -23); pctx.lineTo(-2, -19); pctx.lineTo(2, -23); pctx.lineTo(6, -19); pctx.lineTo(9, -23); pctx.lineTo(7, -17); pctx.lineTo(-3, -17);
+            pctx.closePath();
+            pctx.fill();
+            pctx.restore();
+        } else if (skinData.id === 'vaporwave') {
+            pctx.save();
+            pctx.fillStyle = '#f43f5e';
+            pctx.fillRect(-3, -19, 9, 4);
+            pctx.restore();
+        } else if (skinData.id === 'matrix') {
+            pctx.save();
+            pctx.strokeStyle = '#22c55e';
+            pctx.strokeRect(-6, -24, 12, 3);
+            pctx.restore();
+        } else if (skinData.id === 'void_shadow') {
+            pctx.save();
+            pctx.strokeStyle = '#8b5cf6';
+            pctx.beginPath();
+            pctx.moveTo(-2, -18); pctx.lineTo(-6, -25);
+            pctx.moveTo(3, -18); pctx.lineTo(7, -25);
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'solar') {
+            pctx.save();
+            pctx.strokeStyle = '#f59e0b';
+            pctx.beginPath();
+            pctx.moveTo(-3, -18); pctx.lineTo(-3, -23);
+            pctx.moveTo(3, -18); pctx.lineTo(3, -23);
+            pctx.stroke();
+            pctx.restore();
+        }
+
+        // Head
+        pctx.beginPath();
+        pctx.arc(2, -15, 5, 0, Math.PI * 2);
+        pctx.fill();
+
+        // Torso
+        pctx.beginPath();
+        pctx.moveTo(1, -10);
+        pctx.lineTo(-2, 3);
+        pctx.stroke();
+
+        // Arms
+        pctx.beginPath();
+        pctx.moveTo(0, -6);
+        pctx.lineTo(armSwing, 1);
+        pctx.moveTo(0, -6);
+        pctx.lineTo(-armSwing, 1);
+        pctx.stroke();
+
+        // Legs
+        pctx.beginPath();
+        pctx.moveTo(-2, 3);
+        pctx.lineTo(-2 + legSwing, 16);
+        pctx.moveTo(-2, 3);
+        pctx.lineTo(-2 - legSwing, 16);
+        pctx.stroke();
+
+        pctx.restore();
+
+        lockerSystem.previewAnimId = requestAnimationFrame(animatePreview);
+    }
+
+    lockerSystem.previewAnimId = requestAnimationFrame(animatePreview);
+}
 
 // ============================================================================
 // 12. LEVEL FLOW & STAGE MATRIX POPULATION
@@ -6909,6 +7923,7 @@ window.playRandomStage = playRandomStage;
 function startLevel(idx, skipCountdown = false) {
     game.inMainMenu = false;
     game.isEndless = false;
+    game.isDailyChallenge = false;
     game.isCountingDown = false;
     game.currentLevelIdx = idx;
     if (!skipCountdown) {
@@ -7011,6 +8026,7 @@ function returnToMainMenu() {
     game.isPaused = false;
     game.isCountingDown = false;
     game.isEndless = false;
+    game.isDailyChallenge = false;
     game.isMultiplayer = false;
     game.victory = false;
     game.openedLeaderboardFrom = null;
@@ -7026,6 +8042,7 @@ function returnToMainMenu() {
     const modalMenu = document.getElementById('modal-menu');
     const modalLb = document.getElementById('modal-leaderboard');
     const modalDaily = document.getElementById('modal-daily');
+    const modalLocker = document.getElementById('modal-locker');
     const modalVictory = document.getElementById('modal-victory');
     const modalHow = document.getElementById('modal-howtoplay');
     const modalMp = document.getElementById('modal-multiplayer');
@@ -7035,7 +8052,7 @@ function returnToMainMenu() {
     const seriesBadge = document.getElementById('hud-series-badge');
     const countdownOverlay = document.getElementById('overlay-race-countdown');
 
-    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalVictory, modalHow, modalMp, modalRaceResult];
+    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalLocker, modalVictory, modalHow, modalMp, modalRaceResult];
     allModals.forEach(m => {
         if (m) {
             m.classList.add('hidden');
@@ -7686,6 +8703,95 @@ bindClick('btn-main-daily', () => {
         dailyModal.classList.remove('hidden');
         dailyModal.style.display = '';
     }
+});
+
+bindClick('btn-main-play-daily', () => {
+    audio.init();
+    startDailyChallenge();
+});
+
+bindClick('dim-tab-daily', () => {
+    audio.init();
+    startDailyChallenge();
+});
+
+bindClick('btn-main-locker', () => {
+    populateLockerModal();
+    const lockerModal = document.getElementById('modal-locker');
+    if (lockerModal) {
+        lockerModal.classList.remove('hidden');
+        lockerModal.style.display = '';
+    }
+});
+
+bindClick('btn-locker-open', () => {
+    populateLockerModal();
+    const lockerModal = document.getElementById('modal-locker');
+    if (lockerModal) {
+        lockerModal.classList.remove('hidden');
+        lockerModal.style.display = '';
+    }
+});
+
+bindClick('btn-close-locker', () => {
+    const lockerModal = document.getElementById('modal-locker');
+    if (lockerModal) {
+        lockerModal.classList.add('hidden');
+        lockerModal.style.display = 'none';
+    }
+});
+
+bindClick('btn-locker-back-main', () => {
+    const lockerModal = document.getElementById('modal-locker');
+    if (lockerModal) {
+        lockerModal.classList.add('hidden');
+        lockerModal.style.display = 'none';
+    }
+    returnToMainMenu();
+});
+
+bindClick('btn-locker-equip', () => {
+    if (lockerSystem.activeTab === 'skins' || lockerSystem.previewSkin !== lockerSystem.activeSkin) {
+        lockerSystem.equipSkin(lockerSystem.previewSkin);
+    }
+    if (lockerSystem.previewTrail !== lockerSystem.activeTrail) {
+        lockerSystem.equipTrail(lockerSystem.previewTrail);
+    }
+    populateLockerModal();
+});
+
+bindClick('locker-tab-skins', () => {
+    lockerSystem.activeTab = 'skins';
+    const tabSkins = document.getElementById('locker-tab-skins');
+    const tabTrails = document.getElementById('locker-tab-trails');
+    const gridSkins = document.getElementById('locker-skins-grid');
+    const gridTrails = document.getElementById('locker-trails-grid');
+
+    if (tabSkins) {
+        tabSkins.className = "flex-1 py-1 px-2 rounded text-xs font-cyber font-bold tracking-wider transition bg-cyan-950 text-cyan-300 border border-cyan-500/80 shadow-[0_0_10px_rgba(6,182,212,0.25)] flex items-center justify-center gap-1.5 cursor-pointer";
+    }
+    if (tabTrails) {
+        tabTrails.className = "flex-1 py-1 px-2 rounded text-xs font-cyber font-bold tracking-wider transition bg-neutral-900 text-neutral-400 border border-neutral-800 hover:border-pink-500 hover:text-pink-300 flex items-center justify-center gap-1.5 cursor-pointer";
+    }
+    if (gridSkins) gridSkins.classList.remove('hidden');
+    if (gridTrails) gridTrails.classList.add('hidden');
+});
+
+bindClick('locker-tab-trails', () => {
+    lockerSystem.activeTab = 'trails';
+    const tabSkins = document.getElementById('locker-tab-skins');
+    const tabTrails = document.getElementById('locker-tab-trails');
+    const gridSkins = document.getElementById('locker-skins-grid');
+    const gridTrails = document.getElementById('locker-trails-grid');
+
+    if (tabTrails) {
+        tabTrails.className = "flex-1 py-1 px-2 rounded text-xs font-cyber font-bold tracking-wider transition bg-pink-950 text-pink-300 border border-pink-500/80 shadow-[0_0_10px_rgba(236,72,153,0.25)] flex items-center justify-center gap-1.5 cursor-pointer";
+    }
+    if (tabSkins) {
+        tabSkins.className = "flex-1 py-1 px-2 rounded text-xs font-cyber font-bold tracking-wider transition bg-neutral-900 text-neutral-400 border border-neutral-800 hover:border-cyan-500 hover:text-cyan-300 flex items-center justify-center gap-1.5 cursor-pointer";
+    }
+    if (gridSkins) gridSkins.classList.add('hidden');
+    if (gridTrails) gridTrails.classList.remove('hidden');
 });
 
 bindClick('btn-main-dim2', () => {
