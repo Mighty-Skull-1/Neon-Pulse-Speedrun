@@ -257,6 +257,63 @@ class SoundEngine {
         } catch(e) {}
     }
 
+    playWaveDash() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const now = this.ctx.currentTime;
+            [440, 880, 1320].forEach((freq, i) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = i === 0 ? 'sawtooth' : 'triangle';
+                osc.frequency.setValueAtTime(freq, now + i * 0.04);
+                osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + i * 0.04 + 0.16);
+                gain.gain.setValueAtTime(0.24, now + i * 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.04 + 0.16);
+                osc.connect(gain);
+                gain.connect(this.getSfxDestination() || this.ctx.destination);
+                osc.start(now + i * 0.04);
+                osc.stop(now + i * 0.04 + 0.16);
+            });
+        } catch(e) {}
+    }
+
+    playRocketThruster() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(160, now);
+            osc.frequency.exponentialRampToValueAtTime(540, now + 0.22);
+            gain.gain.setValueAtTime(0.28, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+            osc.connect(gain);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.25);
+        } catch(e) {}
+    }
+
+    playAbilityReady() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const now = this.ctx.currentTime;
+            [1046.50, 1567.98].forEach((freq, idx) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+                gain.gain.setValueAtTime(0.12, now + idx * 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.14);
+                osc.connect(gain);
+                gain.connect(this.getSfxDestination() || this.ctx.destination);
+                osc.start(now + idx * 0.05);
+                osc.stop(now + idx * 0.05 + 0.14);
+            });
+        } catch(e) {}
+    }
+
     playSlide() {
         if (this.muted || !this.ctx) return;
         try {
@@ -546,18 +603,21 @@ class SoundEngine {
             if (this.muted || !this.ctx || !this.isPlayingMusic) return;
             try {
                 const now = this.ctx.currentTime;
-                const freq = bassNotes[this.bassNoteIdx % bassNotes.length];
+                const isBulletTime = (typeof game !== 'undefined' && game.abilities && game.abilities.chrono && game.abilities.chrono.activeTimer > 0);
+                let freq = bassNotes[this.bassNoteIdx % bassNotes.length];
+                if (isBulletTime) freq *= 0.65;
                 this.bassNoteIdx++;
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(freq, now);
                 gain.gain.setValueAtTime(0.05, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                const dur = isBulletTime ? 0.22 : 0.12;
+                gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
                 osc.connect(gain);
                 gain.connect(this.getMusicDestination() || this.ctx.destination);
                 osc.start(now);
-                osc.stop(now + 0.12);
+                osc.stop(now + dur);
             } catch(e) {}
         }, interval);
     }
@@ -2347,7 +2407,7 @@ const game = {
     // Collective Exosuit Ability Matrix (All 3 equipped simultaneously)
     abilities: {
         dash: { cd: 0, maxCd: 3.5, activeTimer: 0 },
-        thrust: { cd: 0, maxCd: 3.0 },
+        thrust: { cd: 0, maxCd: 3.0, activeTimer: 0, isRocketSlide: false },
         chrono: { cd: 0, maxCd: 6.5, activeTimer: 0 }
     },
     // Endless Mode (Cyber Marathon)
@@ -2407,12 +2467,14 @@ const game = {
         h: 44,
         vx: 280,
         vy: 0,
+        bonusVx: 0,
         gravityDir: 1,
         isGrounded: true,
         isSliding: false,
         isJumping: false,
         canDoubleJump: true,
         hasDoubleJumped: false,
+        airJumpsDone: 0,
         airTime: 0,
         isInvulnerable: false,
         coyoteTimer: 0,
@@ -2931,24 +2993,75 @@ function triggerPhaseDash() {
     const p = game.player;
     game.abilities.dash.cd = game.abilities.dash.maxCd;
     p.isInvulnerable = true;
-    game.abilities.dash.activeTimer = 0.24;
-    p.x += 165;
-    audio.playDash();
-    game.screenShake = 7;
     const skin = getActiveSkinData();
-    for (let i = 0; i < 22; i++) {
-        game.particles.push({
-            x: p.x - Math.random() * 165,
-            y: p.y + Math.random() * p.h,
-            vx: -p.vx * 0.4 + (Math.random() - 0.5) * 80,
-            vy: (Math.random() - 0.5) * 60,
-            life: 0.32,
-            maxLife: 0.32,
-            color: skin.color,
-            size: 4
-        });
+
+    // Check for Movement Tech: Wave-Dash (Dash while sliding) or Hyper-Jump (Dash while jumping)
+    const isSliding = p.isSliding || (game.inputs && game.inputs.slideHeld);
+    const isAirborne = !p.isGrounded && (p.isJumping || (game.inputs && game.inputs.jumpHeld));
+
+    if (isSliding) {
+        // Wave-Dashing: Forward warp + instant massive ground skid boost
+        p.bonusVx = Math.min(460, (p.bonusVx || 0) + 240);
+        game.abilities.dash.activeTimer = 0.32;
+        p.x += 140;
+        if (audio.playWaveDash) audio.playWaveDash();
+        else audio.playDash();
+        game.screenShake = 8;
+        for (let i = 0; i < 28; i++) {
+            game.particles.push({
+                x: p.x - Math.random() * 90,
+                y: p.y + p.h - 4 + (Math.random() - 0.5) * 6,
+                vx: -p.vx * 0.4 + (Math.random() - 0.5) * 140,
+                vy: -Math.random() * 120,
+                life: 0.38,
+                maxLife: 0.38,
+                color: '#06b6d4',
+                size: 4.5
+            });
+        }
+        showNotification("⚡ WAVE-DASH SURGE [580+ KM/H]!");
+    } else if (isAirborne) {
+        // Hyper-Jump: Air warp + launch trajectory
+        p.bonusVx = Math.min(400, (p.bonusVx || 0) + 190);
+        p.vy = -160 * p.gravityDir;
+        game.abilities.dash.activeTimer = 0.28;
+        p.x += 165;
+        audio.playDash();
+        game.screenShake = 7;
+        for (let i = 0; i < 24; i++) {
+            game.particles.push({
+                x: p.x - Math.random() * 140,
+                y: p.y + Math.random() * p.h,
+                vx: -p.vx * 0.3 + (Math.random() - 0.5) * 80,
+                vy: (Math.random() - 0.5) * 80,
+                life: 0.35,
+                maxLife: 0.35,
+                color: skin.color,
+                size: 4
+            });
+        }
+        showNotification("⚡ HYPER-JUMP LAUNCH!");
+    } else {
+        // Standard Phase Dash: Safe forward warp + speed pulse
+        p.bonusVx = Math.min(340, (p.bonusVx || 0) + 160);
+        game.abilities.dash.activeTimer = 0.26;
+        p.x += 165;
+        audio.playDash();
+        game.screenShake = 6;
+        for (let i = 0; i < 22; i++) {
+            game.particles.push({
+                x: p.x - Math.random() * 165,
+                y: p.y + Math.random() * p.h,
+                vx: -p.vx * 0.4 + (Math.random() - 0.5) * 80,
+                vy: (Math.random() - 0.5) * 60,
+                life: 0.32,
+                maxLife: 0.32,
+                color: skin.color,
+                size: 4
+            });
+        }
+        showNotification("⚡ PHASE DASH [SHIFT]!");
     }
-    showNotification("⚡ PHASE DASH [SHIFT]!");
     updateAbilityHUD();
 }
 
@@ -2958,15 +3071,46 @@ function triggerThrusterBurst() {
 
     const p = game.player;
     game.abilities.thrust.cd = game.abilities.thrust.maxCd;
-    p.vy = JUMP_IMPULSE * 1.16 * p.gravityDir;
-    p.isGrounded = false;
-    p.isJumping = true;
-    p.canDoubleJump = true;
-    p.hasDoubleJumped = false;
-    audio.playJump(true);
-    createJumpParticles(p, true);
-    game.screenShake = 5;
-    showNotification("🚀 THRUSTERS OVERCLOCKED [E]!");
+    const isGroundSlide = p.isGrounded && (p.isSliding || (game.inputs && game.inputs.slideHeld));
+
+    if (isGroundSlide) {
+        // Rocket Slide: Supersonic jet skid across ground
+        p.bonusVx = Math.min(420, (p.bonusVx || 0) + 220);
+        game.abilities.thrust.activeTimer = 0.42;
+        game.abilities.thrust.isRocketSlide = true;
+        if (audio.playRocketThruster) audio.playRocketThruster();
+        else audio.playJump(true);
+        game.screenShake = 7;
+        for (let i = 0; i < 24; i++) {
+            game.particles.push({
+                x: p.x - 6,
+                y: p.y + p.h - 4 + (Math.random() - 0.5) * 8,
+                vx: -p.vx * 0.6 - Math.random() * 160,
+                vy: (Math.random() - 0.5) * 40,
+                life: 0.36,
+                maxLife: 0.36,
+                color: Math.random() > 0.4 ? '#f59e0b' : '#ef4444',
+                size: 4.5
+            });
+        }
+        showNotification("🚀 ROCKET SLIDE ACTIVATED!");
+    } else {
+        // Airborne/Ground Thrust: Vertical plasma lift + DOUBLE-JUMP RESET!
+        p.vy = JUMP_IMPULSE * 1.25 * p.gravityDir;
+        p.isGrounded = false;
+        p.isJumping = true;
+        p.canDoubleJump = true;
+        p.hasDoubleJumped = false;
+        p.airJumpsDone = 0;
+        p.bonusVx = Math.min(320, (p.bonusVx || 0) + 120);
+        game.abilities.thrust.activeTimer = 0.38;
+        game.abilities.thrust.isRocketSlide = false;
+        if (audio.playRocketThruster) audio.playRocketThruster();
+        else audio.playJump(true);
+        createJumpParticles(p, true);
+        game.screenShake = 6;
+        showNotification("🚀 PLASMA THRUST + 2X JUMP RESET [E]!");
+    }
     updateAbilityHUD();
 }
 
@@ -2974,12 +3118,23 @@ function triggerChronoPulse() {
     if (!game.abilities || !game.abilities.chrono) return;
     if (game.abilities.chrono.cd > 0 || game.victory || game.isPaused || game.inMainMenu || game.isCountingDown) return;
 
+    const p = game.player;
     game.abilities.chrono.cd = game.abilities.chrono.maxCd;
-    game.timeScale = 0.45;
+    game.timeScale = 0.40;
     game.abilities.chrono.activeTimer = 2.4;
     audio.playChrono();
     game.screenShake = 4;
-    showNotification("⏱️ CHRONO DILATION [Q]!");
+    if (game.shockwaves) {
+        game.shockwaves.push({
+            x: p.x + p.w / 2,
+            y: p.y + p.h / 2,
+            r: 10,
+            maxR: 160,
+            color: '#c084fc',
+            alpha: 1
+        });
+    }
+    showNotification("⏱️ CHRONO TIME DILATION [Q]!");
     updateAbilityHUD();
 }
 
@@ -3059,6 +3214,7 @@ function resetPlayerState() {
     p.renderY = 356;
     p.vx = (game.level && game.level.startSpeed) ? game.level.startSpeed : 320;
     p.vy = 0;
+    p.bonusVx = 0;
     p.gravityDir = 1;
     p.isGrounded = true;
     p.isSliding = false;
@@ -3121,6 +3277,8 @@ function resetPlayerState() {
         game.abilities.dash.cd = 0;
         game.abilities.dash.activeTimer = 0;
         game.abilities.thrust.cd = 0;
+        game.abilities.thrust.activeTimer = 0;
+        game.abilities.thrust.isRocketSlide = false;
         game.abilities.chrono.cd = 0;
         game.abilities.chrono.activeTimer = 0;
     }
@@ -3322,24 +3480,46 @@ function updatePhysics(rawDt) {
                 game.player.isInvulnerable = false;
             }
         }
+        if (game.abilities.thrust.activeTimer > 0) {
+            game.abilities.thrust.activeTimer -= rawDt;
+            if (game.abilities.thrust.activeTimer <= 0) {
+                game.abilities.thrust.isRocketSlide = false;
+            }
+        }
         if (game.abilities.chrono.activeTimer > 0) {
             game.abilities.chrono.activeTimer -= rawDt;
             if (game.abilities.chrono.activeTimer <= 0) {
                 game.timeScale = 1.0;
             }
         }
-        if (game.abilities.dash.cd > 0) {
-            game.abilities.dash.cd = Math.max(0, game.abilities.dash.cd - rawDt);
-            changed = true;
+
+        // Ability cooldown recharge & playAbilityReady chime
+        const abilityKeys = [
+            { key: 'dash', elId: 'dock-dash' },
+            { key: 'thrust', elId: 'dock-thrust' },
+            { key: 'chrono', elId: 'dock-chrono' }
+        ];
+
+        for (let i = 0; i < abilityKeys.length; i++) {
+            const item = abilityKeys[i];
+            const ab = game.abilities[item.key];
+            if (ab && ab.cd > 0) {
+                const prevCd = ab.cd;
+                ab.cd = Math.max(0, ab.cd - rawDt);
+                changed = true;
+                if (prevCd > 0 && ab.cd <= 0) {
+                    if (audio.playAbilityReady) audio.playAbilityReady();
+                    const dockEl = document.getElementById(item.elId);
+                    if (dockEl) {
+                        dockEl.classList.remove('glow-pulse');
+                        void dockEl.offsetWidth; // trigger reflow for animation restart
+                        dockEl.classList.add('glow-pulse');
+                        setTimeout(() => dockEl.classList.remove('glow-pulse'), 600);
+                    }
+                }
+            }
         }
-        if (game.abilities.thrust.cd > 0) {
-            game.abilities.thrust.cd = Math.max(0, game.abilities.thrust.cd - rawDt);
-            changed = true;
-        }
-        if (game.abilities.chrono.cd > 0) {
-            game.abilities.chrono.cd = Math.max(0, game.abilities.chrono.cd - rawDt);
-            changed = true;
-        }
+
         if (changed) updateAbilityHUD();
     }
 
@@ -3352,12 +3532,19 @@ function updatePhysics(rawDt) {
 
     const effectiveGravity = (lvl.objective && (lvl.objective.type === 'ZERO_G' || lvl.objective.type === 'THE_OMNI_RIFT')) ? 950 : GRAVITY;
 
-    // 1. Dynamic Speed Ramp-Up (Standard Level or Endless Mode)
+    // 1. Dynamic Speed Ramp-Up & Sustained Kinetic Momentum (p.bonusVx)
+    if (!p.bonusVx) p.bonusVx = 0;
+    if (p.bonusVx > 0) {
+        p.bonusVx = Math.max(0, p.bonusVx - dt * 240);
+    }
+
     const progressRatio = (!lvl || !lvl.length) ? 0 : Math.min(1, Math.max(0, p.x / lvl.length));
     if (game.isEndless && typeof updateEndlessMode === 'function') {
         updateEndlessMode(dt);
+        p.vx += p.bonusVx;
     } else {
-        p.vx = lvl.startSpeed + (lvl.maxSpeed - lvl.startSpeed) * Math.pow(progressRatio, 1.2);
+        const baseSpeed = lvl.startSpeed + (lvl.maxSpeed - lvl.startSpeed) * Math.pow(progressRatio, 1.2);
+        p.vx = baseSpeed + p.bonusVx;
     }
 
     // Dimension 2 Objective Rule Verifications
@@ -3420,7 +3607,8 @@ function updatePhysics(rawDt) {
         // Slide-Hop Momentum Preservation Boost (+15% speed tech)
         const isSlideHop = p.isSliding || (game.runTime - (p.lastSlideTime || 0) < 0.16);
         if (isSlideHop) {
-            p.vx = Math.min(650, p.vx * 1.15);
+            p.bonusVx = Math.min(420, (p.bonusVx || 0) + 140);
+            p.vx = Math.min(680, p.vx + 140);
             if (audio.playSlideHop) audio.playSlideHop();
             createSlideHopParticles(p);
             showNotification(`⚡ SLIDE-HOP BOOST! (${Math.round(p.vx * 1.05)} KM/H)`);
@@ -3694,7 +3882,9 @@ function checkInteractions() {
         for (let i = 0; i < lvl.speedPads.length; i++) {
             const pad = lvl.speedPads[i];
             if (p.x + p.w > pad.x && p.x < pad.x + pad.w && Math.abs((p.y + p.h) - pad.y) < 25) {
-                p.vx += (pad.boostVx !== undefined ? pad.boostVx : 200);
+                const bAmt = (pad.boostVx !== undefined ? pad.boostVx : 200);
+                p.bonusVx = Math.min(380, (p.bonusVx || 0) + bAmt);
+                p.vx += bAmt;
                 audio.playBoostPad();
                 game.screenShake = 6;
                 for (let k = 0; k < 12; k++) {
@@ -3720,6 +3910,7 @@ function checkInteractions() {
             if (p.x + p.w > tramp.x && p.x < tramp.x + tramp.w && Math.abs((p.y + p.h) - tramp.y) < 25) {
                 p.vy = (tramp.launchVy !== undefined ? tramp.launchVy : -640) * p.gravityDir;
                 if (tramp.launchVx) {
+                    p.bonusVx = Math.min(400, (p.bonusVx || 0) + tramp.launchVx);
                     p.vx = Math.min(660, p.vx + tramp.launchVx);
                     audio.playLaunchPad();
                     showNotification("🚀 KINETIC LAUNCH!");
@@ -3791,9 +3982,16 @@ function checkInteractions() {
             if (r.type === 'BOOST') {
                 if (dist < radius + 22) {
                     const now = game.runTime;
-                    if (now - (r.lastHitTime || 0) > 0.35) {
-                        r.lastHitTime = now;
-                        p.vx = Math.min(680, Math.max(p.vx + (r.boostVx || 240), 520));
+                    if (!r.lastHitTime || (now - r.lastHitTime > 0.35)) {
+                        r.lastHitTime = now || 0.001;
+                        const rBoost = (r.boostVx || 240);
+                        p.bonusVx = Math.min(440, (p.bonusVx || 0) + rBoost);
+                        p.vx = Math.min(680, Math.max(p.vx + rBoost, 520));
+                        // Booster Ring Synergy: Shaves 1.5s off Dash cooldown!
+                        if (game.abilities && game.abilities.dash && game.abilities.dash.cd > 0) {
+                            game.abilities.dash.cd = Math.max(0, game.abilities.dash.cd - 1.5);
+                            updateAbilityHUD();
+                        }
                         audio.playBoostRing();
                         game.screenShake = 9;
                         showNotification(`⚡ HYPER BOOST! ${Math.round(p.vx * 1.05)} KM/H`);
@@ -4719,6 +4917,28 @@ function render() {
     }
 
     ctx.restore();
+
+    // Chrono Pulse Spacetime Distortion Vignette (Virtual Screen Space)
+    if (game.abilities && game.abilities.chrono && game.abilities.chrono.activeTimer > 0) {
+        ctx.save();
+        const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.008);
+        const alpha = Math.min(0.55, (game.abilities.chrono.activeTimer / 0.4) * 0.45) * (0.85 + 0.15 * pulse);
+        const cx = V_WIDTH / 2;
+        const cy = V_HEIGHT / 2;
+        const grad = ctx.createRadialGradient(cx, cy, V_WIDTH * 0.32, cx, cy, V_WIDTH * 0.72);
+        grad.addColorStop(0, 'rgba(168, 85, 247, 0)');
+        grad.addColorStop(0.7, `rgba(168, 85, 247, ${alpha * 0.55})`);
+        grad.addColorStop(1.0, `rgba(236, 72, 153, ${alpha * 0.95})`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+        // Futuristic Time Distortion HUD Boundary
+        ctx.strokeStyle = `rgba(216, 180, 254, ${alpha * 0.6})`;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(8, 8, V_WIDTH - 16, V_HEIGHT - 16);
+        ctx.restore();
+    }
+
     ctx.restore();
 }
 
@@ -5245,6 +5465,88 @@ function drawAcrobaticHuman(p) {
         ctx.lineTo(-2 - legSwing, 18);
         ctx.stroke();
     }
+
+    // 1. Plasma Exhaust Flames on Back Thrusters & Boots (Thruster Burst Active)
+    if (game.abilities && game.abilities.thrust && game.abilities.thrust.activeTimer > 0) {
+        const isRocketSlide = game.abilities.thrust.isRocketSlide;
+        const flameTime = Date.now() * 0.04;
+        const flameLen = 14 + Math.sin(flameTime) * 6;
+        ctx.save();
+        ctx.fillStyle = isRocketSlide ? '#f59e0b' : '#38bdf8';
+        ctx.shadowColor = isRocketSlide ? '#f59e0b' : '#38bdf8';
+        ctx.shadowBlur = 16;
+        ctx.beginPath();
+        if (p.isSliding || isRocketSlide) {
+            ctx.moveTo(-10, 2);
+            ctx.lineTo(-10 - flameLen * 1.6, 5);
+            ctx.lineTo(-10, 8);
+        } else {
+            ctx.moveTo(-6, 2);
+            ctx.lineTo(-12 - Math.sin(flameTime) * 4, 12 + flameLen);
+            ctx.lineTo(-2, 8);
+            ctx.moveTo(2, 6);
+            ctx.lineTo(0 - Math.cos(flameTime) * 4, 14 + flameLen);
+            ctx.lineTo(6, 10);
+        }
+        ctx.fill();
+
+        // Inner plasma core (white-hot)
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        if (p.isSliding || isRocketSlide) {
+            ctx.moveTo(-10, 3.5);
+            ctx.lineTo(-10 - flameLen * 0.9, 5);
+            ctx.lineTo(-10, 6.5);
+        } else {
+            ctx.moveTo(-5, 4);
+            ctx.lineTo(-8, 8 + flameLen * 0.6);
+            ctx.lineTo(-3, 6);
+        }
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // 2. Pulsing Hexagonal Phase Energy Shield (Phase Dash Active or Invulnerable)
+    if ((game.abilities && game.abilities.dash && game.abilities.dash.activeTimer > 0) || p.isInvulnerable) {
+        ctx.save();
+        const shieldPulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.02);
+        const shieldAlpha = 0.6 + 0.4 * shieldPulse;
+        ctx.strokeStyle = '#06b6d4';
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 18;
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        const hexR = p.isSliding ? 22 : 28;
+        for (let k = 0; k < 6; k++) {
+            const ang = (Math.PI / 3) * k + (Date.now() * 0.003);
+            const hx = Math.cos(ang) * hexR;
+            const hy = Math.sin(ang) * hexR + (p.isSliding ? 4 : 0);
+            if (k === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Secondary inner hex ring
+        ctx.strokeStyle = `rgba(255, 255, 255, ${shieldAlpha * 0.7})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+            const ang = (Math.PI / 3) * k - (Date.now() * 0.005);
+            const hx = Math.cos(ang) * (hexR * 0.65);
+            const hy = Math.sin(ang) * (hexR * 0.65) + (p.isSliding ? 4 : 0);
+            if (k === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+    }
+
     ctx.restore();
 }
 

@@ -27,11 +27,18 @@ Play online now on **[GitHub Pages](https://mighty-skull-1.github.io/Neon-Pulse-
 
 ---
 
-### ⚡ Collective Exosuit Ability Matrix
-Master three abilities equipped simultaneously with independent real-time cooldowns:
-- **Phase Dash `[SHIFT]`**: Instant forward teleport with 0.24s invulnerability to phase through spikes and lethal laser barriers.
-- **Thruster Burst `[E]`**: High-impulse vertical rocket thruster for emergency chasm recovery and height scaling.
-- **Chrono Pulse `[Q / F]`**: Temporal slowdown matrix (0.45x time dilation) for frame-perfect hazard threading.
+### ⚡ Supercharged Exosuit Ability Matrix & Movement Tech
+Master three abilities equipped simultaneously with independent real-time cooldowns, movement combos, and sustained kinetic physics:
+- **Phase Dash `[SHIFT]`**: Instant forward teleport with a pulsing hexagonal neon phase energy shield and 0.28s invulnerability.
+  - **⚡ Wave-Dash Tech (`Dash + Slide`)**: Dashing while sliding channels kinetic phase energy into the deck for a supersonic **580+ km/h** speed surge!
+  - **⚡ Hyper-Jump Tech (`Dash + Jump`)**: Dashing while airborne converts forward warp velocity into a long horizontal launch trajectory.
+- **Thruster Burst `[E]`**: High-impulse twin plasma jet exhaust blast with dual flame cones.
+  - **Double-Jump Reset**: Firing thrusters in mid-air instantly restores your double jump (`p.canDoubleJump = true`)!
+  - **🚀 Rocket Slide Tech (`Thrusters + Ground Slide`)**: Firing thrusters during a ground slide triggers a supersonic **540+ km/h** horizontal jet skid with fiery exhaust particles.
+- **Chrono Pulse `[Q / F]`**: Spacetime dilation matrix (0.40x bullet-time) featuring an acoustic synthesizer pitch drop, purple chromatic spacetime vignette, and expanding temporal shockwave ripple.
+- **⚡ Booster Ring Synergy**: Passing through mid-air booster rings shaves **1.5s off Phase Dash cooldown**!
+- **Sustained Kinetic Physics (`bonusVx`)**: Velocity gained from speed pads, launch ramps, booster rings, wave-dashes, rocket slides, and slide-hops now smoothly persists across platforms instead of abruptly disappearing on the next frame.
+- **Ability Ready Chimes & HUD Glows**: High-tech dual-sine audio chimes (`playAbilityReady`) and pulsing HUD dock borders alert runners the instant an ability recharges without having to look away from the action.
 
 ---
 

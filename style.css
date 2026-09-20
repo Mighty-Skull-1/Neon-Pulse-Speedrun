@@ -195,3 +195,13 @@ body {
     box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
 }
 
+@keyframes glowPulse {
+    0% { transform: scale(1); filter: brightness(1); box-shadow: 0 0 4px rgba(255, 255, 255, 0.2); }
+    50% { transform: scale(1.16); filter: brightness(2.2); box-shadow: 0 0 24px rgba(255, 255, 255, 0.95); }
+    100% { transform: scale(1); filter: brightness(1); box-shadow: 0 0 4px rgba(255, 255, 255, 0.2); }
+}
+
+.glow-pulse {
+    animation: glowPulse 0.55s ease-out;
+}
+
