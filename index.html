@@ -52,6 +52,13 @@
                         <span class="text-neutral-500 font-bold">TIME</span>
                         <span id="hud-stopwatch" class="text-amber-400 font-mono text-xs font-bold tracking-wider">00:00.000</span>
                     </div>
+
+                    <!-- Live Speedometer -->
+                    <div id="hud-speedometer" class="flex items-center gap-1 bg-neutral-900/90 px-2 py-0.5 rounded border border-cyan-500/40 font-mono text-xs" title="Current Runner Velocity">
+                        <span class="text-cyan-400 font-bold text-[9px] font-cyber">SPD</span>
+                        <span id="hud-speed-val" class="text-cyan-300 font-bold">320</span>
+                        <span class="text-[8px] text-neutral-500">KM/H</span>
+                    </div>
                 </div>
                 <div class="w-full h-2 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative">
                     <div id="hud-progress-fill" class="h-full bg-gradient-to-r from-cyan-500 via-emerald-400 to-pink-500 w-0 transition-all duration-75"></div>
@@ -132,6 +139,11 @@
                     <div id="shard-3-icon" class="w-2.5 h-2.5 rounded-sm bg-neutral-800 border border-neutral-700 transition"></div>
                 </div>
 
+                <!-- Quick Restart Button in Top Header -->
+                <button id="btn-quick-restart" onclick="if(window.resetPlayerState)window.resetPlayerState();" class="hidden sm:flex items-center gap-1 px-2 py-1 bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-cyan-300 border border-neutral-800 hover:border-cyan-500/50 rounded text-xs font-cyber transition cursor-pointer" title="Quick Restart [R]">
+                    <span>🔄</span>
+                </button>
+
                 <button id="btn-bot" title="Autonomous AI Pilot [B]" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 font-cyber text-[11px] rounded transition">
                     🤖 <span class="hidden sm:inline">DEMO</span>
                 </button>
@@ -146,8 +158,15 @@
             <canvas id="game-canvas" class="w-full h-full block cursor-pointer"></canvas>
             <div id="crt-overlay" class="absolute inset-0 crt-scanlines z-10 pointer-events-none"></div>
 
+            <!-- Floating Checkpoint Split Popup -->
+            <div id="hud-split-popup" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1 rounded-full font-cyber text-xs font-bold tracking-wider shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all duration-200 pointer-events-none flex items-center gap-1.5 border">
+                <span id="split-popup-icon">⚡</span>
+                <span id="split-popup-label">SPLIT 1:</span>
+                <span id="split-popup-delta" class="font-mono text-sm">+0.00s</span>
+            </div>
+
             <!-- Toast Notification Banner -->
-            <div id="toast-banner" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 bg-neutral-900/95 border border-pink-500 text-pink-300 text-xs font-cyber tracking-wider rounded-full shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all pointer-events-none">
+            <div id="toast-banner" class="hidden absolute top-14 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 bg-neutral-900/95 border border-pink-500 text-pink-300 text-xs font-cyber tracking-wider rounded-full shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all pointer-events-none">
                 SECRET SHARD ACQUIRED!
             </div>
 
@@ -568,6 +587,21 @@
                         🏠 MAIN MENU
                     </button>
                 </div>
+
+                <!-- Audio Volume Controls in Pause Menu -->
+                <div class="bg-neutral-950 p-3 rounded-lg border border-neutral-800 text-left space-y-2 mt-1">
+                    <div class="text-[9px] font-cyber text-neutral-400 font-bold tracking-wider uppercase flex items-center gap-1">
+                        <span>🔊</span> AUDIO SYNTH CONTROLS
+                    </div>
+                    <div class="flex items-center justify-between gap-2 text-[10px] font-mono">
+                        <span class="text-neutral-400">MUSIC:</span>
+                        <input id="slider-music-vol" type="range" min="0" max="100" value="70" oninput="if(window.setMusicVolume)window.setMusicVolume(this.value)" class="w-32 accent-cyan-400 cursor-pointer">
+                    </div>
+                    <div class="flex items-center justify-between gap-2 text-[10px] font-mono">
+                        <span class="text-neutral-400">SFX:</span>
+                        <input id="slider-sfx-vol" type="range" min="0" max="100" value="80" oninput="if(window.setSfxVolume)window.setSfxVolume(this.value)" class="w-32 accent-amber-400 cursor-pointer">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -578,6 +612,18 @@
                 <div>
                     <h3 class="text-2xl font-cyber font-bold text-emerald-400 tracking-wider">STAGE COMPLETED</h3>
                     <p id="victory-level-name" class="text-xs text-neutral-400 mt-0.5">LEVEL 01: HIGHWAY ZERO</p>
+                </div>
+
+                <!-- Earned Stage Medal Presentation Box -->
+                <div id="vic-medal-box" class="w-full bg-neutral-950 px-3.5 py-2.5 rounded-lg border border-neutral-800 flex items-center justify-between shadow-inner">
+                    <div class="flex items-center gap-2.5">
+                        <span id="vic-medal-icon" class="text-3xl filter drop-shadow-[0_0_10px_rgba(245,158,11,0.6)]">🥇</span>
+                        <div class="text-left">
+                            <div id="vic-medal-tier" class="text-xs font-cyber font-bold text-amber-400 tracking-wider">GOLD SPEEDRUN MEDAL</div>
+                            <div id="vic-medal-desc" class="text-[10px] text-neutral-400">Target par time achieved</div>
+                        </div>
+                    </div>
+                    <span id="vic-target-time" class="text-xs font-mono text-neutral-400 font-bold bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800">PAR: 00:19.500</span>
                 </div>
 
                 <div class="w-full bg-neutral-950 p-4 rounded-lg border border-neutral-800 flex justify-around text-center">
@@ -614,8 +660,8 @@
                 </div>
 
                 <div class="w-full">
-                    <button id="btn-victory-share-ghost" class="w-full py-2 bg-gradient-to-r from-rose-950/70 to-pink-950/70 hover:from-rose-900 hover:to-pink-900 border border-rose-500/70 text-rose-300 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(244,63,94,0.3)]">
-                        <span>🔗</span> SHARE GHOST LINK // CHALLENGE A FRIEND
+                    <button id="btn-victory-share-ghost" class="w-full py-2.5 bg-gradient-to-r from-rose-900 to-pink-900 hover:from-rose-800 hover:to-pink-800 border border-rose-500 text-white font-cyber font-bold text-xs rounded-lg transition flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(244,63,94,0.4)] transform active:scale-95 cursor-pointer">
+                        <span>⚔️</span> CHALLENGE A FRIEND (COPY GHOST LINK)
                     </button>
                 </div>
 
@@ -917,6 +963,6 @@
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=3.4"></script>
+    <script src="game.js?v=3.5"></script>
 </body>
 </html>

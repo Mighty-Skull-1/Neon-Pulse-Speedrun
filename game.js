@@ -16,6 +16,24 @@ class SoundEngine {
         this.isPlayingMusic = false;
         this.ringCombo = 0;
         this.lastRingTime = 0;
+        this.musicVolume = 0.7;
+        this.sfxVolume = 0.8;
+        try {
+            const sm = localStorage.getItem('neon_pulse_vol_music');
+            if (sm !== null) this.musicVolume = parseFloat(sm) / 100;
+            const ss = localStorage.getItem('neon_pulse_vol_sfx');
+            if (ss !== null) this.sfxVolume = parseFloat(ss) / 100;
+        } catch(e) {}
+    }
+
+    setMusicVolume(pct) {
+        this.musicVolume = Math.max(0, Math.min(1, pct / 100));
+        try { localStorage.setItem('neon_pulse_vol_music', pct); } catch(e) {}
+    }
+
+    setSfxVolume(pct) {
+        this.sfxVolume = Math.max(0, Math.min(1, pct / 100));
+        try { localStorage.setItem('neon_pulse_vol_sfx', pct); } catch(e) {}
     }
 
     init() {
@@ -197,22 +215,50 @@ class SoundEngine {
         } catch(e) {}
     }
 
-    playShard() {
+    playShard(shardCount = 1) {
         if (this.muted || !this.ctx) return;
         try {
             const now = this.ctx.currentTime;
-            [587.33, 880].forEach((freq, i) => {
+            // Escalating chord frequencies: Shard 1 (C5), Shard 2 (E5), Shard 3 (G5 + C6 arpeggio)
+            let chord = [523.25, 783.99]; // C5, G5
+            if (shardCount === 2) {
+                chord = [659.25, 987.77]; // E5, B5
+            } else if (shardCount >= 3) {
+                chord = [783.99, 1046.50, 1318.51]; // G5, C6, E6
+            }
+            chord.forEach((freq, i) => {
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, now + i * 0.06);
-                gain.gain.setValueAtTime(0.24, now + i * 0.06);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.35);
+                osc.frequency.setValueAtTime(freq, now + i * 0.05);
+                const sfxVol = (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
+                gain.gain.setValueAtTime(0.24 * sfxVol, now + i * 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.38);
                 osc.connect(gain);
                 gain.connect(this.ctx.destination);
-                osc.start(now + i * 0.06);
-                osc.stop(now + i * 0.06 + 0.35);
+                osc.start(now + i * 0.05);
+                osc.stop(now + i * 0.05 + 0.38);
             });
+        } catch(e) {}
+    }
+
+    playSlideHop() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.07);
+            osc.frequency.exponentialRampToValueAtTime(1100, now + 0.14);
+            const sfxVol = (this.sfxVolume !== undefined ? this.sfxVolume : 0.8);
+            gain.gain.setValueAtTime(0.25 * sfxVol, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.14);
         } catch(e) {}
     }
 
@@ -302,6 +348,8 @@ class SoundEngine {
 }
 
 const audio = new SoundEngine();
+window.setMusicVolume = (v) => audio.setMusicVolume(v);
+window.setSfxVolume = (v) => audio.setSfxVolume(v);
 
 // ============================================================================
 // 2. SKINS & DAILY REWARDS SYSTEM
@@ -2297,6 +2345,23 @@ function createJumpParticles(p, isDouble = false) {
     }
 }
 
+function createSlideHopParticles(p) {
+    for (let i = 0; i < 18; i++) {
+        const angle = Math.PI + (Math.random() - 0.5) * 1.2;
+        const speed = 160 + Math.random() * 190;
+        game.particles.push({
+            x: p.x + 5,
+            y: p.gravityDir === 1 ? p.y + p.h - 4 : p.y + 4,
+            vx: Math.cos(angle) * speed,
+            vy: (Math.sin(angle) * speed) * p.gravityDir,
+            life: 0.35,
+            maxLife: 0.35,
+            color: Math.random() < 0.5 ? '#f59e0b' : '#38bdf8',
+            size: 3.5
+        });
+    }
+}
+
 function triggerPhaseDash() {
     if (!game.abilities || !game.abilities.dash) return;
     if (game.abilities.dash.cd > 0 || game.victory || game.isPaused || game.inMainMenu || game.isCountingDown) return;
@@ -2443,6 +2508,10 @@ function resetPlayerState() {
     p.trail = [];
     p.coyoteTimer = 0;
     p.h = 44;
+    p.lastSlideTime = 0;
+    game.splitsCrossed = {};
+    const splitPopup = document.getElementById('hud-split-popup');
+    if (splitPopup) splitPopup.classList.add('hidden');
     game.runTime = 0;
     game.timeScale = 1.0;
     game.abilityCooldown = 0;
@@ -2570,6 +2639,42 @@ function isCeilingOverhead() {
     return false;
 }
 
+function triggerSplitPopup(label, delta) {
+    const popup = document.getElementById('hud-split-popup');
+    const labelEl = document.getElementById('split-popup-label');
+    const deltaEl = document.getElementById('split-popup-delta');
+    const iconEl = document.getElementById('split-popup-icon');
+    if (!popup || !labelEl || !deltaEl) return;
+
+    labelEl.innerText = `${label}:`;
+    if (delta !== null && !isNaN(delta)) {
+        const isAhead = delta <= 0;
+        const sign = isAhead ? '-' : '+';
+        const formatted = `${sign}${Math.abs(delta).toFixed(2)}s`;
+        deltaEl.innerText = formatted;
+        if (isAhead) {
+            deltaEl.className = "font-mono text-sm text-emerald-400 font-bold";
+            popup.className = "absolute top-4 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1 rounded-full font-cyber text-xs font-bold tracking-wider shadow-[0_0_20px_rgba(16,185,129,0.5)] bg-emerald-950/90 border border-emerald-500/80 text-emerald-300 transition-all duration-200 flex items-center gap-1.5";
+            if (iconEl) iconEl.innerText = "⚡";
+        } else {
+            deltaEl.className = "font-mono text-sm text-rose-400 font-bold";
+            popup.className = "absolute top-4 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1 rounded-full font-cyber text-xs font-bold tracking-wider shadow-[0_0_20px_rgba(244,63,94,0.5)] bg-rose-950/90 border border-rose-500/80 text-rose-300 transition-all duration-200 flex items-center gap-1.5";
+            if (iconEl) iconEl.innerText = "⚠️";
+        }
+    } else {
+        deltaEl.innerText = formatTime(game.runTime);
+        deltaEl.className = "font-mono text-sm text-cyan-300 font-bold";
+        popup.className = "absolute top-4 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1 rounded-full font-cyber text-xs font-bold tracking-wider shadow-[0_0_20px_rgba(6,182,212,0.5)] bg-cyan-950/90 border border-cyan-500/80 text-cyan-300 transition-all duration-200 flex items-center gap-1.5";
+        if (iconEl) iconEl.innerText = "⏱️";
+    }
+
+    popup.classList.remove('hidden');
+    if (game.splitPopupTimeout) clearTimeout(game.splitPopupTimeout);
+    game.splitPopupTimeout = setTimeout(() => {
+        if (popup) popup.classList.add('hidden');
+    }, 1800);
+}
+
 function updatePhysics(rawDt) {
     if (game.victory || game.isPaused || game.inMainMenu || game.isCountingDown) return;
 
@@ -2577,6 +2682,48 @@ function updatePhysics(rawDt) {
     game.runTime += dt;
     const stopwatch = document.getElementById('hud-stopwatch');
     if (stopwatch) stopwatch.innerText = formatTime(game.runTime);
+
+    // Live Speedometer HUD Update
+    const speedVal = document.getElementById('hud-speed-val');
+    if (speedVal) {
+        const kmh = Math.round(game.player.vx * 1.05);
+        speedVal.innerText = kmh;
+        if (kmh > 520) {
+            speedVal.className = "text-pink-400 font-bold animate-pulse";
+        } else if (kmh > 420) {
+            speedVal.className = "text-amber-400 font-bold";
+        } else {
+            speedVal.className = "text-cyan-300 font-bold";
+        }
+    }
+
+    // Checkpoint Speedrun Splits (25%, 50%, 75%)
+    if (!game.isEndless && game.level && game.level.length) {
+        const pX = game.player.x;
+        const totalL = game.level.length;
+        if (!game.splitsCrossed) game.splitsCrossed = {};
+
+        const checkpoints = [
+            { id: 1, ratio: 0.25, label: "SPLIT 1" },
+            { id: 2, ratio: 0.50, label: "SPLIT 2" },
+            { id: 3, ratio: 0.75, label: "SPLIT 3" }
+        ];
+
+        checkpoints.forEach(cp => {
+            const cpX = totalL * cp.ratio;
+            if (!game.splitsCrossed[cp.id] && pX >= cpX) {
+                game.splitsCrossed[cp.id] = true;
+                let delta = null;
+                if (game.ghostActive && game.ghostData && game.ghostData.path && game.ghostData.path.length > 0) {
+                    const ghostFrame = game.ghostData.path.find(f => f.x >= cpX);
+                    if (ghostFrame) {
+                        delta = game.runTime - ghostFrame.t;
+                    }
+                }
+                triggerSplitPopup(cp.label, delta);
+            }
+        });
+    }
 
     if (game.abilityActiveTimer > 0) {
         game.abilityActiveTimer -= dt;
@@ -2694,6 +2841,19 @@ function updatePhysics(rawDt) {
     const jumpRequested = game.inputs.jumpPressedThisFrame || (game.inputs.jumpBufferTime > 0);
 
     if (jumpRequested && (p.isGrounded || p.coyoteTimer > 0)) {
+        // Slide-Hop Momentum Preservation Boost (+15% speed tech)
+        const isSlideHop = p.isSliding || (game.runTime - (p.lastSlideTime || 0) < 0.16);
+        if (isSlideHop) {
+            p.vx = Math.min(650, p.vx * 1.15);
+            if (audio.playSlideHop) audio.playSlideHop();
+            createSlideHopParticles(p);
+            showNotification(`⚡ SLIDE-HOP BOOST! (${Math.round(p.vx * 1.05)} KM/H)`);
+            game.screenShake = 3;
+            if (p.isSliding) {
+                p.isSliding = false;
+                p.h = 44;
+            }
+        }
         // Ground Jump
         p.vy = JUMP_IMPULSE * p.gravityDir;
         p.isGrounded = false;
@@ -2748,6 +2908,7 @@ function updatePhysics(rawDt) {
     } else {
         if (p.isSliding) {
             p.isSliding = false;
+            p.lastSlideTime = game.runTime;
             if (p.isGrounded && p.gravityDir === 1) {
                 p.y -= (44 - 20); // Restore height smoothly upward without floor clipping
             }
@@ -3218,7 +3379,7 @@ function checkInteractions() {
                 if (dist < 52) {
                     sh.taken = true;
                     game.shardsCollected.add(sh.id);
-                    audio.playShard();
+                    audio.playShard(game.shardsCollected.size);
                     updateShardHUD();
                     showNotification(`SECRET GEM ACQUIRED (${game.shardsCollected.size}/3)!`);
                     for (let k = 0; k < 14; k++) {
@@ -3255,6 +3416,24 @@ function updateShardHUD() {
 // ============================================================================
 // 9. VICTORY & TIME TRIAL RANKING
 // ============================================================================
+function getStageMedal(idx, time, shardsCount) {
+    if (!time || time <= 0) return null;
+    const lvl = (typeof LEVELS !== 'undefined') ? LEVELS[idx] : null;
+    if (!lvl) return null;
+    const targetParTime = (lvl.length / lvl.startSpeed) * 0.95;
+
+    if (time <= targetParTime * 0.88 && shardsCount >= 3) {
+        return { tier: 'DIAMOND', icon: '💎', label: 'AUTHOR DIAMOND MEDAL', color: 'text-cyan-300' };
+    } else if (time <= targetParTime) {
+        return { tier: 'GOLD', icon: '🥇', label: 'GOLD SPEEDRUN MEDAL', color: 'text-amber-400' };
+    } else if (time <= targetParTime * 1.15) {
+        return { tier: 'SILVER', icon: '🥈', label: 'SILVER MEDAL', color: 'text-neutral-300' };
+    } else {
+        return { tier: 'BRONZE', icon: '🥉', label: 'BRONZE MEDAL', color: 'text-amber-600' };
+    }
+}
+window.getStageMedal = getStageMedal;
+
 function triggerVictory() {
     if (game.victory) return;
     game.victory = true;
@@ -3273,7 +3452,7 @@ function triggerVictory() {
 
     saveRunToLeaderboard(game.currentLevelIdx, finalTime, shardsCount, game.selectedAbility);
 
-    // Save Ghost Run for Challenge Links
+    // Save Ghost Run for Challenge Links & Solo PB Ghost
     game.lastCompletedGhost = {
         tag: game.pilotTag,
         stage: game.currentLevelIdx,
@@ -3281,6 +3460,36 @@ function triggerVictory() {
         skin: dailySystem.activeSkin,
         path: [...game.ghostRecord]
     };
+
+    // Calculate and Save Stage Medal
+    const medal = getStageMedal(game.currentLevelIdx, finalTime, shardsCount);
+    if (medal) {
+        try {
+            const medalKey = `neon_pulse_medal_${game.currentLevelIdx}`;
+            const prevMedal = localStorage.getItem(medalKey);
+            const medalRanks = { 'BRONZE': 1, 'SILVER': 2, 'GOLD': 3, 'DIAMOND': 4 };
+            if (!prevMedal || (medalRanks[medal.tier] || 0) > (medalRanks[prevMedal] || 0)) {
+                localStorage.setItem(medalKey, medal.tier);
+            }
+        } catch(e) {}
+
+        const medalIcon = document.getElementById('vic-medal-icon');
+        const medalTier = document.getElementById('vic-medal-tier');
+        const medalDesc = document.getElementById('vic-medal-desc');
+        const targetTimeEl = document.getElementById('vic-target-time');
+        if (medalIcon) medalIcon.innerText = medal.icon;
+        if (medalTier) {
+            medalTier.innerText = medal.label;
+            medalTier.className = `text-xs font-cyber font-bold tracking-wider ${medal.color}`;
+        }
+        if (medalDesc) {
+            if (medal.tier === 'DIAMOND') medalDesc.innerText = "DEV AUTHOR TIME + ALL 3 SHARDS!";
+            else if (medal.tier === 'GOLD') medalDesc.innerText = "Gold speedrun target par time achieved!";
+            else if (medal.tier === 'SILVER') medalDesc.innerText = "Silver standard completed!";
+            else medalDesc.innerText = "Bronze completion medal awarded!";
+        }
+        if (targetTimeEl) targetTimeEl.innerText = `PAR: ${formatTime(targetParTime)}`;
+    }
 
     // Multiplayer Finish Notification
     if (game.isMultiplayer && typeof MP !== 'undefined') {
@@ -3294,6 +3503,10 @@ function triggerVictory() {
         if (!prevPb || finalTime < parseFloat(prevPb)) {
             localStorage.setItem(pbKey, finalTime.toString());
             localStorage.setItem(`neon_pulse_shards_${game.currentLevelIdx}`, shardsCount.toString());
+            // Save Solo PB Ghost Run
+            try {
+                localStorage.setItem(`neon_pulse_pb_ghost_${game.currentLevelIdx}`, JSON.stringify(game.lastCompletedGhost));
+            } catch(e) {}
             if (pbNotif) pbNotif.classList.remove('hidden');
         } else {
             if (pbNotif) pbNotif.classList.add('hidden');
@@ -4733,12 +4946,16 @@ function drawGhostRunner(ctx) {
 
     ctx.save();
     ctx.translate(frame.x + 11, frame.y + (frame.s ? 10 : 22));
-    ctx.globalAlpha = 0.55;
+    ctx.globalAlpha = 0.50;
 
-    ctx.strokeStyle = '#38bdf8';
-    ctx.fillStyle = '#0284c7';
-    ctx.shadowColor = '#38bdf8';
-    ctx.shadowBlur = 14;
+    const isPB = !game.isChallengeMode || (game.ghostData && game.ghostData.isPB);
+    const ghostColor = isPB ? '#38bdf8' : '#ec4899';
+    const ghostFill = isPB ? '#0284c7' : '#be185d';
+
+    ctx.strokeStyle = ghostColor;
+    ctx.fillStyle = ghostFill;
+    ctx.shadowColor = ghostColor;
+    ctx.shadowBlur = 16;
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
 
@@ -4766,10 +4983,23 @@ function drawGhostRunner(ctx) {
         ctx.stroke();
     }
 
+    // Hologram Scanlines
+    ctx.strokeStyle = ghostColor;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.25;
+    for (let sl = -20; sl <= 15; sl += 6) {
+        ctx.beginPath();
+        ctx.moveTo(-12, sl);
+        ctx.lineTo(12, sl);
+        ctx.stroke();
+    }
+
+    ctx.globalAlpha = 0.9;
     ctx.font = "bold 9px 'JetBrains Mono', monospace";
-    ctx.fillStyle = '#38bdf8';
+    ctx.fillStyle = ghostColor;
     ctx.textAlign = 'center';
-    if (ctx.fillText) ctx.fillText(`👻 ${game.ghostData.tag || 'GHOST'}`, 0, -26);
+    const ghostLabel = isPB ? `👻 PB (${formatTime(game.ghostData.time || 0)})` : `👻 ${game.ghostData.tag || 'RIVAL'} (${formatTime(game.ghostData.time || 0)})`;
+    if (ctx.fillText) ctx.fillText(ghostLabel, 0, -26);
 
     ctx.restore();
 }
@@ -4783,14 +5013,17 @@ function exportGhostRun() {
         const payload = JSON.stringify(game.lastCompletedGhost);
         const encoded = btoa(encodeURIComponent(payload));
         const url = `${window.location.origin}${window.location.pathname}#challenge=${encoded}`;
+        const stageName = (typeof LEVELS !== 'undefined' && LEVELS[game.currentLevelIdx]) ? LEVELS[game.currentLevelIdx].name : `Stage ${game.currentLevelIdx + 1}`;
+        const timeStr = formatTime(game.lastCompletedGhost.time);
+        
         if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(url).then(() => {
-                showNotification("🔗 CHALLENGE LINK COPIED TO CLIPBOARD!");
+                showNotification(`🔗 COPIED! "Beat my ${timeStr} on ${stageName}!"`);
             }).catch(() => {
-                prompt("Copy your Challenge URL:", url);
+                prompt("Copy your Challenge URL to share:", url);
             });
         } else {
-            prompt("Copy your Challenge URL:", url);
+            prompt("Copy your Challenge URL to share:", url);
         }
     } catch(e) {
         showNotification("⚠️ FAILED TO ENCODE GHOST RUN");
@@ -4814,8 +5047,10 @@ function loadGhostChallenge(raw) {
             throw new Error("Invalid structure");
         }
         game.ghostData = decoded;
+        game.ghostData.isPB = false;
         game.ghostActive = true;
-        showNotification(`👻 LOADED GHOST: ${decoded.tag} (${formatTime(decoded.time)})!`);
+        game.isChallengeMode = true;
+        showNotification(`⚔️ CHALLENGE LOADED: Beat ${decoded.tag} (${formatTime(decoded.time)})!`);
 
         const mpModal = document.getElementById('modal-multiplayer');
         if (mpModal) mpModal.classList.add('hidden');
@@ -6693,6 +6928,30 @@ function startLevel(idx, skipCountdown = false) {
     setPause(false);
     resetPlayerState();
 
+    // Auto-load Solo PB Ghost in time trials
+    if (!game.isMultiplayer && !game.isChallengeMode) {
+        try {
+            const pbGhostRaw = localStorage.getItem(`neon_pulse_pb_ghost_${idx}`);
+            if (pbGhostRaw) {
+                const pbGhost = JSON.parse(pbGhostRaw);
+                if (pbGhost && pbGhost.path && pbGhost.path.length > 0) {
+                    game.ghostData = pbGhost;
+                    game.ghostData.isPB = true;
+                    game.ghostActive = true;
+                } else {
+                    game.ghostActive = false;
+                    game.ghostData = null;
+                }
+            } else {
+                game.ghostActive = false;
+                game.ghostData = null;
+            }
+        } catch(e) {
+            game.ghostActive = false;
+            game.ghostData = null;
+        }
+    }
+
     const mainMenu = document.getElementById('screen-main-menu');
     const ingameHeader = document.getElementById('ingame-header');
     const endlessBadge = document.getElementById('hud-endless-badge');
@@ -6971,6 +7230,8 @@ function populateStageMenu() {
             if (storedShards) bestShards = parseInt(storedShards, 10) || 0;
         } catch(e) {}
 
+        const medal = (typeof getStageMedal === 'function') ? getStageMedal(idx, pbTime, bestShards) : null;
+
         const card = document.createElement('div');
         const isCurrent = idx === game.currentLevelIdx;
         card.className = `p-2.5 rounded-lg border transition cursor-pointer flex flex-col justify-between ${
@@ -6981,9 +7242,12 @@ function populateStageMenu() {
 
         card.innerHTML = `
             <div class="flex items-center justify-between">
-                <span class="text-[9px] font-cyber font-bold px-1.5 py-0.5 rounded" style="background:${lvl.color}22; color:${lvl.color}; border:1px solid ${lvl.color}44;">
-                    S${lvl.sectorId}
-                </span>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[9px] font-cyber font-bold px-1.5 py-0.5 rounded" style="background:${lvl.color}22; color:${lvl.color}; border:1px solid ${lvl.color}44;">
+                        S${lvl.sectorId}
+                    </span>
+                    ${medal ? `<span class="text-xs filter drop-shadow-[0_0_6px_rgba(245,158,11,0.5)]" title="${medal.label}">${medal.icon}</span>` : ''}
+                </div>
                 <span class="text-[9px] font-cyber ${lvl.difficulty === 'DEMON' || lvl.difficulty === 'NEARLY IMPOSSIBLE' ? 'text-pink-400 font-bold' : 'text-neutral-400'}">
                     ${lvl.difficulty}
                 </span>
