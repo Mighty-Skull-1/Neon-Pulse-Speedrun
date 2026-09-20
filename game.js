@@ -4,6 +4,76 @@
  */
 
 // ============================================================================
+// 0. GLOBAL PROGRESS RESET & SAVE VERSIONING
+// ============================================================================
+const CURRENT_SAVE_VERSION = "2026_09_FRESH_START_V2";
+function executeGlobalProgressReset(force = false) {
+    try {
+        if (typeof localStorage === 'undefined') return false;
+        const storedVersion = localStorage.getItem('neon_pulse_save_version');
+        if (force || storedVersion !== CURRENT_SAVE_VERSION) {
+            console.log('[NeonPulse] Global progress reset initiated: New fresh season starting.');
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('neon_pulse_') || key.startsWith('neon_runner_'))) {
+                    // Retain audio preferences, but wipe all gameplay progress, PBs, shards, medals, ghosts, skins
+                    if (key !== 'neon_pulse_vol_music' && key !== 'neon_pulse_vol_sfx') {
+                        keysToRemove.push(key);
+                    }
+                }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+
+            // Set clean baseline for all players
+            localStorage.setItem('neon_pulse_save_version', CURRENT_SAVE_VERSION);
+            localStorage.setItem('neon_pulse_active_skin', 'cyan');
+            localStorage.setItem('neon_pulse_active_trail', 'pulse_dash');
+            localStorage.setItem('neon_pulse_unlocked_skins', JSON.stringify(['cyan']));
+            localStorage.setItem('neon_pulse_unlocked_trails', JSON.stringify(['pulse_dash']));
+            localStorage.setItem('neon_pulse_daily_save', JSON.stringify({
+                streak: 1,
+                lastClaimTimestamp: 0,
+                unlockedSkins: ['cyan'],
+                activeSkin: 'cyan'
+            }));
+            localStorage.setItem('neon_pulse_top_speed', '0');
+
+            if (typeof window !== 'undefined' && window.lockerSystem) {
+                window.lockerSystem.activeSkin = 'cyan';
+                window.lockerSystem.activeTrail = 'pulse_dash';
+                window.lockerSystem.previewSkin = 'cyan';
+                window.lockerSystem.previewTrail = 'pulse_dash';
+                window.lockerSystem.unlockedSkins = new Set(['cyan']);
+                window.lockerSystem.unlockedTrails = new Set(['pulse_dash']);
+                window.lockerSystem.updateUI();
+            }
+            if (typeof window !== 'undefined' && window.dailySystem) {
+                window.dailySystem.streak = 1;
+                window.dailySystem.lastClaimTimestamp = 0;
+                window.dailySystem.unlockedSkins = new Set(['cyan']);
+                window.dailySystem.activeSkin = 'cyan';
+                window.dailySystem.updateBadge();
+            }
+
+            return true;
+        }
+    } catch(e) {
+        console.warn('[NeonPulse] Reset error:', e);
+    }
+    return false;
+}
+
+const wasResetOnLoad = executeGlobalProgressReset(false);
+window.executeGlobalProgressReset = executeGlobalProgressReset;
+window.resetAllProgress = () => {
+    executeGlobalProgressReset(true);
+    if (typeof location !== 'undefined' && location.reload) {
+        location.reload();
+    }
+};
+
+// ============================================================================
 // 1. SOUND ENGINE (Web Audio API Synthesizer)
 // ============================================================================
 class SoundEngine {
@@ -9502,6 +9572,14 @@ window.onload = function() {
     game.level = JSON.parse(JSON.stringify(LEVELS[0]));
     resetPlayerState();
     returnToMainMenu();
+
+    if (wasResetOnLoad) {
+        setTimeout(() => {
+            if (typeof showNotification === 'function') {
+                showNotification("✨ ALL PROGRESS RESET! ENJOY THE FRESH START!");
+            }
+        }, 600);
+    }
 
     if (typeof window !== 'undefined' && window.location && window.location.hash) {
         if (window.location.hash.includes('challenge=')) {

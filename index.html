@@ -760,6 +760,9 @@
                     <button id="btn-pause-main-menu" onclick="const m=document.getElementById('modal-pause');if(m){m.classList.add('hidden');m.style.display='none';}if(typeof MP!=='undefined'&&MP.connected)MP.expireSession('ABANDONED BY PLAYER');if(window.returnToMainMenu)window.returnToMainMenu();" class="cursor-pointer pointer-events-auto py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-800 transition">
                         🏠 MAIN MENU
                     </button>
+                    <button id="btn-pause-reset-all" onclick="if(confirm('RESET ALL PROGRESS: Clear all personal bests, ghost runs, medals, and start completely fresh?')){ if(window.resetAllProgress)window.resetAllProgress(); }" class="cursor-pointer pointer-events-auto py-1.5 px-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 hover:text-rose-300 font-cyber text-[10px] tracking-wider rounded border border-rose-900/50 hover:border-rose-500 transition flex items-center justify-center gap-1">
+                        <span>⚠️</span> RESET ALL GAME PROGRESS
+                    </button>
                 </div>
 
                 <!-- Audio Volume Controls in Pause Menu -->
@@ -1137,6 +1140,6 @@
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=3.7"></script>
+    <script src="game.js?v=3.8"></script>
 </body>
 </html>
