@@ -34,6 +34,9 @@
                 <button id="btn-leaderboard-open" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition flex items-center gap-1">
                     <span>🏆</span>
                 </button>
+                <button id="btn-achievements-open" class="px-2 py-1 bg-amber-950/60 hover:bg-amber-900/70 border border-amber-500/70 hover:border-amber-400 text-xs font-cyber tracking-wider text-amber-300 rounded transition flex items-center gap-1" title="Achievements Matrix [A]">
+                    <span>⭐</span>
+                </button>
                 <button id="btn-pause" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition" title="Pause [ESC / P]">
                     <span>⏸</span>
                 </button>
@@ -182,6 +185,33 @@
                 <span>AI PILOT ACTIVE — PRESS [SPACE] TO TAKE CONTROLS</span>
             </div>
 
+            <!-- Steam-Style Achievement Unlock Popup Banner (Bottom-Right) -->
+            <div id="toast-achievement" class="hidden absolute bottom-5 right-5 z-50 max-w-sm bg-neutral-950/95 border-2 border-amber-400 rounded-xl p-3 shadow-[0_0_35px_rgba(245,158,11,0.7)] flex items-center gap-3.5 transition-all duration-300 pointer-events-none transform translate-y-3 opacity-0">
+                <div class="w-11 h-11 rounded-lg bg-amber-500/20 border border-amber-400 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.5)] shrink-0" id="toast-ach-icon">
+                    ⭐
+                </div>
+                <div class="flex flex-col text-left overflow-hidden">
+                    <div class="text-[9px] font-cyber font-bold tracking-widest text-amber-400 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span> ACHIEVEMENT UNLOCKED!
+                    </div>
+                    <div id="toast-ach-title" class="text-xs font-cyber font-bold text-white tracking-wide truncate">
+                        SOUND BARRIER
+                    </div>
+                    <div id="toast-ach-desc" class="text-[10px] text-neutral-300 font-mono leading-tight mt-0.5 truncate">
+                        Break 500 km/h on the speedometer.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gamepad Connected / Disconnected Toast -->
+            <div id="toast-gamepad" class="hidden absolute bottom-5 left-5 z-50 bg-neutral-950/95 border border-cyan-400 rounded-lg px-3 py-2 shadow-[0_0_20px_rgba(6,182,212,0.5)] flex items-center gap-2.5 transition-all duration-300 pointer-events-none">
+                <span class="text-lg">🎮</span>
+                <div class="text-left">
+                    <div class="text-[9px] font-cyber font-bold text-cyan-400">CONTROLLER CONNECTED</div>
+                    <div id="toast-gamepad-name" class="text-[10px] font-mono font-bold text-white">XBOX WIRELESS CONTROLLER</div>
+                </div>
+            </div>
+
             <!-- Dimension Warp Screen Flash Overlay -->
             <div id="warp-overlay" class="pointer-events-none absolute inset-0 z-20 opacity-0 bg-white transition-opacity duration-500"></div>
 
@@ -275,6 +305,10 @@
                         <button id="btn-menu-ghost" class="px-2.5 py-1 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/70 text-xs font-cyber text-cyan-300 rounded flex items-center gap-1 transition cursor-pointer shadow-[0_0_8px_rgba(6,182,212,0.3)]" title="Toggle Solo Hologram Ghost [H]">
                             <span>👻</span>
                             <span id="menu-ghost-text">HOLOGRAM: ON</span>
+                        </button>
+                        <button id="btn-menu-achievements" class="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-500/70 text-xs font-cyber text-amber-300 rounded flex items-center gap-1 transition cursor-pointer shadow-[0_0_8px_rgba(245,158,11,0.3)]" title="View Steam & In-Game Achievements [A]">
+                            <span>⭐</span>
+                            <span id="btn-menu-achievements-text">ACHIEVEMENTS [A]</span>
                         </button>
                         <button id="btn-menu-fullscreen" onclick="toggleFullscreen()" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-green-400 text-xs font-cyber text-green-400 rounded flex items-center gap-1 transition cursor-pointer" title="Toggle Fullscreen [G]">
                             <span>⛶</span> <span id="btn-menu-fullscreen-text">FULLSCREEN</span>
@@ -448,47 +482,163 @@
             </div>
         </div>
 
-        <!-- MODAL: Daily Runner Rewards -->
-        <div id="modal-daily" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-            <div class="w-full max-w-2xl bg-neutral-900 border border-amber-500/80 rounded-xl p-6 shadow-[0_0_50px_rgba(245,158,11,0.25)] flex flex-col gap-4 max-h-[90vh] overflow-hidden">
+        <!-- MODAL: Daily Runner Matrix (Rotating Supply Drops & Bounties) -->
+        <div id="modal-daily" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+            <div class="w-full max-w-3xl bg-neutral-900 border border-amber-500/80 rounded-xl p-4 sm:p-6 shadow-[0_0_50px_rgba(245,158,11,0.25)] flex flex-col gap-3.5 max-h-[92vh] overflow-hidden">
                 <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">🎁</span>
-                        <div>
-                            <h2 class="text-lg font-cyber font-bold tracking-wider text-amber-400">DAILY RUNNER REWARDS</h2>
-                            <p class="text-xs text-neutral-400">Claim daily login bonuses to unlock cyber suits, particle trails, and special glows.</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-400/80 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.4)]">
+                            🎁
+                        </div>
+                        <div class="text-left">
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-base sm:text-lg font-cyber font-bold tracking-wider text-amber-400">DAILY MATRIX & BOUNTIES</h2>
+                                <span class="text-[9px] px-2 py-0.5 rounded bg-amber-950/80 border border-amber-500/50 text-amber-300 font-mono font-bold">ROTATING DAILY</span>
+                            </div>
+                            <p class="text-[11px] text-neutral-400 font-mono">Claim unique daily supply drops and complete procedural bounties to unlock rare cosmetics.</p>
                         </div>
                     </div>
-                    <button id="btn-close-daily" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700">
-                        ✕ CLOSE
+                    <button id="btn-close-daily" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition cursor-pointer">
+                        ✕ CLOSE [ESC]
                     </button>
                 </div>
 
-                <!-- 7-Day Rewards Track Cards -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 overflow-y-auto" id="daily-cards-grid">
-                    <!-- Injected dynamically via JS -->
+                <!-- Daily Status Bar: Today Date, Countdown & Streak -->
+                <div class="flex flex-wrap items-center justify-between gap-2 bg-neutral-950/80 p-2.5 rounded-lg border border-neutral-800 text-xs font-cyber">
+                    <div class="flex items-center gap-2">
+                        <span class="text-neutral-400">TODAY:</span>
+                        <span id="daily-current-date-tag" class="text-amber-400 font-bold">OCT 7 // DAY 281</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-neutral-500">RESET IN:</span>
+                            <span id="daily-reset-timer" class="text-pink-400 font-mono font-bold">--:--:--</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-950/90 border border-amber-500/50 text-amber-300">
+                            <span>🔥</span>
+                            <span>STREAK: <strong id="daily-streak-count">1 DAY</strong></span>
+                        </div>
+                        <div class="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/90 border border-cyan-500/50 text-cyan-300">
+                            <span>🪙</span>
+                            <span><strong id="daily-credits-display">1,500</strong> CR</span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Reward Claim Desk & Skin Selector -->
-                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-neutral-950 p-3 rounded-lg border border-neutral-800 mt-2">
-                    <div class="flex items-center gap-3">
-                        <div class="text-left">
-                            <div class="text-[10px] text-neutral-400 font-cyber">EQUIPPED EXOSUIT SKIN:</div>
-                            <div id="equipped-skin-name" class="text-xs font-cyber font-bold text-cyan-300">CYBER CYAN (DEFAULT)</div>
+                <!-- Main Content Split: Today's Rotating Supply Drop & Procedural Bounties -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 overflow-y-auto max-h-[56vh] pr-1">
+                    <!-- Left: Today's Rotating Supply Drop Showcase (5 cols) -->
+                    <div class="md:col-span-5 bg-neutral-950 p-3.5 rounded-xl border border-amber-500/40 flex flex-col items-center text-center justify-between shadow-[0_0_20px_rgba(245,158,11,0.15)] relative overflow-hidden">
+                        <div class="w-full flex items-center justify-between text-[10px] font-cyber text-neutral-400 border-b border-neutral-800/80 pb-1.5 mb-2">
+                            <span>📦 ROTATING SUPPLY DROP</span>
+                            <span id="supply-drop-rarity" class="text-amber-400 font-bold">LEGENDARY DROP</span>
                         </div>
+                        
+                        <!-- Big Icon & Title -->
+                        <div class="my-auto py-2 flex flex-col items-center">
+                            <div id="supply-drop-icon" class="text-5xl my-2 filter drop-shadow-[0_0_20px_rgba(245,158,11,0.8)] animate-bounce">
+                                👑
+                            </div>
+                            <div id="supply-drop-title" class="text-base font-cyber font-bold text-amber-300 tracking-wider">
+                                APEX GOLD EXOSUIT
+                            </div>
+                            <div id="supply-drop-desc" class="text-[11px] text-neutral-400 font-mono mt-1 max-w-[220px]">
+                                Exclusive Championship Crown & Golden Radiant Exosuit
+                            </div>
+                            <div id="supply-drop-bonus" class="text-[10px] font-mono text-cyan-400 mt-2 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/40">
+                                +500 CYBER CREDITS
+                            </div>
+                        </div>
+
+                        <!-- Claim Button -->
+                        <div class="w-full pt-2">
+                            <button id="btn-claim-daily" class="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(245,158,11,0.5)] transition cursor-pointer">
+                                CLAIM SUPPLY DROP
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right: 3 Procedural Daily Bounties (7 cols) -->
+                    <div class="md:col-span-7 flex flex-col gap-2.5">
+                        <div class="flex items-center justify-between text-xs font-cyber text-neutral-300 px-1">
+                            <span class="flex items-center gap-1.5 text-cyan-400 font-bold">
+                                <span>🎯</span> TODAY'S ACTIVE BOUNTIES
+                            </span>
+                            <span class="text-[10px] text-neutral-400">REFRESHES AT 00:00 UTC</span>
+                        </div>
+
+                        <!-- Bounties List Container -->
+                        <div id="daily-bounties-container" class="flex flex-col gap-2">
+                            <!-- Injected dynamically via JS: 3 Bounties with live progress bars -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Selector & Dev Test -->
+                <div class="flex items-center justify-between bg-neutral-950 p-2.5 rounded-lg border border-neutral-800 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-neutral-400 font-cyber">EQUIPPED:</span>
+                        <span id="equipped-skin-name" class="text-xs font-cyber font-bold text-cyan-300">CYBER CYAN</span>
                         <select id="skin-select-dropdown" class="bg-neutral-900 border border-neutral-700 text-xs text-neutral-200 px-2 py-1 rounded font-cyber focus:outline-none focus:border-cyan-400">
                             <!-- Populated dynamically -->
                         </select>
                     </div>
-
                     <div class="flex items-center gap-2">
-                        <button id="btn-claim-daily" class="py-2 px-5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-cyber font-bold text-xs tracking-wider rounded shadow-[0_0_20px_rgba(245,158,11,0.5)] transition">
-                            CLAIM DAY REWARD
-                        </button>
-                        <button id="btn-instant-streak-test" title="Simulate 24hr passage to test daily unlocks immediately" class="py-1 px-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-cyan-300 font-mono text-[10px] rounded border border-neutral-700 transition">
-                            +24H TEST
+                        <button id="btn-instant-streak-test" title="Simulate 24hr passage to test next day supply drop and bounties immediately" class="py-1 px-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-cyan-300 font-mono text-[10px] rounded border border-neutral-700 transition cursor-pointer">
+                            +24H NEXT DAY SIMULATION
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Achievements & Badges Matrix (Steam Ready) -->
+        <div id="modal-achievements" class="hidden modal-backdrop absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+            <div class="w-full max-w-3xl bg-neutral-900 border border-amber-500/80 rounded-xl p-4 sm:p-6 shadow-[0_0_50px_rgba(245,158,11,0.3)] flex flex-col gap-3.5 max-h-[92vh] overflow-hidden">
+                <!-- Header -->
+                <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-400/80 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.4)]">
+                            ⭐
+                        </div>
+                        <div class="text-left">
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-base sm:text-lg font-cyber font-bold tracking-wider text-amber-400">ACHIEVEMENT MATRIX</h2>
+                                <span class="text-[9px] px-2 py-0.5 rounded bg-amber-950/80 border border-amber-500/50 text-amber-300 font-mono font-bold">STEAM READY</span>
+                            </div>
+                            <p class="text-[11px] text-neutral-400 font-mono">28 achievements spanning speed tech, campaign mastery, par times, and secrets.</p>
+                        </div>
+                    </div>
+                    <button id="btn-close-achievements" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition cursor-pointer">
+                        ✕ CLOSE [ESC]
+                    </button>
+                </div>
+
+                <!-- Progress Overview & Category Tabs -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-neutral-950/90 p-3 rounded-lg border border-neutral-800">
+                    <div class="w-full sm:w-auto flex-1 text-left">
+                        <div class="flex justify-between items-center text-[10px] font-cyber text-neutral-400 mb-1">
+                            <span>TOTAL COMPLETION</span>
+                            <span id="ach-progress-text" class="text-amber-400 font-mono font-bold">0 / 28 (0%)</span>
+                        </div>
+                        <div class="w-full h-2.5 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative">
+                            <div id="ach-progress-bar" class="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 w-0 transition-all duration-300 shadow-[0_0_12px_rgba(245,158,11,0.7)]"></div>
+                        </div>
+                    </div>
+                    <!-- Filter Pills -->
+                    <div class="flex items-center gap-1 shrink-0 overflow-x-auto w-full sm:w-auto" id="ach-filter-container">
+                        <button class="ach-filter-btn px-2.5 py-1 rounded bg-amber-950 border border-amber-500 text-amber-300 text-[10px] font-cyber font-bold transition cursor-pointer" data-filter="ALL">ALL (28)</button>
+                        <button class="ach-filter-btn px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800 text-neutral-400 text-[10px] font-cyber hover:text-white transition cursor-pointer" data-filter="TECH">TECH</button>
+                        <button class="ach-filter-btn px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800 text-neutral-400 text-[10px] font-cyber hover:text-white transition cursor-pointer" data-filter="CAMPAIGN">CAMPAIGN</button>
+                        <button class="ach-filter-btn px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800 text-neutral-400 text-[10px] font-cyber hover:text-white transition cursor-pointer" data-filter="SPEEDRUN">SPEEDRUN</button>
+                        <button class="ach-filter-btn px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800 text-neutral-400 text-[10px] font-cyber hover:text-white transition cursor-pointer" data-filter="DAILY">DAILY</button>
+                        <button class="ach-filter-btn px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800 text-neutral-400 text-[10px] font-cyber hover:text-white transition cursor-pointer" data-filter="SECRET">SECRET</button>
+                    </div>
+                </div>
+
+                <!-- Achievements Grid -->
+                <div id="achievements-cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 overflow-y-auto max-h-[55vh] pr-1">
+                    <!-- Populated dynamically via JS -->
                 </div>
             </div>
         </div>
@@ -1175,6 +1325,6 @@
     </div>
 
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=4.3"></script>
+    <script src="game.js?v=4.4"></script>
 </body>
 </html>

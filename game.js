@@ -597,6 +597,26 @@ class SoundEngine {
         } catch(e) {}
     }
 
+    playAchievement() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+            const now = this.ctx.currentTime;
+            notes.forEach((freq, idx) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                gain.gain.setValueAtTime(0.24, now + idx * 0.06);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.38);
+                osc.connect(gain);
+                gain.connect(this.getSfxDestination() || this.ctx.destination);
+                osc.start(now + idx * 0.06);
+                osc.stop(now + idx * 0.06 + 0.38);
+            });
+        } catch(e) {}
+    }
+
     startMusic(bpm) {
         this.stopMusic();
         this.currentBpm = bpm || 128;
@@ -708,7 +728,11 @@ const SKINS = [
     { id: "apex_gold", name: "APEX CHAMPION", color: "#eab308", glow: "rgba(234,179,8,1.0)", icon: "👑", unlockDay: 7, unlockDesc: "Clear 10 Stages or 7-day streak" },
     { id: "vaporwave", name: "VAPORWAVE SUNSET", color: "#f43f5e", glow: "rgba(244,63,94,0.9)", icon: "🌅", unlockDay: 8, unlockDesc: "Clear today's Daily Seeded Challenge" },
     { id: "matrix", name: "MATRIX OVERDRIVE", color: "#22c55e", glow: "rgba(34,197,94,0.9)", icon: "📟", unlockDay: 9, unlockDesc: "Reach 500+ km/h or chain 3 Slide-Hops" },
-    { id: "void_shadow", name: "VOID SHADOW", color: "#8b5cf6", glow: "rgba(139,92,246,0.9)", icon: "🌌", unlockDay: 10, unlockDesc: "Complete Dimension β (Stage 20)" }
+    { id: "void_shadow", name: "VOID SHADOW", color: "#8b5cf6", glow: "rgba(139,92,246,0.9)", icon: "🌌", unlockDay: 10, unlockDesc: "Complete Dimension β (Stage 20)" },
+    { id: "plasma_white", name: "PLASMA WHITE", color: "#f8fafc", glow: "rgba(248,250,252,0.95)", icon: "🤍", unlockDay: 11, unlockDesc: "Rotating Supply Drop or Mach 450" },
+    { id: "quantum_gold", name: "QUANTUM RELIC", color: "#fbbf24", glow: "rgba(251,191,36,0.95)", icon: "✨", unlockDay: 12, unlockDesc: "Rotating Supply Drop or 15 Gold Medals" },
+    { id: "toxic_acid", name: "TOXIC HAZARD", color: "#a3e635", glow: "rgba(163,230,53,0.95)", icon: "☣️", unlockDay: 13, unlockDesc: "Rotating Supply Drop or 1000m Marathon" },
+    { id: "cyber_chrome", name: "CYBER CHROME", color: "#38bdf8", glow: "rgba(56,189,248,0.95)", icon: "💿", unlockDay: 14, unlockDesc: "Rotating Supply Drop or Master 20 Achievements" }
 ];
 
 const TRAILS = [
@@ -717,24 +741,522 @@ const TRAILS = [
     { id: "stardust", name: "STARDUST SPARKLES", desc: "Glittering diamond star sparkles & trail", color: "#fef08a", icon: "✨", unlockDesc: "Collect 20 total shards" },
     { id: "fire_ember", name: "AFTERBURNER EMBER", desc: "Blazing rocket flame exhaust & ember sparks", color: "#f97316", icon: "🔥", unlockDesc: "Reach 350+ km/h speed" },
     { id: "rainbow_hyper", name: "HYPERDRIVE RAINBOW", desc: "Prismatic RGB chroma cycle stream", color: "#a855f7", icon: "🌈", unlockDesc: "Earn 5 Gold Medals" },
-    { id: "matrix_rain", name: "MATRIX BINARY RAIN", desc: "Cascading digital binary code glyphs", color: "#22c55e", icon: "👾", unlockDesc: "Clear today's Daily Challenge" }
+    { id: "matrix_rain", name: "MATRIX BINARY RAIN", desc: "Cascading digital binary code glyphs", color: "#22c55e", icon: "👾", unlockDesc: "Clear today's Daily Challenge" },
+    { id: "plasma_flame", name: "PLASMA FLAME", desc: "Intense searing white-hot plasma fire", color: "#ffffff", icon: "🔥", unlockDesc: "Rotating Supply Drop or Mach 400" },
+    { id: "quantum_dust", name: "QUANTUM DUST", desc: "Swirling luminous golden antimatter particles", color: "#f59e0b", icon: "✨", unlockDesc: "Rotating Supply Drop or 5 Author Medals" },
+    { id: "chroma_glitch", name: "CHROMA GLITCH", desc: "Distorted chromatic aberration cyber trail", color: "#e879f9", icon: "💫", unlockDesc: "Rotating Supply Drop or Dimension β Clear" }
 ];
 
-const DAILY_REWARDS_DATA = [
-    { day: 1, title: "+500 CREDITS", desc: "Starter Pack + Cyan Exosuit", icon: "💎", skin: "cyan" },
-    { day: 2, title: "PHANTOM SUIT", desc: "Violet Exosuit & Aura", icon: "🔮", skin: "violet" },
-    { day: 3, title: "+1500 CREDITS", desc: "Neo Emerald Skin", icon: "💚", skin: "emerald" },
-    { day: 4, title: "SOLAR FLARE", desc: "Solar Trail & Amber Glow", icon: "☀️", skin: "solar" },
-    { day: 5, title: "OVERCLOCK PERK", desc: "Blood Crimson Suit", icon: "🩸", skin: "crimson" },
-    { day: 6, title: "GLITCH SPECTER", desc: "Chameleon Shifter Skin", icon: "🧬", skin: "glitch" },
-    { day: 7, title: "APEX CHAMPION", desc: "Royal Gold Crown & Aura", icon: "👑", skin: "apex_gold" }
+const ROTATING_SUPPLY_POOL = [
+    { id: 'drop_01', type: 'skin', skinId: 'plasma_white', title: 'PLASMA WHITE EXOSUIT', desc: 'Searing white-hot radiant armor alloy', icon: '🤍', rarity: 'LEGENDARY', bonusCredits: 500 },
+    { id: 'drop_02', type: 'credits', title: '+1,500 CYBER CREDITS', desc: 'Overclocked quantum bank supply cache', icon: '🪙', rarity: 'RARE', bonusCredits: 1500 },
+    { id: 'drop_03', type: 'trail', trailId: 'plasma_flame', title: 'PLASMA FLAME TRAIL', desc: 'Searing white-hot plasma fire ribbon', icon: '🔥', rarity: 'EPIC', bonusCredits: 500 },
+    { id: 'drop_04', type: 'skin', skinId: 'violet', title: 'PHANTOM VIOLET SUIT', desc: 'Luminous violet phase-displacement weave', icon: '🔮', rarity: 'EPIC', bonusCredits: 600 },
+    { id: 'drop_05', type: 'credits', title: '+2,000 CYBER CREDITS', desc: 'High-roller syndicate credit cache', icon: '💎', rarity: 'RARE', bonusCredits: 2000 },
+    { id: 'drop_06', type: 'trail', trailId: 'quantum_dust', title: 'QUANTUM DUST TRAIL', desc: 'Golden antimatter particle stream', icon: '✨', rarity: 'LEGENDARY', bonusCredits: 750 },
+    { id: 'drop_07', type: 'skin', skinId: 'apex_gold', title: 'APEX CHAMPION SUIT', desc: 'Championship gold crown & regal aura', icon: '👑', rarity: 'LEGENDARY', bonusCredits: 1000 },
+    { id: 'drop_08', type: 'credits', title: '+2,500 CYBER CREDITS', desc: 'Dimensional rift bounty payout', icon: '🪙', rarity: 'EPIC', bonusCredits: 2500 },
+    { id: 'drop_09', type: 'trail', trailId: 'chroma_glitch', title: 'CHROMA GLITCH TRAIL', desc: 'Prismatic reality-distorting visual echoes', icon: '💫', rarity: 'LEGENDARY', bonusCredits: 800 },
+    { id: 'drop_10', type: 'skin', skinId: 'toxic_acid', title: 'TOXIC HAZARD SUIT', desc: 'Bio-luminescent acid hazard composite', icon: '☣️', rarity: 'EPIC', bonusCredits: 500 },
+    { id: 'drop_11', type: 'credits', title: '+3,000 CYBER CREDITS', desc: 'Singularity core energy dividends', icon: '💎', rarity: 'EPIC', bonusCredits: 3000 },
+    { id: 'drop_12', type: 'skin', skinId: 'quantum_gold', title: 'QUANTUM RELIC SUIT', desc: 'Gilded ancient quantum architecture frame', icon: '✨', rarity: 'LEGENDARY', bonusCredits: 1000 },
+    { id: 'drop_13', type: 'trail', trailId: 'rainbow_hyper', title: 'HYPERDRIVE RAINBOW', desc: 'Prismatic RGB chroma spectrum stream', icon: '🌈', rarity: 'EPIC', bonusCredits: 600 },
+    { id: 'drop_14', type: 'skin', skinId: 'cyber_chrome', title: 'CYBER CHROME SUIT', desc: 'Mirrored liquid mercury nano-carapace', icon: '💿', rarity: 'LEGENDARY', bonusCredits: 1200 },
+    { id: 'drop_15', type: 'credits', title: '+1,800 CYBER CREDITS', desc: 'Deep-grid speedrunner stimulus', icon: '🪙', rarity: 'RARE', bonusCredits: 1800 },
+    { id: 'drop_16', type: 'skin', skinId: 'emerald', title: 'NEO EMERALD SUIT', desc: 'Vibrant neon cyber-emerald matrix armor', icon: '💚', rarity: 'RARE', bonusCredits: 500 },
+    { id: 'drop_17', type: 'trail', trailId: 'laser_ribbon', title: 'LASER RIBBON TRAIL', desc: 'Continuous neon laser streamer line', icon: '🎗️', rarity: 'RARE', bonusCredits: 500 },
+    { id: 'drop_18', type: 'credits', title: '+2,200 CYBER CREDITS', desc: 'Speedrun guild contract completion bonus', icon: '🪙', rarity: 'RARE', bonusCredits: 2200 },
+    { id: 'drop_19', type: 'skin', skinId: 'solar', title: 'SOLAR FLARE SUIT', desc: 'Blazing solar plasma kinetic weave', icon: '☀️', rarity: 'EPIC', bonusCredits: 600 },
+    { id: 'drop_20', type: 'trail', trailId: 'stardust', title: 'STARDUST SPARKLES', desc: 'Glittering diamond cosmic stardust', icon: '✨', rarity: 'RARE', bonusCredits: 500 },
+    { id: 'drop_21', type: 'credits', title: '+2,800 CYBER CREDITS', desc: 'Hyper-velocity research grant stipend', icon: '💎', rarity: 'EPIC', bonusCredits: 2800 },
+    { id: 'drop_22', type: 'skin', skinId: 'crimson', title: 'BLOOD CRIMSON SUIT', desc: 'Aggressive crimson combat plating', icon: '🩸', rarity: 'EPIC', bonusCredits: 700 },
+    { id: 'drop_23', type: 'trail', trailId: 'fire_ember', title: 'AFTERBURNER EMBER', desc: 'Turbulent rocket exhaust flame & embers', icon: '🔥', rarity: 'RARE', bonusCredits: 500 },
+    { id: 'drop_24', type: 'credits', title: '+3,500 CYBER CREDITS', desc: 'Grandmaster runner endowment', icon: '🪙', rarity: 'EPIC', bonusCredits: 3500 },
+    { id: 'drop_25', type: 'skin', skinId: 'glitch', title: 'GLITCH SHIFTER SUIT', desc: 'Quantum flux phase-shifting exoskeleton', icon: '🧬', rarity: 'LEGENDARY', bonusCredits: 1000 },
+    { id: 'drop_26', type: 'trail', trailId: 'matrix_rain', title: 'MATRIX BINARY RAIN', desc: 'Cascading digital machine code stream', icon: '👾', rarity: 'EPIC', bonusCredits: 800 },
+    { id: 'drop_27', type: 'credits', title: '+5,000 OVERCLOCK CACHE', desc: 'Colossal jackpot antimatter credits', icon: '👑', rarity: 'LEGENDARY', bonusCredits: 5000 },
+    { id: 'drop_28', type: 'skin', skinId: 'vaporwave', title: 'VAPORWAVE SUNSET SUIT', desc: 'Neon gradient retro-futuristic runner', icon: '🌅', rarity: 'LEGENDARY', bonusCredits: 1500 }
 ];
 
+const DAILY_REWARDS_DATA = ROTATING_SUPPLY_POOL; // Legacy alias
+
+// ============================================================================
+// STEAMWORKS BRIDGE (READY FOR DESKTOP / STEAM DECK WRAPPER)
+// ============================================================================
+const SteamBridge = {
+    isAvailable: false,
+    init() {
+        if (typeof window !== 'undefined' && (window.Steamworks || window.steamAPI || window.steamworks)) {
+            this.isAvailable = true;
+            console.log('[SteamBridge] Steamworks API detected and connected!');
+        }
+    },
+    unlockAchievement(id) {
+        if (!this.isAvailable) return;
+        try {
+            if (window.steamAPI && window.steamAPI.unlockAchievement) {
+                window.steamAPI.unlockAchievement(id);
+            } else if (window.Steamworks && window.Steamworks.activateAchievement) {
+                window.Steamworks.activateAchievement(id);
+            } else if (window.steamworks && window.steamworks.achievement) {
+                window.steamworks.achievement.activate(id);
+            }
+        } catch(e) {
+            console.warn('[SteamBridge] Failed to unlock Steam achievement:', e);
+        }
+    }
+};
+
+// ============================================================================
+// STEAM READY ACHIEVEMENTS MATRIX (28 ACHIEVEMENTS)
+// ============================================================================
+const ACHIEVEMENTS = [
+    { id: "first_steps", title: "FIRST STEP", desc: "Clear Stage 01 Highline Drift", icon: "👟", category: "CAMPAIGN" },
+    { id: "mach_400", title: "SOUND BARRIER", desc: "Reach 400+ km/h velocity in any stage", icon: "⚡", category: "TECH" },
+    { id: "mach_500", title: "HYPERSONIC", desc: "Reach 500+ km/h velocity in any stage", icon: "🚀", category: "TECH" },
+    { id: "mach_600", title: "LIGHT SPEED", desc: "Reach 600+ km/h maximum hyper velocity", icon: "🌠", category: "TECH" },
+    { id: "wave_dash_initiate", title: "PHASE SURFER", desc: "Execute a Wave-Dash (Dash while grounded sliding)", icon: "🌊", category: "TECH" },
+    { id: "rocket_slide_initiate", title: "ROCKET DYNAMO", desc: "Execute a Rocket Slide (Thruster Burst while sliding)", icon: "🧨", category: "TECH" },
+    { id: "slide_hop_chain", title: "MOMENTUM GOD", desc: "Chain 3 or more Slide-Hops without breaking momentum", icon: "🦘", category: "TECH" },
+    { id: "chrono_dodge", title: "TEMPORAL SHIFT", desc: "Pass through a deadly laser beam during Chrono Shift", icon: "⏱️", category: "TECH" },
+    { id: "sector_clear_1", title: "DISTRICT RUNNER", desc: "Clear Sector 1 (Stages 01 & 02)", icon: "🏙️", category: "CAMPAIGN" },
+    { id: "sector_clear_5", title: "APEX VICTOR", desc: "Clear Dimension α (Stages 01 through 10)", icon: "🏆", category: "CAMPAIGN" },
+    { id: "stage_20_clear", title: "SINGULARITY BREACH", desc: "Conquer Dimension β Final Abyss (Stage 20)", icon: "🌌", category: "CAMPAIGN" },
+    { id: "flawless_run", title: "UNTOUCHABLE", desc: "Complete any stage with 0 deaths or resets", icon: "🛡️", category: "SPEEDRUN" },
+    { id: "first_gold_medal", title: "GOLD STANDARD", desc: "Earn your first Gold Par Medal", icon: "🥇", category: "SPEEDRUN" },
+    { id: "five_gold_medals", title: "GILDED PACESETTER", desc: "Earn 5 Gold Par Medals across stages", icon: "🌟", category: "SPEEDRUN" },
+    { id: "ten_gold_medals", title: "GOLD MASTER", desc: "Earn 10 Gold Par Medals across stages", icon: "👑", category: "SPEEDRUN" },
+    { id: "author_diamond", title: "AUTHOR'S GHOST", desc: "Beat the developer Author Diamond par time on any stage", icon: "💎", category: "SPEEDRUN" },
+    { id: "three_author_medals", title: "AUTHOR ECLIPSE", desc: "Earn 3 Author Diamond Par Medals", icon: "💠", category: "SPEEDRUN" },
+    { id: "shard_collector_10", title: "DATA HARVESTER", desc: "Collect 10 cyber shards across all stages", icon: "💠", category: "CAMPAIGN" },
+    { id: "shard_collector_50", title: "ANTIMATTER HOARDER", desc: "Collect 50 cyber shards across all stages", icon: "💎", category: "CAMPAIGN" },
+    { id: "endless_1000m", title: "MARATHONER", desc: "Survive 1,000 meters in Endless Marathon", icon: "🏃", category: "CAMPAIGN" },
+    { id: "endless_2500m", title: "INFINITY RUNNER", desc: "Survive 2,500 meters in Endless Marathon", icon: "🪐", category: "CAMPAIGN" },
+    { id: "endless_warp_5", title: "WARP HOPPER", desc: "Survive 5 hyper-speed zone warps in Endless Mode", icon: "🌀", category: "CAMPAIGN" },
+    { id: "multiplayer_win", title: "APEX DUELIST", desc: "Win a 1v1 Multiplayer Race against a rival", icon: "⚔️", category: "SPEEDRUN" },
+    { id: "daily_challenge_clear", title: "DAILY OPERATIVE", desc: "Complete today's Seeded Daily Challenge", icon: "📅", category: "DAILY" },
+    { id: "daily_streak_3", title: "DEDICATED RUNNER", desc: "Maintain a 3-day daily reward login streak", icon: "🔥", category: "DAILY" },
+    { id: "daily_streak_7", title: "WEEK OF SPEED", desc: "Maintain a 7-day daily reward login streak", icon: "🎯", category: "DAILY" },
+    { id: "all_bounties_cleared", title: "BOUNTY HUNTER", desc: "Complete all 3 procedural daily bounties in a single day", icon: "🎖️", category: "DAILY" },
+    { id: "matrix_anomaly", title: "MATRIX ANOMALY", desc: "Recover back to safety after dropping below void threshold", icon: "👾", category: "SECRET" }
+];
+
+function showAchievementToast(ach) {
+    const toast = document.getElementById('toast-achievement');
+    if (!toast) return;
+    const icon = document.getElementById('toast-ach-icon');
+    const title = document.getElementById('toast-ach-title');
+    const desc = document.getElementById('toast-ach-desc');
+    if (icon) icon.innerText = ach.icon;
+    if (title) title.innerText = ach.title;
+    if (desc) desc.innerText = ach.desc;
+
+    toast.classList.remove('hidden');
+    toast.classList.remove('opacity-0', 'translate-y-3');
+    toast.classList.add('opacity-100', 'translate-y-0');
+
+    if (toast._timer) clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-3');
+        setTimeout(() => toast.classList.add('hidden'), 350);
+    }, 4500);
+}
+
+const achievementSystem = {
+    unlocked: new Set(),
+    activeFilter: 'ALL',
+    stats: {
+        topSpeed: 0,
+        totalShards: 0,
+        maxSlideHops: 0,
+        goldMedals: 0,
+        diamondMedals: 0,
+        clearedStages: 0,
+        stage20Cleared: false,
+        endlessBestDist: 0,
+        endlessBestWarps: 0,
+        mpWins: 0,
+        dailyClears: 0,
+        streak: 1,
+        voidRecoveries: 0,
+        waveDashes: 0,
+        rocketSlides: 0,
+        laserDodges: 0
+    },
+
+    load() {
+        try {
+            const saved = localStorage.getItem('neon_pulse_achievements');
+            if (saved) {
+                const arr = JSON.parse(saved);
+                if (Array.isArray(arr)) arr.forEach(id => this.unlocked.add(id));
+            }
+            const savedStats = localStorage.getItem('neon_pulse_stats');
+            if (savedStats) {
+                const parsed = JSON.parse(savedStats);
+                Object.assign(this.stats, parsed);
+            }
+        } catch(e) {}
+        this.checkExistingUnlocks();
+        this.updateHeaderProgress();
+    },
+
+    save() {
+        try {
+            localStorage.setItem('neon_pulse_achievements', JSON.stringify(Array.from(this.unlocked)));
+            localStorage.setItem('neon_pulse_stats', JSON.stringify(this.stats));
+        } catch(e) {}
+    },
+
+    checkExistingUnlocks() {
+        try {
+            if (localStorage.getItem('neon_pulse_pb_0')) this.unlock('first_steps', false);
+            if (localStorage.getItem('neon_pulse_pb_1')) this.unlock('sector_clear_1', false);
+            if (localStorage.getItem('neon_pulse_pb_9')) this.unlock('sector_clear_5', false);
+            if (localStorage.getItem('neon_pulse_pb_19')) this.unlock('stage_20_clear', false);
+
+            let goldCount = 0;
+            let diamondCount = 0;
+            let shardTotal = 0;
+            for (let i = 0; i < 20; i++) {
+                const m = localStorage.getItem(`neon_pulse_medal_${i}`);
+                if (m === 'GOLD' || m === 'DIAMOND') goldCount++;
+                if (m === 'DIAMOND') diamondCount++;
+                const s = parseInt(localStorage.getItem(`neon_pulse_shards_${i}`) || '0', 10);
+                shardTotal += s;
+            }
+            if (goldCount >= 1) this.unlock('first_gold_medal', false);
+            if (goldCount >= 5) this.unlock('five_gold_medals', false);
+            if (goldCount >= 10) this.unlock('ten_gold_medals', false);
+            if (diamondCount >= 1) this.unlock('author_diamond', false);
+            if (diamondCount >= 3) this.unlock('three_author_medals', false);
+            if (shardTotal >= 10) this.unlock('shard_collector_10', false);
+            if (shardTotal >= 50) this.unlock('shard_collector_50', false);
+
+            const endlessBest = parseInt(localStorage.getItem('neon_pulse_endless_best') || '0', 10);
+            if (endlessBest >= 1000) this.unlock('endless_1000m', false);
+            if (endlessBest >= 2500) this.unlock('endless_2500m', false);
+
+            const topSpeed = parseInt(localStorage.getItem('neon_pulse_top_speed') || '0', 10);
+            if (topSpeed >= 400) this.unlock('mach_400', false);
+            if (topSpeed >= 500) this.unlock('mach_500', false);
+            if (topSpeed >= 600) this.unlock('mach_600', false);
+
+            if (typeof dailySystem !== 'undefined' && dailySystem.streak >= 3) this.unlock('daily_streak_3', false);
+            if (typeof dailySystem !== 'undefined' && dailySystem.streak >= 7) this.unlock('daily_streak_7', false);
+        } catch(e) {}
+    },
+
+    unlock(id, notify = true) {
+        if (this.unlocked.has(id)) return;
+        const ach = ACHIEVEMENTS.find(a => a.id === id);
+        if (!ach) return;
+
+        this.unlocked.add(id);
+        this.save();
+        this.updateHeaderProgress();
+
+        if (notify) {
+            if (typeof audio !== 'undefined' && typeof audio.playAchievement === 'function') audio.playAchievement();
+            showAchievementToast(ach);
+            SteamBridge.unlockAchievement(id);
+        }
+
+        const modal = document.getElementById('modal-achievements');
+        if (modal && !modal.classList.contains('hidden')) {
+            this.populateModal(this.activeFilter);
+        }
+    },
+
+    updateHeaderProgress() {
+        const count = this.unlocked.size;
+        const total = ACHIEVEMENTS.length;
+        const pct = Math.round((count / total) * 100);
+
+        const btnCount = document.getElementById('ingame-ach-count');
+        const mainCount = document.getElementById('main-ach-count');
+        if (btnCount) btnCount.innerText = `${count}/${total}`;
+        if (mainCount) mainCount.innerText = `${count}/${total}`;
+
+        const progText = document.getElementById('ach-progress-text');
+        const progBar = document.getElementById('ach-progress-bar');
+        if (progText) progText.innerText = `${count} / ${total} (${pct}%)`;
+        if (progBar) progBar.style.width = `${pct}%`;
+    },
+
+    populateModal(filter = 'ALL') {
+        this.activeFilter = filter;
+        const grid = document.getElementById('achievements-cards-grid');
+        if (!grid) return;
+
+        this.updateHeaderProgress();
+
+        const filterBtns = document.querySelectorAll('.ach-filter-btn');
+        filterBtns.forEach(btn => {
+            if (btn.getAttribute('data-filter') === filter) {
+                btn.className = "ach-filter-btn px-2.5 py-1 rounded bg-amber-950 border border-amber-500 text-amber-300 text-[10px] font-cyber font-bold transition cursor-pointer";
+            } else {
+                btn.className = "ach-filter-btn px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800 text-neutral-400 text-[10px] font-cyber hover:text-white transition cursor-pointer";
+            }
+        });
+
+        const list = ACHIEVEMENTS.filter(a => {
+            if (filter === 'ALL') return true;
+            return a.category === filter;
+        });
+
+        let html = '';
+        list.forEach(ach => {
+            const isUnlocked = this.unlocked.has(ach.id);
+            const isSecret = ach.category === 'SECRET' && !isUnlocked;
+
+            const icon = isSecret ? '🔒' : ach.icon;
+            const title = isSecret ? '??? SECRET ANOMALY' : ach.title;
+            const desc = isSecret ? 'Discover this classified speed stunt in the cyber void.' : ach.desc;
+
+            html += `
+                <div class="bg-neutral-950/90 border ${isUnlocked ? 'border-amber-500/80 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'border-neutral-800/80 opacity-65'} rounded-lg p-2.5 sm:p-3 flex items-center gap-3 transition">
+                    <div class="w-11 h-11 rounded-lg ${isUnlocked ? 'bg-amber-500/20 border border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]' : 'bg-neutral-900 border border-neutral-800 text-neutral-600'} flex items-center justify-center text-2xl shrink-0">
+                        ${icon}
+                    </div>
+                    <div class="flex-1 min-w-0 text-left">
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="text-xs font-cyber font-bold ${isUnlocked ? 'text-amber-400' : 'text-neutral-300'} truncate">${title}</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded ${isUnlocked ? 'bg-amber-950/90 text-amber-300 border border-amber-500/40' : 'bg-neutral-900 text-neutral-500 border border-neutral-800'}">${ach.category}</span>
+                        </div>
+                        <p class="text-[11px] text-neutral-400 font-mono mt-0.5 line-clamp-2">${desc}</p>
+                        <div class="mt-1 flex items-center gap-2">
+                            ${isUnlocked ? '<span class="text-[9px] font-cyber text-emerald-400 font-bold flex items-center gap-1"><span>✓</span> UNLOCKED</span>' : '<span class="text-[9px] font-cyber text-neutral-500">🔒 LOCKED</span>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        grid.innerHTML = html;
+    },
+
+    openModal() {
+        const modal = document.getElementById('modal-achievements');
+        if (!modal) return;
+        this.populateModal(this.activeFilter || 'ALL');
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        if (!game.inMainMenu) setPause(true);
+    },
+
+    closeModal() {
+        const modal = document.getElementById('modal-achievements');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        if (!game.inMainMenu && !game.victory) setPause(false);
+    },
+
+    toggleModal() {
+        const modal = document.getElementById('modal-achievements');
+        if (!modal) return;
+        if (modal.classList.contains('hidden') || modal.style.display === 'none') {
+            this.openModal();
+        } else {
+            this.closeModal();
+        }
+    }
+};
+
+// ============================================================================
+// NATIVE CONTROLLER & GAMEPAD SUBSYSTEM (STEAM DECK & XBOX/PS READY)
+// ============================================================================
+function showGamepadToast(name, connected = true) {
+    const toast = document.getElementById('toast-gamepad');
+    if (!toast) return;
+    const title = toast.querySelector('.font-cyber');
+    const nameEl = document.getElementById('toast-gamepad-name');
+    if (title) title.innerText = connected ? 'CONTROLLER CONNECTED' : 'CONTROLLER DISCONNECTED';
+    if (nameEl) nameEl.innerText = name || 'STANDARD GAMEPAD';
+
+    toast.classList.remove('hidden');
+    toast.classList.remove('opacity-0', 'translate-y-3');
+    toast.classList.add('opacity-100', 'translate-y-0');
+
+    if (toast._timer) clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-3');
+        setTimeout(() => toast.classList.add('hidden'), 350);
+    }, 3500);
+}
+
+const gamepadSystem = {
+    connected: false,
+    gamepadIndex: null,
+    prevButtons: {},
+
+    init() {
+        window.addEventListener('gamepadconnected', (e) => {
+            this.connected = true;
+            this.gamepadIndex = e.gamepad.index;
+            console.log(`[Gamepad] Connected: ${e.gamepad.id} (index ${e.gamepad.index})`);
+            showGamepadToast(e.gamepad.id.slice(0, 32).toUpperCase(), true);
+            document.body.classList.add('gamepad-active');
+        });
+
+        window.addEventListener('gamepaddisconnected', (e) => {
+            if (this.gamepadIndex === e.gamepad.index) {
+                this.connected = false;
+                this.gamepadIndex = null;
+                console.log(`[Gamepad] Disconnected`);
+                showGamepadToast(e.gamepad.id.slice(0, 32).toUpperCase(), false);
+                document.body.classList.remove('gamepad-active');
+            }
+        });
+    },
+
+    update() {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        let gp = null;
+        if (this.gamepadIndex !== null && gamepads[this.gamepadIndex]) {
+            gp = gamepads[this.gamepadIndex];
+        } else {
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i]) {
+                    gp = gamepads[i];
+                    this.gamepadIndex = i;
+                    this.connected = true;
+                    break;
+                }
+            }
+        }
+        if (!gp) return;
+
+        const isPressed = (idx) => {
+            const btn = gp.buttons[idx];
+            return btn ? (typeof btn === 'object' ? btn.pressed : btn > 0.5) : false;
+        };
+        const justPressed = (idx) => {
+            const pressed = isPressed(idx);
+            const wasPressed = !!this.prevButtons[idx];
+            return pressed && !wasPressed;
+        };
+
+        const achModal = document.getElementById('modal-achievements');
+        const dailyModal = document.getElementById('modal-daily');
+        const stageModal = document.getElementById('modal-menu');
+        const lockerModal = document.getElementById('modal-locker');
+        const lbModal = document.getElementById('modal-leaderboard');
+        const howModal = document.getElementById('modal-howtoplay');
+        const mpModal = document.getElementById('modal-multiplayer');
+
+        const anyModalOpen = (achModal && !achModal.classList.contains('hidden')) ||
+                             (dailyModal && !dailyModal.classList.contains('hidden')) ||
+                             (stageModal && !stageModal.classList.contains('hidden')) ||
+                             (lockerModal && !lockerModal.classList.contains('hidden')) ||
+                             (lbModal && !lbModal.classList.contains('hidden')) ||
+                             (howModal && !howModal.classList.contains('hidden')) ||
+                             (mpModal && !mpModal.classList.contains('hidden'));
+
+        // Button 1 (B / Circle) -> Close modals
+        if (justPressed(1)) {
+            if (anyModalOpen) {
+                if (achModal) { achModal.classList.add('hidden'); achModal.style.display = 'none'; }
+                if (dailyModal) { dailyModal.classList.add('hidden'); dailyModal.style.display = 'none'; }
+                if (stageModal) { stageModal.classList.add('hidden'); stageModal.style.display = 'none'; }
+                if (lockerModal) { lockerModal.classList.add('hidden'); lockerModal.style.display = 'none'; }
+                if (lbModal && typeof closeLeaderboardModal === 'function') closeLeaderboardModal();
+                if (howModal) { howModal.classList.add('hidden'); howModal.style.display = 'none'; }
+                if (mpModal) { mpModal.classList.add('hidden'); mpModal.style.display = 'none'; }
+                if (!game.inMainMenu && !game.victory) setPause(false);
+            }
+        }
+
+        // Button 9 (Start / Options) -> Pause / Resume
+        if (justPressed(9)) {
+            if (anyModalOpen) {
+                if (achModal) { achModal.classList.add('hidden'); achModal.style.display = 'none'; }
+                if (dailyModal) { dailyModal.classList.add('hidden'); dailyModal.style.display = 'none'; }
+                if (stageModal) { stageModal.classList.add('hidden'); stageModal.style.display = 'none'; }
+                if (lockerModal) { lockerModal.classList.add('hidden'); lockerModal.style.display = 'none'; }
+                if (!game.inMainMenu && !game.victory) setPause(false);
+            } else if (!game.inMainMenu && !game.isCountingDown) {
+                setPause(!game.isPaused);
+            }
+        }
+
+        // Button 8 (Select / Back / View) -> Open Level Select
+        if (justPressed(8)) {
+            if (!anyModalOpen) {
+                if (typeof populateStageMenu === 'function') populateStageMenu();
+                if (stageModal) stageModal.classList.remove('hidden');
+                if (!game.inMainMenu) setPause(true);
+            }
+        }
+
+        // Button 12 (D-pad Up) on Main Menu -> Open Achievements
+        if (justPressed(12) && game.inMainMenu) {
+            achievementSystem.toggleModal();
+        }
+
+        // In-Game Runner Controls
+        if (!game.inMainMenu && !game.isPaused && !game.isCountingDown) {
+            // Button 0 (A / Cross) -> Jump
+            const aPressed = isPressed(0);
+            if (justPressed(0)) {
+                game.inputs.jumpHeld = true;
+                game.inputs.jumpPressedThisFrame = true;
+                game.inputs.jumpBufferTime = 0.16;
+                if (game.botDemo && typeof toggleBotDemo === 'function') toggleBotDemo(false);
+            } else if (!aPressed && this.prevButtons[0]) {
+                game.inputs.jumpHeld = false;
+            }
+
+            // Button 1 (B / Circle) or Button 13 (D-pad Down) or LT (6) or Stick Down -> Slide
+            const stickDown = gp.axes && gp.axes[1] > 0.5;
+            const slideBtn = isPressed(1) || isPressed(13) || isPressed(6) || stickDown;
+            if (slideBtn) {
+                game.inputs.slideHeld = true;
+                if (game.botDemo && typeof toggleBotDemo === 'function') toggleBotDemo(false);
+            } else if (this.prevButtons['slide']) {
+                game.inputs.slideHeld = false;
+            }
+            this.prevButtons['slide'] = slideBtn;
+
+            // Button 4 (LB) or 5 (RB) or 7 (RT) -> Phase Dash
+            if (justPressed(4) || justPressed(5) || justPressed(7)) {
+                if (typeof triggerPhaseDash === 'function') triggerPhaseDash();
+            }
+
+            // Button 2 (X / Square) -> Thruster Burst
+            if (justPressed(2)) {
+                if (typeof triggerThrusterBurst === 'function') triggerThrusterBurst();
+            }
+
+            // Button 3 (Y / Triangle) -> Chrono Pulse
+            if (justPressed(3)) {
+                if (typeof triggerChronoPulse === 'function') triggerChronoPulse();
+            }
+
+            // Button 10 (Left Stick Click) -> Quick Reset
+            if (justPressed(10)) {
+                if (typeof resetPlayerState === 'function') resetPlayerState();
+            }
+        }
+
+        for (let i = 0; i < gp.buttons.length; i++) {
+            this.prevButtons[i] = isPressed(i);
+        }
+    }
+};
+
+// ============================================================================
+// DYNAMIC DAILY SYSTEM (ROTATING SUPPLY DROPS & 3 PROCEDURAL BOUNTIES)
+// ============================================================================
 const dailySystem = {
     streak: 1,
     lastClaimTimestamp: 0,
+    lastClaimDateStr: '',
+    credits: 1500,
     unlockedSkins: new Set(["cyan"]),
     activeSkin: "cyan",
+    bounties: [],
+    bountiesDateStr: '',
 
     load() {
         try {
@@ -743,13 +1265,18 @@ const dailySystem = {
                 const parsed = JSON.parse(saved);
                 this.streak = parsed.streak || 1;
                 this.lastClaimTimestamp = parsed.lastClaimTimestamp || 0;
+                this.lastClaimDateStr = parsed.lastClaimDateStr || '';
+                this.credits = (parsed.credits !== undefined) ? parsed.credits : 1500;
                 if (parsed.unlockedSkins) {
                     parsed.unlockedSkins.forEach(s => this.unlockedSkins.add(s));
                 }
                 this.activeSkin = parsed.activeSkin || "cyan";
             }
         } catch(e) {}
+
+        this.initBountiesForToday();
         this.updateBadge();
+        this.updateCreditsDisplay();
     },
 
     save() {
@@ -757,37 +1284,317 @@ const dailySystem = {
             localStorage.setItem('neon_pulse_daily_save', JSON.stringify({
                 streak: this.streak,
                 lastClaimTimestamp: this.lastClaimTimestamp,
+                lastClaimDateStr: this.lastClaimDateStr,
+                credits: this.credits,
                 unlockedSkins: Array.from(this.unlockedSkins),
                 activeSkin: this.activeSkin
+            }));
+            localStorage.setItem('neon_pulse_daily_bounties', JSON.stringify({
+                dateStr: this.bountiesDateStr,
+                bounties: this.bounties
             }));
         } catch(e) {}
     },
 
+    updateCreditsDisplay() {
+        const el = document.getElementById('daily-credits-display');
+        if (el) el.innerText = this.credits.toLocaleString();
+    },
+
+    getTodayIndex() {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), 0, 0);
+        const diff = now - start;
+        const oneDay = 1000 * 60 * 60 * 24;
+        return Math.floor(diff / oneDay);
+    },
+
+    getTodayDateStr() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    },
+
     isClaimReady() {
+        const todayStr = this.getTodayDateStr();
+        if (this.lastClaimDateStr === todayStr) return false;
         const now = Date.now();
-        const oneDayMs = 24 * 60 * 60 * 1000;
-        return (now - this.lastClaimTimestamp) >= oneDayMs;
+        return (now - this.lastClaimTimestamp) >= (20 * 60 * 60 * 1000);
+    },
+
+    getTodaySupplyDrop() {
+        const dayIdx = this.getTodayIndex();
+        return ROTATING_SUPPLY_POOL[dayIdx % ROTATING_SUPPLY_POOL.length];
+    },
+
+    initBountiesForToday() {
+        const todayStr = this.getTodayDateStr();
+        try {
+            const savedBounties = localStorage.getItem('neon_pulse_daily_bounties');
+            if (savedBounties) {
+                const parsed = JSON.parse(savedBounties);
+                if (parsed.dateStr === todayStr && Array.isArray(parsed.bounties) && parsed.bounties.length === 3) {
+                    this.bounties = parsed.bounties;
+                    this.bountiesDateStr = todayStr;
+                    return;
+                }
+            }
+        } catch(e) {}
+
+        this.bountiesDateStr = todayStr;
+        this.bounties = this.generateBountiesForDate(todayStr);
+        this.save();
+    },
+
+    generateBountiesForDate(dateStr) {
+        let hash = 0;
+        for (let i = 0; i < dateStr.length; i++) {
+            hash = ((hash << 5) - hash) + dateStr.charCodeAt(i);
+            hash |= 0;
+        }
+        hash = Math.abs(hash);
+
+        const techBounties = [
+            { type: 'speed', goal: 400, title: 'MACH BREAKER', desc: 'Reach 400+ km/h in any run', icon: '⚡', reward: 400 },
+            { type: 'wave_dash', goal: 3, title: 'PHASE SURFER', desc: 'Execute 3 Wave-Dashes (Dash + Slide)', icon: '🌊', reward: 450 },
+            { type: 'rocket_slide', goal: 2, title: 'ROCKET RUNNER', desc: 'Execute 2 Rocket Slides (Thrust + Slide)', icon: '🧨', reward: 450 },
+            { type: 'slide_hop', goal: 2, title: 'HOPPING SPRINT', desc: 'Chain 2 Slide-Hops preserving momentum', icon: '🦘', reward: 500 }
+        ];
+
+        const challengeBounties = [
+            { type: 'daily_clear', goal: 1, title: 'DAILY OPERATIVE', desc: 'Clear today\'s Daily Seeded Level', icon: '📅', reward: 600 },
+            { type: 'gold_medal', goal: 1, title: 'GOLD STANDARD', desc: 'Earn or maintain a Gold Par Medal', icon: '🥇', reward: 500 },
+            { type: 'stage_clear', goal: 2, title: 'SECTOR CLEAR', desc: 'Complete any 2 campaign stages', icon: '🏙️', reward: 450 },
+            { type: 'chrono_dodge', goal: 1, title: 'TEMPORAL DRIFT', desc: 'Pass through a laser with Chrono Pulse', icon: '⏱️', reward: 400 }
+        ];
+
+        const enduranceBounties = [
+            { type: 'endless_dist', goal: 800, title: 'MARATHON DRIFT', desc: 'Travel 800m in Endless Marathon', icon: '🏃', reward: 500 },
+            { type: 'speed_450', goal: 450, title: 'HYPER VELOCITY', desc: 'Hit 450+ km/h top velocity', icon: '🚀', reward: 550 },
+            { type: 'stage_clear_dim2', goal: 1, title: 'DIMENSION β RUN', desc: 'Clear any stage in Dimension β (11-20)', icon: '🌌', reward: 600 }
+        ];
+
+        const b1 = techBounties[hash % techBounties.length];
+        const b2 = challengeBounties[(hash >> 2) % challengeBounties.length];
+        const b3 = enduranceBounties[(hash >> 4) % enduranceBounties.length];
+
+        return [
+            { id: 'bounty_1', ...b1, current: 0, completed: false, claimed: false },
+            { id: 'bounty_2', ...b2, current: 0, completed: false, claimed: false },
+            { id: 'bounty_3', ...b3, current: 0, completed: false, claimed: false }
+        ];
+    },
+
+    updateBountyProgress(type, amount) {
+        if (!this.bounties || this.bounties.length === 0) return;
+        let changed = false;
+
+        this.bounties.forEach(b => {
+            if (b.type === type && !b.completed) {
+                if (type === 'speed' || type === 'speed_450' || type === 'endless_dist') {
+                    if (amount > b.current) {
+                        b.current = Math.min(b.goal, amount);
+                        changed = true;
+                    }
+                } else {
+                    b.current = Math.min(b.goal, b.current + amount);
+                    changed = true;
+                }
+                if (b.current >= b.goal) {
+                    b.completed = true;
+                    if (typeof audio !== 'undefined' && typeof audio.playAbilityReady === 'function') audio.playAbilityReady();
+                    if (typeof showNotification === 'function') showNotification(`🎯 BOUNTY COMPLETED: ${b.title}!`);
+                }
+            }
+        });
+
+        if (changed) {
+            this.save();
+            const modal = document.getElementById('modal-daily');
+            if (modal && !modal.classList.contains('hidden')) {
+                this.populateDailyModal();
+            }
+        }
+    },
+
+    claimBounty(idx) {
+        const b = this.bounties[idx];
+        if (!b || !b.completed || b.claimed) return;
+        b.claimed = true;
+        this.credits += b.reward;
+        this.save();
+        this.updateCreditsDisplay();
+        if (typeof audio !== 'undefined' && typeof audio.playCoin === 'function') audio.playCoin();
+        if (typeof showNotification === 'function') showNotification(`🪙 CLAIMED +${b.reward} CREDITS!`);
+
+        if (this.bounties.every(item => item.claimed)) {
+            if (achievementSystem) achievementSystem.unlock('all_bounties_cleared');
+        }
+
+        this.populateDailyModal();
+    },
+
+    claimSupplyDrop() {
+        if (!this.isClaimReady()) return null;
+        const drop = this.getTodaySupplyDrop();
+
+        if (drop.type === 'skin' && drop.skinId) {
+            this.unlockedSkins.add(drop.skinId);
+            this.activeSkin = drop.skinId;
+            if (typeof lockerSystem !== 'undefined') {
+                lockerSystem.unlockedSkins.add(drop.skinId);
+                lockerSystem.equipSkin(drop.skinId);
+                lockerSystem.save();
+            }
+        } else if (drop.type === 'trail' && drop.trailId) {
+            if (typeof lockerSystem !== 'undefined') {
+                lockerSystem.unlockedTrails.add(drop.trailId);
+                lockerSystem.equipTrail(drop.trailId);
+                lockerSystem.save();
+            }
+        }
+
+        const streakMultiplier = Math.min(this.streak, 5);
+        const totalBonus = (drop.bonusCredits || 500) * streakMultiplier;
+        this.credits += totalBonus;
+
+        this.lastClaimTimestamp = Date.now();
+        this.lastClaimDateStr = this.getTodayDateStr();
+        this.streak = this.streak + 1;
+        this.save();
+        this.updateBadge();
+        this.updateCreditsDisplay();
+
+        if (achievementSystem) {
+            if (this.streak >= 3) achievementSystem.unlock('daily_streak_3');
+            if (this.streak >= 7) achievementSystem.unlock('daily_streak_7');
+        }
+
+        if (typeof audio !== 'undefined' && typeof audio.playAchievement === 'function') audio.playAchievement();
+        if (typeof showNotification === 'function') showNotification(`🎁 SUPPLY DROP CLAIMED: ${drop.title} (+${totalBonus} CR)!`);
+        this.populateDailyModal();
+        return drop;
     },
 
     claim() {
-        if (!this.isClaimReady()) return null;
-        const reward = DAILY_REWARDS_DATA[(this.streak - 1) % 7];
-        if (reward.skin) {
-            this.unlockedSkins.add(reward.skin);
-            this.activeSkin = reward.skin;
-            if (typeof lockerSystem !== 'undefined') lockerSystem.equipSkin(reward.skin);
-        }
-        this.lastClaimTimestamp = Date.now();
-        this.streak = (this.streak % 7) + 1;
-        this.save();
-        this.updateBadge();
-        return reward;
+        // Compatibility alias for legacy callers
+        return this.claimSupplyDrop();
     },
 
     forceSimulatePassage() {
+        this.lastClaimDateStr = 'simulated_past';
         this.lastClaimTimestamp = Date.now() - (25 * 60 * 60 * 1000);
         this.save();
         this.updateBadge();
+        this.populateDailyModal();
+        if (typeof showNotification === 'function') showNotification("⏱️ SIMULATION: 24H ADVANCED! Supply Drop is now ready to claim.");
+    },
+
+    populateDailyModal() {
+        const modal = document.getElementById('modal-daily');
+        if (!modal) return;
+
+        const dateTag = document.getElementById('daily-current-date-tag');
+        const streakCount = document.getElementById('daily-streak-count');
+        const creditsDisplay = document.getElementById('daily-credits-display');
+
+        const now = new Date();
+        const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+        if (dateTag) dateTag.innerText = `${months[now.getMonth()]} ${now.getDate()} // DAY ${this.getTodayIndex()}`;
+        if (streakCount) streakCount.innerText = `${this.streak} DAY${this.streak > 1 ? 'S' : ''}`;
+        if (creditsDisplay) creditsDisplay.innerText = this.credits.toLocaleString();
+
+        const drop = this.getTodaySupplyDrop();
+        const rarityEl = document.getElementById('supply-drop-rarity');
+        const iconEl = document.getElementById('supply-drop-icon');
+        const titleEl = document.getElementById('supply-drop-title');
+        const descEl = document.getElementById('supply-drop-desc');
+        const bonusEl = document.getElementById('supply-drop-bonus');
+        const claimBtn = document.getElementById('btn-claim-daily');
+
+        if (rarityEl) rarityEl.innerText = `${drop.rarity} DROP`;
+        if (iconEl) iconEl.innerText = drop.icon;
+        if (titleEl) titleEl.innerText = drop.title;
+        if (descEl) descEl.innerText = drop.desc;
+        if (bonusEl) bonusEl.innerText = `+${(drop.bonusCredits || 500) * Math.min(this.streak, 5)} CYBER CREDITS (${Math.min(this.streak, 5)}x STREAK)`;
+
+        const ready = this.isClaimReady();
+        if (claimBtn) {
+            if (ready) {
+                claimBtn.innerText = "CLAIM SUPPLY DROP";
+                claimBtn.disabled = false;
+                claimBtn.className = "w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(245,158,11,0.5)] transition cursor-pointer";
+            } else {
+                claimBtn.innerText = "CLAIMED FOR TODAY ✓";
+                claimBtn.disabled = true;
+                claimBtn.className = "w-full py-2.5 px-4 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs tracking-wider rounded-lg border border-neutral-700 cursor-not-allowed";
+            }
+        }
+
+        const container = document.getElementById('daily-bounties-container');
+        if (container) {
+            let bHtml = '';
+            this.bounties.forEach((b, idx) => {
+                const pct = Math.min(100, Math.floor((b.current / b.goal) * 100));
+                bHtml += `
+                    <div class="bg-neutral-950 p-2.5 rounded-lg border ${b.completed ? (b.claimed ? 'border-neutral-800 opacity-60' : 'border-cyan-500/80 shadow-[0_0_15px_rgba(6,182,212,0.2)]') : 'border-neutral-800'} flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div class="w-9 h-9 rounded-lg bg-neutral-900 border ${b.completed ? 'border-cyan-500 text-cyan-300' : 'border-neutral-800 text-neutral-400'} flex items-center justify-center text-lg shrink-0">
+                                ${b.icon}
+                            </div>
+                            <div class="min-w-0 flex-1 text-left">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-cyber font-bold ${b.completed ? 'text-cyan-300' : 'text-neutral-200'} truncate">${b.title}</span>
+                                    <span class="text-[10px] font-mono text-neutral-400">${b.current} / ${b.goal}</span>
+                                </div>
+                                <p class="text-[10px] text-neutral-400 font-mono truncate">${b.desc}</p>
+                                <div class="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden mt-1 border border-neutral-800">
+                                    <div class="h-full bg-cyan-400 transition-all duration-300" style="width: ${pct}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="shrink-0">
+                            ${b.claimed ? 
+                                '<span class="text-[10px] font-cyber text-neutral-500 font-bold px-2 py-1 rounded bg-neutral-900 border border-neutral-800">CLAIMED ✓</span>' : 
+                                (b.completed ? 
+                                    `<button onclick="dailySystem.claimBounty(${idx})" class="cursor-pointer px-2.5 py-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-cyber font-bold text-[10px] rounded shadow-[0_0_10px_rgba(6,182,212,0.5)] transition">+${b.reward} CR</button>` : 
+                                    `<span class="text-[10px] font-mono text-neutral-500 bg-neutral-900/60 px-2 py-1 rounded border border-neutral-800">+${b.reward} CR</span>`
+                                )
+                            }
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = bHtml;
+        }
+
+        const equippedSkinName = document.getElementById('equipped-skin-name');
+        const skinDropdown = document.getElementById('skin-select-dropdown');
+        if (equippedSkinName) {
+            const currentSkin = SKINS.find(s => s.id === lockerSystem.activeSkin) || SKINS[0];
+            equippedSkinName.innerText = currentSkin.name;
+        }
+        if (skinDropdown) {
+            skinDropdown.innerHTML = '';
+            SKINS.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.innerText = `${s.name} ${lockerSystem.isSkinUnlocked(s.id) ? '✓' : '🔒'}`;
+                if (s.id === lockerSystem.activeSkin) opt.selected = true;
+                skinDropdown.appendChild(opt);
+            });
+            skinDropdown.onchange = (e) => {
+                if (lockerSystem.isSkinUnlocked(e.target.value)) {
+                    lockerSystem.equipSkin(e.target.value);
+                    if (equippedSkinName) {
+                        const sk = SKINS.find(s => s.id === e.target.value);
+                        if (sk) equippedSkinName.innerText = sk.name;
+                    }
+                } else {
+                    showNotification("🔒 THIS EXOSUIT IS LOCKED!");
+                    skinDropdown.value = lockerSystem.activeSkin;
+                }
+            };
+        }
     },
 
     updateBadge() {
@@ -804,6 +1611,13 @@ const dailySystem = {
         }
     }
 };
+
+window.SteamBridge = SteamBridge;
+window.ACHIEVEMENTS = ACHIEVEMENTS;
+window.achievementSystem = achievementSystem;
+window.gamepadSystem = gamepadSystem;
+window.dailySystem = dailySystem;
+window.populateDailyModal = () => dailySystem.populateDailyModal();
 
 const lockerSystem = {
     activeSkin: 'cyan',
@@ -880,6 +1694,10 @@ const lockerSystem = {
         else if (id === 'vaporwave' && metrics.dailyCleared) unlocked = true;
         else if (id === 'matrix' && (metrics.topSpeed >= 500 || metrics.maxSlideHops >= 3)) unlocked = true;
         else if (id === 'void_shadow' && (metrics.clearedStages >= 15 || metrics.stage20Cleared)) unlocked = true;
+        else if (id === 'plasma_white' && (metrics.topSpeed >= 450 || metrics.clearedStages >= 12)) unlocked = true;
+        else if (id === 'quantum_gold' && (metrics.goldMedals >= 15 || metrics.diamondMedals >= 5)) unlocked = true;
+        else if (id === 'toxic_acid' && (metrics.clearedStages >= 14 || (typeof game !== 'undefined' && game.endlessBestDistance >= 1000))) unlocked = true;
+        else if (id === 'cyber_chrome' && (typeof achievementSystem !== 'undefined' && achievementSystem.unlocked && achievementSystem.unlocked.size >= 20)) unlocked = true;
 
         if (unlocked) {
             this.unlockedSkins.add(id);
@@ -898,6 +1716,9 @@ const lockerSystem = {
         else if (id === 'fire_ember' && metrics.topSpeed >= 350) unlocked = true;
         else if (id === 'rainbow_hyper' && metrics.goldMedals >= 5) unlocked = true;
         else if (id === 'matrix_rain' && metrics.dailyCleared) unlocked = true;
+        else if (id === 'plasma_flame' && metrics.topSpeed >= 400) unlocked = true;
+        else if (id === 'quantum_dust' && metrics.diamondMedals >= 3) unlocked = true;
+        else if (id === 'chroma_glitch' && metrics.stage20Cleared) unlocked = true;
 
         if (unlocked) {
             this.unlockedTrails.add(id);
@@ -3026,6 +3847,16 @@ function triggerPhaseDash() {
             });
         }
         showNotification("⚡ WAVE-DASH SURGE [580+ KM/H]!");
+        if (!game.inMainMenu) {
+            if (typeof achievementSystem !== 'undefined') {
+                achievementSystem.unlock('wave_dash_initiate');
+                achievementSystem.stats.waveDashes = (achievementSystem.stats.waveDashes || 0) + 1;
+                achievementSystem.save();
+            }
+            if (typeof dailySystem !== 'undefined') {
+                dailySystem.updateBountyProgress('wave_dash', 1);
+            }
+        }
     } else if (isAirborne) {
         // Hyper-Jump: Air warp + launch trajectory
         p.bonusVx = Math.min(400, (p.bonusVx || 0) + 190);
@@ -3100,6 +3931,16 @@ function triggerThrusterBurst() {
             });
         }
         showNotification("🚀 ROCKET SLIDE ACTIVATED!");
+        if (!game.inMainMenu) {
+            if (typeof achievementSystem !== 'undefined') {
+                achievementSystem.unlock('rocket_slide_initiate');
+                achievementSystem.stats.rocketSlides = (achievementSystem.stats.rocketSlides || 0) + 1;
+                achievementSystem.save();
+            }
+            if (typeof dailySystem !== 'undefined') {
+                dailySystem.updateBountyProgress('rocket_slide', 1);
+            }
+        }
     } else {
         // Airborne/Ground Thrust: Vertical plasma lift + DOUBLE-JUMP RESET!
         p.vy = JUMP_IMPULSE * 1.25 * p.gravityDir;
@@ -3337,6 +4178,10 @@ function resetPlayerState() {
 
 function killPlayer(force = false) {
     if (!force && game.player.isInvulnerable) return;
+
+    if (!game.inMainMenu) {
+        game.deathsThisRun = (game.deathsThisRun || 0) + 1;
+    }
 
     if (game.inMainMenu) {
         const skin = (typeof getActiveSkinData === 'function') ? getActiveSkinData() : { color: '#06b6d4' };
@@ -3587,6 +4432,23 @@ function updatePhysics(rawDt) {
         p.vx = baseSpeed + p.bonusVx;
     }
 
+    if (!game.inMainMenu) {
+        const kmh = Math.round(p.vx);
+        if (typeof achievementSystem !== 'undefined') {
+            if (kmh >= 400) achievementSystem.unlock('mach_400');
+            if (kmh >= 500) achievementSystem.unlock('mach_500');
+            if (kmh >= 600) achievementSystem.unlock('mach_600');
+            if (kmh > (achievementSystem.stats.topSpeed || 0)) {
+                achievementSystem.stats.topSpeed = kmh;
+                achievementSystem.save();
+            }
+        }
+        if (typeof dailySystem !== 'undefined') {
+            dailySystem.updateBountyProgress('speed', kmh);
+            if (kmh >= 450) dailySystem.updateBountyProgress('speed_450', kmh);
+        }
+    }
+
     // Dimension 2 Objective Rule Verifications
     if (!game.inMainMenu && lvl.objective && lvl.objective.type === 'SPEED_LOCK') {
         if (p.vx < 380) {
@@ -3649,11 +4511,22 @@ function updatePhysics(rawDt) {
         if (isSlideHop) {
             p.bonusVx = Math.min(420, (p.bonusVx || 0) + 140);
             p.vx = Math.min(680, p.vx + 140);
+            p.slideHopChain = (p.slideHopChain || 0) + 1;
             if (audio.playSlideHop) audio.playSlideHop();
             createSlideHopParticles(p);
             if (!game.inMainMenu) {
                 showNotification(`⚡ SLIDE-HOP BOOST! (${Math.round(p.vx * 1.05)} KM/H)`);
                 game.screenShake = 3;
+                if (typeof achievementSystem !== 'undefined') {
+                    if (p.slideHopChain >= 3) achievementSystem.unlock('slide_hop_chain');
+                    if (p.slideHopChain > (achievementSystem.stats.maxSlideHops || 0)) {
+                        achievementSystem.stats.maxSlideHops = p.slideHopChain;
+                        achievementSystem.save();
+                    }
+                }
+                if (typeof dailySystem !== 'undefined') {
+                    dailySystem.updateBountyProgress('slide_hop', 1);
+                }
             }
             if (p.isSliding) {
                 p.isSliding = false;
@@ -3791,9 +4664,19 @@ function updatePhysics(rawDt) {
     }
 
     // 11. Bottomless Void Death Check (Force kill even during phase invulnerability)
+    if (p.y > 440 && p.y <= 515 && !game.inMainMenu) {
+        p.enteredVoidZone = true;
+    }
     if (p.y > 520 || p.y < -140) {
+        p.enteredVoidZone = false;
         killPlayer(true);
         return;
+    }
+    if (p.isGrounded && p.y <= 380 && p.enteredVoidZone && !game.inMainMenu) {
+        p.enteredVoidZone = false;
+        if (typeof achievementSystem !== 'undefined') {
+            achievementSystem.unlock('matrix_anomaly');
+        }
     }
 
     // 12. Run Cycle Animation Counter
@@ -4006,14 +4889,27 @@ function checkInteractions() {
     }
 
     // 4. Lasers
-    if (!p.isInvulnerable && lvl.lasers) {
+    if (lvl.lasers) {
         for (let i = 0; i < lvl.lasers.length; i++) {
             const l = lvl.lasers[i];
             const overlapX = (p.x + p.w - 3 > l.x) && (p.x + 3 < l.x + l.w);
             const overlapY = (p.y + p.h - 2 > l.y) && (p.y + 2 < l.y + l.h);
             if (overlapX && overlapY) {
-                killPlayer();
-                return;
+                if (p.isInvulnerable || (game.abilities && game.abilities.chrono && game.abilities.chrono.activeTimer > 0)) {
+                    if (!game.inMainMenu) {
+                        if (typeof achievementSystem !== 'undefined') {
+                            achievementSystem.unlock('chrono_dodge');
+                            achievementSystem.stats.laserDodges = (achievementSystem.stats.laserDodges || 0) + 1;
+                            achievementSystem.save();
+                        }
+                        if (typeof dailySystem !== 'undefined') {
+                            dailySystem.updateBountyProgress('chrono_dodge', 1);
+                        }
+                    }
+                } else {
+                    killPlayer();
+                    return;
+                }
             }
         }
     }
@@ -4378,6 +5274,54 @@ function triggerVictory() {
             else medalDesc.innerText = "Bronze completion medal awarded!";
         }
         if (targetTimeEl) targetTimeEl.innerText = `PAR: ${formatTime(targetParTime)}`;
+    }
+
+    // Achievement & Bounty Evaluations for Stage Victory
+    if (typeof achievementSystem !== 'undefined') {
+        if (game.currentLevelIdx === 0) achievementSystem.unlock('first_steps');
+        if (game.currentLevelIdx >= 1) achievementSystem.unlock('sector_clear_1');
+        if (game.currentLevelIdx >= 9) achievementSystem.unlock('sector_clear_5');
+        if (game.currentLevelIdx >= 19) achievementSystem.unlock('stage_20_clear');
+        if ((game.deathsThisRun || 0) === 0) achievementSystem.unlock('flawless_run');
+
+        if (game.isDailyChallenge) {
+            achievementSystem.unlock('daily_challenge_clear');
+        }
+
+        if (medal) {
+            if (medal.tier === 'GOLD' || medal.tier === 'DIAMOND') {
+                achievementSystem.unlock('first_gold_medal');
+            }
+            if (medal.tier === 'DIAMOND') {
+                achievementSystem.unlock('author_diamond');
+            }
+        }
+
+        let goldTotal = 0;
+        let diamondTotal = 0;
+        let shardTotal = 0;
+        for (let i = 0; i < 20; i++) {
+            const m = localStorage.getItem(`neon_pulse_medal_${i}`);
+            if (m === 'GOLD' || m === 'DIAMOND') goldTotal++;
+            if (m === 'DIAMOND') diamondTotal++;
+            shardTotal += parseInt(localStorage.getItem(`neon_pulse_shards_${i}`) || '0', 10);
+        }
+        if (goldTotal >= 5) achievementSystem.unlock('five_gold_medals');
+        if (goldTotal >= 10) achievementSystem.unlock('ten_gold_medals');
+        if (diamondTotal >= 3) achievementSystem.unlock('three_author_medals');
+        if (shardTotal >= 10) achievementSystem.unlock('shard_collector_10');
+        if (shardTotal >= 50) achievementSystem.unlock('shard_collector_50');
+    }
+
+    if (typeof dailySystem !== 'undefined') {
+        dailySystem.updateBountyProgress('stage_clear', 1);
+        if (game.currentLevelIdx >= 10) dailySystem.updateBountyProgress('stage_clear_dim2', 1);
+        if (medal && (medal.tier === 'GOLD' || medal.tier === 'DIAMOND')) {
+            dailySystem.updateBountyProgress('gold_medal', 1);
+        }
+        if (game.isDailyChallenge) {
+            dailySystem.updateBountyProgress('daily_clear', 1);
+        }
     }
 
     // Multiplayer Finish Notification
@@ -5370,6 +6314,34 @@ function drawPlayerTrail() {
             ctx.font = 'bold 10px monospace';
             ctx.fillText(i % 2 === 0 ? '1' : '0', tr.x + 8, tr.y + tr.h / 2 + (1 - tr.alpha) * 8);
             ctx.restore();
+        } else if (trailStyle === 'plasma_flame') {
+            ctx.save();
+            ctx.fillStyle = tr.alpha > 0.4 ? '#ffffff' : '#38bdf8';
+            ctx.shadowColor = '#38bdf8';
+            ctx.shadowBlur = 14;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            ctx.beginPath();
+            ctx.arc(tr.x + 8, tr.y + tr.h / 2 + Math.sin(tr.alpha * 10) * 4, (tr.alpha * 5) + 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        } else if (trailStyle === 'quantum_dust') {
+            ctx.save();
+            ctx.translate(tr.x + 10, tr.y + tr.h / 2);
+            ctx.rotate(tr.alpha * 8);
+            ctx.fillStyle = '#f59e0b';
+            ctx.shadowColor = '#fbbf24';
+            ctx.shadowBlur = 12;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            ctx.fillRect(-3, -3, 6, 6);
+            ctx.restore();
+        } else if (trailStyle === 'chroma_glitch') {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.7);
+            ctx.fillStyle = '#ec4899';
+            ctx.fillRect(tr.x - 3, tr.y - 2, 18, tr.h);
+            ctx.fillStyle = '#06b6d4';
+            ctx.fillRect(tr.x + 3, tr.y + 2, 18, tr.h);
+            ctx.restore();
         } else {
             // pulse_dash (default)
             ctx.fillStyle = tr.color;
@@ -5934,6 +6906,7 @@ function startEndlessMode() {
     game.victory = false;
     game.attempts = 1;
     game.runTime = 0;
+    game.endlessWarpCount = 0;
     setPause(false);
 
     game.level = {
@@ -6030,6 +7003,14 @@ function updateEndlessMode(dt) {
         } catch(e) {}
     }
 
+    if (typeof achievementSystem !== 'undefined') {
+        if (game.endlessDistance >= 1000) achievementSystem.unlock('endless_1000m');
+        if (game.endlessDistance >= 2500) achievementSystem.unlock('endless_2500m');
+    }
+    if (typeof dailySystem !== 'undefined') {
+        dailySystem.updateBountyProgress('endless_dist', game.endlessDistance);
+    }
+
     p.vx = Math.min(680, 310 + Math.pow(game.endlessDistance / 80, 0.65) * 25);
 
     const distText = document.getElementById('hud-endless-dist');
@@ -6063,6 +7044,10 @@ function triggerDimensionWarp() {
     audio.playBoostPad();
     audio.playChrono();
     game.screenShake = 16;
+    game.endlessWarpCount = (game.endlessWarpCount || 0) + 1;
+    if (typeof achievementSystem !== 'undefined') {
+        if (game.endlessWarpCount >= 5) achievementSystem.unlock('endless_warp_5');
+    }
 
     const overlay = document.getElementById('warp-overlay');
     if (overlay) {
@@ -7796,6 +8781,11 @@ const MP = {
         const iWonRound = (this.myFinishTime || 999) <= (this.rivalFinishTime || 999);
         if (iWonRound) {
             this.series.myScore++;
+            if (typeof achievementSystem !== 'undefined') {
+                achievementSystem.unlock('multiplayer_win');
+                achievementSystem.stats.mpWins = (achievementSystem.stats.mpWins || 0) + 1;
+                achievementSystem.save();
+            }
         } else {
             this.series.rivalScore++;
         }
@@ -8580,6 +9570,23 @@ function startLockerPreviewAnimation() {
                 pctx.fillStyle = '#22c55e';
                 pctx.font = 'bold 9px monospace';
                 pctx.fillText(i % 2 === 0 ? '1' : '0', part.x, part.y);
+            } else if (part.style === 'plasma_flame') {
+                pctx.fillStyle = part.alpha > 0.4 ? '#ffffff' : '#38bdf8';
+                pctx.shadowColor = '#38bdf8';
+                pctx.shadowBlur = 10;
+                pctx.beginPath();
+                pctx.arc(part.x, part.y, 4, 0, Math.PI * 2);
+                pctx.fill();
+            } else if (part.style === 'quantum_dust') {
+                pctx.fillStyle = '#fbbf24';
+                pctx.shadowColor = '#f59e0b';
+                pctx.shadowBlur = 9;
+                pctx.fillRect(part.x, part.y, 4, 4);
+            } else if (part.style === 'chroma_glitch') {
+                pctx.fillStyle = '#ec4899';
+                pctx.fillRect(part.x - 2, part.y, 5, 10);
+                pctx.fillStyle = '#06b6d4';
+                pctx.fillRect(part.x + 2, part.y, 5, 10);
             } else {
                 pctx.fillStyle = skinData.color;
                 pctx.fillRect(part.x, part.y, 10, 16);
@@ -8696,6 +9703,7 @@ function startLevel(idx, skipCountdown = false) {
     game.attempts = 1;
     game.victory = false;
     game.shardsCollected.clear();
+    game.deathsThisRun = 0;
     setPause(false);
     resetPlayerState();
 
@@ -8810,6 +9818,7 @@ function returnToMainMenu() {
     const modalLb = document.getElementById('modal-leaderboard');
     const modalDaily = document.getElementById('modal-daily');
     const modalLocker = document.getElementById('modal-locker');
+    const modalAch = document.getElementById('modal-achievements');
     const modalVictory = document.getElementById('modal-victory');
     const modalHow = document.getElementById('modal-howtoplay');
     const modalMp = document.getElementById('modal-multiplayer');
@@ -8819,7 +9828,7 @@ function returnToMainMenu() {
     const seriesBadge = document.getElementById('hud-series-badge');
     const countdownOverlay = document.getElementById('overlay-race-countdown');
 
-    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalLocker, modalVictory, modalHow, modalMp, modalRaceResult];
+    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalLocker, modalAch, modalVictory, modalHow, modalMp, modalRaceResult];
     allModals.forEach(m => {
         if (m) {
             m.classList.add('hidden');
@@ -9073,73 +10082,11 @@ function populateStageMenu() {
 }
 
 function populateDailyModal() {
-    const grid = document.getElementById('daily-cards-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-
-    const currentStreak = dailySystem.streak;
-    const claimReady = dailySystem.isClaimReady();
-
-    DAILY_REWARDS_DATA.forEach((reward) => {
-        const isPast = reward.day < currentStreak;
-        const isToday = reward.day === currentStreak;
-
-        const card = document.createElement('div');
-        card.className = `p-2.5 rounded-lg border flex flex-col items-center text-center justify-between min-h-[140px] transition ${
-            isToday 
-                ? (claimReady ? 'bg-amber-950/60 border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)] animate-pulse' : 'bg-neutral-900 border-amber-500/50')
-                : isPast 
-                    ? 'bg-neutral-950/80 border-neutral-800 opacity-60' 
-                    : 'bg-neutral-950 border-neutral-800 opacity-40'
-        }`;
-
-        card.innerHTML = `
-            <div class="text-[9px] font-cyber font-bold ${isToday ? 'text-amber-400' : 'text-neutral-400'}">
-                DAY ${reward.day}
-            </div>
-            <div class="text-2xl my-1">${reward.icon}</div>
-            <div class="text-[10px] font-cyber font-bold text-neutral-100 leading-tight">${reward.title}</div>
-            <div class="text-[8px] text-neutral-400 mt-1 leading-snug">${reward.desc}</div>
-            <div class="mt-2 text-[9px] font-cyber font-bold">
-                ${isPast ? '<span class="text-emerald-400">✓ CLAIMED</span>' : isToday ? (claimReady ? '<span class="text-amber-400">READY!</span>' : '<span class="text-neutral-500">TODAY</span>') : '<span class="text-neutral-600">LOCKED</span>'}
-            </div>
-        `;
-        grid.appendChild(card);
-    });
-
-    const select = document.getElementById('skin-select-dropdown');
-    if (select) {
-        select.innerHTML = '';
-        SKINS.forEach(skin => {
-            const isUnlocked = lockerSystem.isSkinUnlocked(skin.id);
-            const opt = document.createElement('option');
-            opt.value = skin.id;
-            opt.innerText = isUnlocked ? `${skin.name} (OWNED)` : `🔒 ${skin.name} (${skin.unlockDesc})`;
-            opt.disabled = !isUnlocked;
-            if (skin.id === lockerSystem.activeSkin) opt.selected = true;
-            select.appendChild(opt);
-        });
-    }
-
-    const equippedName = document.getElementById('equipped-skin-name');
-    if (equippedName) {
-        equippedName.innerText = getActiveSkinData().name;
-        equippedName.style.color = getActiveSkinData().color;
-    }
-
-    const claimBtn = document.getElementById('btn-claim-daily');
-    if (claimBtn) {
-        if (claimReady) {
-            claimBtn.disabled = false;
-            claimBtn.className = "py-2 px-5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-cyber font-bold text-xs tracking-wider rounded shadow-[0_0_20px_rgba(245,158,11,0.5)] transition cursor-pointer";
-            claimBtn.innerText = "CLAIM DAY REWARD";
-        } else {
-            claimBtn.disabled = true;
-            claimBtn.className = "py-2 px-5 bg-neutral-800 text-neutral-500 font-cyber font-bold text-xs tracking-wider rounded cursor-not-allowed border border-neutral-700";
-            claimBtn.innerText = "CLAIMED FOR TODAY";
-        }
+    if (typeof dailySystem !== 'undefined') {
+        dailySystem.populateDailyModal();
     }
 }
+window.populateDailyModal = populateDailyModal;
 
 function toggleBotDemo(forceState) {
     game.botDemo = forceState !== undefined ? forceState : !game.botDemo;
@@ -9298,6 +10245,14 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
+    if (e.code === 'KeyA' || e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        if (typeof achievementSystem !== 'undefined') {
+            achievementSystem.toggleModal();
+        }
+        return;
+    }
+
     if (e.code === 'KeyM' || e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         populateStageMenu();
@@ -9313,6 +10268,7 @@ window.addEventListener('keydown', (e) => {
         const menuModal = document.getElementById('modal-menu');
         const lbModal = document.getElementById('modal-leaderboard');
         const dailyModal = document.getElementById('modal-daily');
+        const achModal = document.getElementById('modal-achievements');
         const howModal = document.getElementById('modal-howtoplay');
         const mpModal = document.getElementById('modal-multiplayer');
         const lockerModal = document.getElementById('modal-locker');
@@ -9320,6 +10276,7 @@ window.addEventListener('keydown', (e) => {
         const anyOpen = (menuModal && !menuModal.classList.contains('hidden')) ||
                         (lbModal && !lbModal.classList.contains('hidden')) ||
                         (dailyModal && !dailyModal.classList.contains('hidden')) ||
+                        (achModal && !achModal.classList.contains('hidden')) ||
                         (howModal && !howModal.classList.contains('hidden')) ||
                         (mpModal && !mpModal.classList.contains('hidden')) ||
                         (lockerModal && !lockerModal.classList.contains('hidden'));
@@ -9328,6 +10285,7 @@ window.addEventListener('keydown', (e) => {
             if (menuModal) { menuModal.classList.add('hidden'); menuModal.style.display = 'none'; }
             if (lbModal) { closeLeaderboardModal(); }
             if (dailyModal) { dailyModal.classList.add('hidden'); dailyModal.style.display = 'none'; }
+            if (achModal) { achModal.classList.add('hidden'); achModal.style.display = 'none'; }
             if (howModal) { howModal.classList.add('hidden'); howModal.style.display = 'none'; }
             if (mpModal) { mpModal.classList.add('hidden'); mpModal.style.display = 'none'; }
             if (lockerModal) { lockerModal.classList.add('hidden'); }
@@ -9798,6 +10756,32 @@ bindClick('btn-close-daily', () => {
     if (!game.inMainMenu) setPause(false);
 });
 
+bindClick('btn-achievements-open', () => {
+    if (typeof achievementSystem !== 'undefined') achievementSystem.openModal();
+});
+
+bindClick('btn-menu-achievements', () => {
+    if (typeof achievementSystem !== 'undefined') achievementSystem.openModal();
+});
+
+bindClick('btn-close-achievements', () => {
+    if (typeof achievementSystem !== 'undefined') achievementSystem.closeModal();
+});
+
+const achModalEl = document.getElementById('modal-achievements');
+if (achModalEl) {
+    achModalEl.addEventListener('click', (e) => {
+        if (e.target === achModalEl) {
+            if (typeof achievementSystem !== 'undefined') achievementSystem.closeModal();
+        }
+        const filterBtn = e.target.closest('.ach-filter-btn');
+        if (filterBtn && typeof achievementSystem !== 'undefined') {
+            const f = filterBtn.getAttribute('data-filter') || 'ALL';
+            achievementSystem.populateModal(f);
+        }
+    });
+}
+
 bindClick('btn-leaderboard-open', () => {
     game.openedLeaderboardFrom = 'inGame';
     setPause(true);
@@ -10243,6 +11227,9 @@ window.addEventListener('pagehide', () => {
 // ============================================================================
 const FIXED_DT = 1 / 120;
 function mainLoop(timestamp) {
+    if (typeof gamepadSystem !== 'undefined') {
+        gamepadSystem.update();
+    }
     if (!game.lastTime) game.lastTime = timestamp;
     const frameDelta = Math.min(0.06, (timestamp - game.lastTime) / 1000);
     game.lastTime = timestamp;
@@ -10265,6 +11252,11 @@ function mainLoop(timestamp) {
 }
 
 window.onload = function() {
+    if (typeof SteamBridge !== 'undefined') SteamBridge.init();
+    if (typeof achievementSystem !== 'undefined') achievementSystem.load();
+    if (typeof dailySystem !== 'undefined') dailySystem.load();
+    if (typeof gamepadSystem !== 'undefined') gamepadSystem.init();
+
     setupPilotTagInputs();
     updateCanvasViewport();
     populateStageMenu();
