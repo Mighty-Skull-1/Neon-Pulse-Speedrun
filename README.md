@@ -118,19 +118,46 @@ Personalize your runner with unlocks earned through medals, shard collection, da
 
 ## 🕹️ Controls
 
-| Action | Primary Key | Alternative / Mobile |
+| Action | Primary Key | Alternative / Gamepad |
 |---|---|---|
-| **Jump / Double Jump** | `[SPACE]` | `[W]` / `[UP]` / `[JUMP]` |
-| **Slide / Air Dive** | `[S]` | `[DOWN]` / `[SLIDE]` |
-| **Phase Dash** | `[SHIFT]` | `[DASH]` |
-| **Thruster Burst** | `[E]` | `[THRUST]` |
-| **Chrono Pulse** | `[Q]` | `[F]` / `[CHRONO]` |
-| **Pause / Resume** | `[ESC]` | `[P]` / Top `[⏸]` Button |
+| **Jump / Double Jump** | `[SPACE]` | `[W]` / `[UP]` / Gamepad `[A / ✕]` |
+| **Slide / Air Dive** | `[S]` | `[DOWN]` / Gamepad `[B / ○]` / `[LT]` |
+| **Phase Dash** | `[SHIFT]` | Gamepad `[LB]` / `[RB]` / `[RT]` |
+| **Thruster Burst** | `[E]` | Gamepad `[X / □]` |
+| **Chrono Pulse** | `[Q]` | `[F]` / Gamepad `[Y / △]` |
+| **Settings & Keybinds** | `[O]` | Header `[⚙️]` / Pause Menu |
+| **Track Builder** | Main Menu `[🛠️]` | In-Game Community Level Lab |
+| **Pause / Resume** | `[ESC]` | `[P]` / Gamepad `[START]` |
 | **Toggle Fullscreen** | `[G]` | Top `[⛶]` Button |
 | **Toggle Solo Hologram** | `[H]` | Top `[👻]` Button |
-| **Quick Restart** | `[R]` | Top `[🔄]` Button |
-| **Stage Matrix** | `[M]` | Top `[☰]` Button |
+| **Quick Restart** | `[R]` | Gamepad Left Stick Click |
+| **Stage Matrix** | `[M]` | Gamepad `[SELECT]` |
 | **Toggle AI Pilot Demo** | `[B]` | Top `[🤖 DEMO]` Button |
+
+---
+
+## 🛠️ Community Track Builder & Level Editor
+Build, playtest, and share custom obstacle courses directly in-game:
+- **Interactive Grid Editor**: Place platforms, jump pads, speed booster rings, spikes, lasers, cyber shards, and finish gates.
+- **Instant Playtest Mode**: Test run your custom course immediately with full physics and stopwatch timers.
+- **1-Click Share Codes**: Export your stage into compact shareable track codes to challenge friends, or import community tracks.
+
+---
+
+## 🚀 Steam & Desktop Executable Packaging
+Neon Pulse is 100% Steam-ready with native desktop packaging support:
+- **Steamworks SDK Bridge (`steam_bridge.js`)**: Automatically syncs the 24 in-game achievements with the Steam overlay, provides Steam Cloud sync hooks, and reports Rich Presence.
+- **Standalone Desktop Build (Electron / Tauri)**:
+  ```bash
+  # Install desktop packaging dependencies
+  npm install
+
+  # Launch desktop window
+  npm start
+
+  # Build standalone Windows installer / executable (.exe)
+  npm run build:win
+  ```
 
 ---
 

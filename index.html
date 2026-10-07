@@ -37,10 +37,13 @@
                 <button id="btn-achievements-open" class="px-2 py-1 bg-amber-950/60 hover:bg-amber-900/70 border border-amber-500/70 hover:border-amber-400 text-xs font-cyber tracking-wider text-amber-300 rounded transition flex items-center gap-1" title="Achievements Matrix [A]">
                     <span>⭐</span>
                 </button>
-                <button id="btn-pause" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition" title="Pause [ESC / P]">
+                <button id="btn-settings-open" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-xs font-cyber tracking-wider text-cyan-300 rounded transition flex items-center gap-1 cursor-pointer" title="Settings & Keybinds [O]">
+                    <span>⚙️</span>
+                </button>
+                <button id="btn-pause" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition cursor-pointer" title="Pause [ESC / P]">
                     <span>⏸</span>
                 </button>
-                <button id="btn-fullscreen" onclick="toggleFullscreen()" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-green-400 text-xs font-cyber tracking-wider text-green-300 rounded transition flex items-center gap-1" title="Fullscreen [G]">
+                <button id="btn-fullscreen" onclick="toggleFullscreen()" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-green-400 text-xs font-cyber tracking-wider text-green-300 rounded transition flex items-center gap-1 cursor-pointer" title="Fullscreen [G]">
                     <span>⛶</span> <span class="hidden sm:inline">FULLSCREEN</span>
                 </button>
             </div>
@@ -53,10 +56,15 @@
                         <span id="hud-level-name" class="text-cyan-400 font-cyber tracking-wider truncate max-w-[110px] sm:max-w-[170px]">01 // HIGHWAY ZERO</span>
                         <span id="hud-pct-text" class="text-neutral-400">0%</span>
                     </div>
-                    <!-- Millisecond Stopwatch -->
-                    <div class="flex items-center gap-1 bg-neutral-900/90 px-2 py-0.5 rounded border border-neutral-800">
-                        <span class="text-neutral-500 font-bold">TIME</span>
-                        <span id="hud-stopwatch" class="text-amber-400 font-mono text-xs font-bold tracking-wider">00:00.000</span>
+                    <!-- Millisecond Stopwatch & LiveSplit Delta -->
+                    <div class="flex items-center gap-1.5">
+                        <div id="hud-live-delta" class="hidden flex items-center gap-1 bg-emerald-950/90 border border-emerald-500/80 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)]" title="Real-Time Pace vs Personal Best">
+                            <span id="hud-live-delta-val">-0.00s</span>
+                        </div>
+                        <div class="flex items-center gap-1 bg-neutral-900/90 px-2 py-0.5 rounded border border-neutral-800">
+                            <span class="text-neutral-500 font-bold">TIME</span>
+                            <span id="hud-stopwatch" class="text-amber-400 font-mono text-xs font-bold tracking-wider">00:00.000</span>
+                        </div>
                     </div>
 
                     <!-- Live Speedometer -->
@@ -183,6 +191,25 @@
             <div id="bot-active-banner" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1 bg-cyan-950/90 border border-cyan-400 text-cyan-300 text-xs font-cyber tracking-wider rounded-full shadow-[0_0_15px_rgba(6,182,212,0.4)] pointer-events-none flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
                 <span>AI PILOT ACTIVE — PRESS [SPACE] TO TAKE CONTROLS</span>
+            </div>
+
+            <!-- Streamer Keystroke Input Overlay HUD -->
+            <div id="streamer-input-dock" class="hidden sm:flex absolute bottom-3 left-3 z-20 items-center gap-1 bg-neutral-950/85 backdrop-blur-sm border border-neutral-800 rounded-lg p-1.5 shadow-xl pointer-events-none transition-all">
+                <div id="input-key-jump" class="px-2 py-0.5 bg-neutral-900 border border-neutral-700 rounded text-[9px] font-cyber font-bold text-neutral-400 transition-all duration-75">
+                    JUMP
+                </div>
+                <div id="input-key-slide" class="px-2 py-0.5 bg-neutral-900 border border-neutral-700 rounded text-[9px] font-cyber font-bold text-neutral-400 transition-all duration-75">
+                    SLIDE
+                </div>
+                <div id="input-key-dash" class="px-2 py-0.5 bg-neutral-900 border border-neutral-700 rounded text-[9px] font-cyber font-bold text-cyan-400/60 transition-all duration-75">
+                    DASH
+                </div>
+                <div id="input-key-thrust" class="px-2 py-0.5 bg-neutral-900 border border-neutral-700 rounded text-[9px] font-cyber font-bold text-amber-400/60 transition-all duration-75">
+                    THRUST
+                </div>
+                <div id="input-key-chrono" class="px-2 py-0.5 bg-neutral-900 border border-neutral-700 rounded text-[9px] font-cyber font-bold text-purple-400/60 transition-all duration-75">
+                    CHRONO
+                </div>
             </div>
 
             <!-- Steam-Style Achievement Unlock Popup Banner (Bottom-Right) -->
@@ -376,6 +403,12 @@
                     <div class="flex flex-wrap items-center justify-center gap-2 mt-2.5 w-full max-w-lg">
                         <button id="btn-main-locker" class="py-1.5 px-3 bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/70 hover:border-cyan-400 text-cyan-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.3)] cursor-pointer">
                             <span>🎨</span> CYBER LOCKER
+                        </button>
+                        <button id="btn-main-builder" class="py-1.5 px-3 bg-purple-950/60 hover:bg-purple-900/80 border border-purple-500/70 hover:border-purple-400 text-purple-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(168,85,247,0.3)] cursor-pointer">
+                            <span>🛠️</span> TRACK BUILDER
+                        </button>
+                        <button id="btn-main-settings" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-cyan-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.25)] cursor-pointer">
+                            <span>⚙️</span> SETTINGS & KEYS
                         </button>
                         <button id="btn-main-random" onclick="if(window.playRandomStage)window.playRandomStage();" class="py-1.5 px-3 bg-amber-950/50 hover:bg-amber-900/70 border border-amber-500/60 hover:border-amber-400 text-amber-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.25)] cursor-pointer">
                             <span>🎲</span> RANDOM QUICK
@@ -925,6 +958,9 @@
                     <button id="btn-pause-fullscreen" onclick="toggleFullscreen()" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-green-300 font-cyber text-xs tracking-wider rounded border border-neutral-700 hover:border-green-400 transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <span>⛶</span> FULLSCREEN [G]
                     </button>
+                    <button id="btn-pause-settings" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-cyan-300 font-cyber text-xs tracking-wider rounded border border-neutral-700 hover:border-cyan-400 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span>⚙️</span> SETTINGS & CONTROLS [O]
+                    </button>
                     <button id="btn-pause-stages" class="py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-700 transition cursor-pointer">
                         ☰ STAGES & SKILLS
                     </button>
@@ -1322,9 +1358,218 @@
                 </div>
             </div>
         </div>
+
+        <!-- MODAL: Settings & Custom Key Rebinding -->
+        <div id="modal-settings" class="hidden modal-backdrop absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+            <div class="w-full max-w-2xl bg-neutral-900 border border-neutral-700 rounded-xl p-4 sm:p-5 shadow-2xl flex flex-col gap-3.5 max-h-[92vh] overflow-hidden">
+                <div class="flex items-center justify-between border-b border-neutral-800 pb-2.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">⚙️</span>
+                        <div>
+                            <h2 class="text-base sm:text-lg font-cyber font-bold tracking-wider text-cyan-400">SETTINGS & CONTROLS</h2>
+                            <p class="text-[10px] text-neutral-400 font-mono">Personalize visuals, accessibility, audio synth & key mappings</p>
+                        </div>
+                    </div>
+                    <button id="btn-close-settings" class="w-7 h-7 flex items-center justify-center rounded-lg bg-neutral-800 hover:bg-rose-900/60 text-neutral-400 hover:text-rose-300 font-mono text-sm transition cursor-pointer">✕</button>
+                </div>
+
+                <!-- Settings Tab Bar -->
+                <div class="flex gap-2 border-b border-neutral-800 pb-2">
+                    <button id="tab-settings-gameplay" class="px-3 py-1 bg-cyan-950 border border-cyan-500/70 text-cyan-300 rounded font-cyber text-xs font-bold transition cursor-pointer">GAMEPLAY & ACCESSIBILITY</button>
+                    <button id="tab-settings-keys" class="px-3 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-400 rounded font-cyber text-xs font-bold transition cursor-pointer">CUSTOM KEYBINDS</button>
+                </div>
+
+                <!-- Tab 1: Gameplay, Visuals & Audio -->
+                <div id="settings-panel-gameplay" class="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
+                    <!-- Screen Shake Slider -->
+                    <div class="bg-neutral-950 p-3 rounded-lg border border-neutral-800 space-y-1.5">
+                        <div class="flex justify-between items-center">
+                            <span class="font-cyber font-bold text-neutral-300">💥 SCREEN SHAKE INTENSITY</span>
+                            <span id="label-screenshake" class="font-mono text-cyan-400 font-bold">100%</span>
+                        </div>
+                        <p class="text-[10px] text-neutral-400">Controls camera impact impulse on landing, boosters, and crashes.</p>
+                        <input id="slider-screenshake" type="range" min="0" max="150" value="100" class="w-full accent-cyan-400 cursor-pointer">
+                    </div>
+
+                    <!-- Toggles Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <!-- Flash Toggle -->
+                        <div class="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800 flex items-center justify-between">
+                            <div>
+                                <div class="font-cyber font-bold text-neutral-300 text-[11px]">⚡ FLASHING LIGHTS</div>
+                                <div class="text-[9px] text-neutral-400">Photosensitivity & warp flashes</div>
+                            </div>
+                            <button id="btn-toggle-flashes" class="px-2.5 py-1 bg-emerald-950 border border-emerald-500/80 text-emerald-300 font-cyber text-[10px] rounded font-bold transition cursor-pointer">ENABLED</button>
+                        </div>
+                        <!-- Streamer Input Display -->
+                        <div class="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800 flex items-center justify-between">
+                            <div>
+                                <div class="font-cyber font-bold text-neutral-300 text-[11px]">⌨️ STREAMER INPUT HUD</div>
+                                <div class="text-[9px] text-neutral-400">On-screen keystroke viewer</div>
+                            </div>
+                            <button id="btn-toggle-streamer-hud" class="px-2.5 py-1 bg-emerald-950 border border-emerald-500/80 text-emerald-300 font-cyber text-[10px] rounded font-bold transition cursor-pointer">ENABLED</button>
+                        </div>
+                        <!-- LiveSplit Pace Delta -->
+                        <div class="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800 flex items-center justify-between">
+                            <div>
+                                <div class="font-cyber font-bold text-neutral-300 text-[11px]">⏱️ LIVESPLIT DELTA HUD</div>
+                                <div class="text-[9px] text-neutral-400">Real-time +/- pace vs PB</div>
+                            </div>
+                            <button id="btn-toggle-livesplit" class="px-2.5 py-1 bg-emerald-950 border border-emerald-500/80 text-emerald-300 font-cyber text-[10px] rounded font-bold transition cursor-pointer">ENABLED</button>
+                        </div>
+                        <!-- Speed Zoom Toggle -->
+                        <div class="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800 flex items-center justify-between">
+                            <div>
+                                <div class="font-cyber font-bold text-neutral-300 text-[11px]">🔍 SUPERSONIC FOV ZOOM</div>
+                                <div class="text-[9px] text-neutral-400">Camera zooms out at 400+ km/h</div>
+                            </div>
+                            <button id="btn-toggle-speed-zoom" class="px-2.5 py-1 bg-emerald-950 border border-emerald-500/80 text-emerald-300 font-cyber text-[10px] rounded font-bold transition cursor-pointer">ENABLED</button>
+                        </div>
+                    </div>
+
+                    <!-- Audio Synth Controls in Settings Modal -->
+                    <div class="bg-neutral-950 p-3 rounded-lg border border-neutral-800 space-y-2">
+                        <div class="font-cyber font-bold text-neutral-300 flex items-center gap-1.5">
+                            <span>🔊</span> AUDIO SYNTH VOLUMES
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-[10px] font-mono">
+                            <div>
+                                <div class="flex justify-between text-neutral-400 mb-1">
+                                    <span>MUSIC:</span>
+                                    <span id="settings-label-mus" class="text-cyan-400 font-bold">70%</span>
+                                </div>
+                                <input id="settings-slider-mus" type="range" min="0" max="100" value="70" class="w-full accent-cyan-400 cursor-pointer">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-neutral-400 mb-1">
+                                    <span>SFX:</span>
+                                    <span id="settings-label-sfx" class="text-amber-400 font-bold">80%</span>
+                                </div>
+                                <input id="settings-slider-sfx" type="range" min="0" max="100" value="80" class="w-full accent-amber-400 cursor-pointer">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Custom Key Rebinding -->
+                <div id="settings-panel-keys" class="hidden flex-1 overflow-y-auto space-y-2 pr-1 text-xs">
+                    <p class="text-[10px] text-neutral-400 font-mono mb-2">Click any action's key badge, then press your desired keyboard key or controller button.</p>
+                    <div id="keybinds-table" class="space-y-1.5 font-mono">
+                        <!-- Keybind rows generated dynamically by settingsSystem.populateKeybinds() -->
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-neutral-800">
+                        <button id="btn-reset-keybinds" class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-cyber text-xs rounded border border-neutral-700 transition cursor-pointer">
+                            ↺ RESET TO DEFAULTS
+                        </button>
+                        <span id="keybind-listen-indicator" class="text-amber-400 font-cyber text-xs hidden animate-pulse">PRESS ANY KEY TO BIND...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Custom Track Builder / Level Editor -->
+        <div id="modal-editor" class="hidden modal-backdrop absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col p-3 sm:p-4 overflow-hidden">
+            <!-- Editor Top Toolbar -->
+            <div class="w-full flex items-center justify-between bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-2.5 shadow-lg shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">🛠️</span>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base font-cyber font-bold tracking-wider text-purple-400">TRACK BUILDER // CUSTOM STAGE LAB</h2>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/60 text-purple-300 font-mono font-bold">COMMUNITY</span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <input id="editor-stage-name" type="text" maxlength="25" value="CUSTOM SECTOR 01" class="text-xs font-cyber font-bold text-cyan-300 bg-neutral-950 border border-neutral-700 px-2 py-0.5 rounded w-44 focus:outline-none focus:border-cyan-400 uppercase">
+                            <span class="text-[10px] font-mono text-neutral-400">LENGTH: <strong id="editor-stage-len" class="text-amber-400">3200m</strong></span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2">
+                    <button id="btn-editor-playtest" class="btn-shimmer px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 text-white font-cyber font-bold text-xs rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.5)] transition flex items-center gap-1.5 cursor-pointer">
+                        <span>▶</span> TEST RUN
+                    </button>
+                    <button id="btn-editor-export" class="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-cyan-300 font-cyber text-xs rounded border border-neutral-700 transition flex items-center gap-1 cursor-pointer" title="Export track code to clipboard">
+                        <span>📋</span> EXPORT
+                    </button>
+                    <button id="btn-editor-import" class="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-300 font-cyber text-xs rounded border border-neutral-700 transition flex items-center gap-1 cursor-pointer" title="Import track code">
+                        <span>📥</span> IMPORT
+                    </button>
+                    <button id="btn-editor-clear" class="px-2 py-1.5 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 font-cyber text-xs rounded border border-rose-800/60 transition cursor-pointer" title="Clear canvas">
+                        <span>🗑️</span>
+                    </button>
+                    <button id="btn-editor-close" class="px-3 py-1.5 bg-neutral-950 hover:bg-neutral-800 text-neutral-300 font-cyber text-xs rounded border border-neutral-800 transition cursor-pointer">
+                        ✕ EXIT
+                    </button>
+                </div>
+            </div>
+
+            <!-- Editor Main Workspace -->
+            <div class="flex-1 flex gap-3 mt-3 overflow-hidden">
+                <!-- Entity Palette Sidebar -->
+                <div class="w-48 bg-neutral-900 border border-neutral-700 rounded-xl p-3 flex flex-col gap-2 shrink-0 overflow-y-auto">
+                    <div class="text-[10px] font-cyber font-bold text-neutral-400 tracking-wider uppercase border-b border-neutral-800 pb-1.5">
+                        ENTITY PALETTE
+                    </div>
+                    <div id="editor-palette" class="flex flex-col gap-1.5 text-xs font-cyber">
+                        <button data-tool="platform" class="palette-item active flex items-center gap-2 p-2 rounded-lg bg-cyan-950/80 border border-cyan-400 text-cyan-300 font-bold transition text-left cursor-pointer">
+                            <span class="w-3.5 h-3.5 rounded-sm bg-cyan-400 shrink-0"></span>
+                            <span>PLATFORM</span>
+                        </button>
+                        <button data-tool="pad" class="palette-item flex items-center gap-2 p-2 rounded-lg bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-amber-300 transition text-left cursor-pointer">
+                            <span class="text-sm">🔼</span>
+                            <span>JUMP PAD</span>
+                        </button>
+                        <button data-tool="ring" class="palette-item flex items-center gap-2 p-2 rounded-lg bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-cyan-300 transition text-left cursor-pointer">
+                            <span class="text-sm">⭕</span>
+                            <span>SPEED RING</span>
+                        </button>
+                        <button data-tool="spike" class="palette-item flex items-center gap-2 p-2 rounded-lg bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-rose-400 transition text-left cursor-pointer">
+                            <span class="text-sm">🔺</span>
+                            <span>SPIKE</span>
+                        </button>
+                        <button data-tool="laser" class="palette-item flex items-center gap-2 p-2 rounded-lg bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-pink-400 transition text-left cursor-pointer">
+                            <span class="text-sm">⚡</span>
+                            <span>LASER BEAM</span>
+                        </button>
+                        <button data-tool="shard" class="palette-item flex items-center gap-2 p-2 rounded-lg bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-cyan-300 transition text-left cursor-pointer">
+                            <span class="text-sm">💎</span>
+                            <span>SHARD (1-3)</span>
+                        </button>
+                        <button data-tool="finish" class="palette-item flex items-center gap-2 p-2 rounded-lg bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-emerald-300 transition text-left cursor-pointer">
+                            <span class="text-sm">🏁</span>
+                            <span>FINISH GATE</span>
+                        </button>
+                        <button data-tool="eraser" class="palette-item flex items-center gap-2 p-2 rounded-lg bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-rose-300 transition text-left cursor-pointer">
+                            <span class="text-sm">🧹</span>
+                            <span>ERASER</span>
+                        </button>
+                    </div>
+
+                    <div class="mt-auto border-t border-neutral-800 pt-2 text-[10px] font-mono text-neutral-500">
+                        <div>• Drag left/right to pan</div>
+                        <div>• Click grid to place</div>
+                        <div>• Select Eraser to delete</div>
+                    </div>
+                </div>
+
+                <!-- Canvas Editor Viewport -->
+                <div class="flex-1 bg-neutral-950 border border-neutral-700 rounded-xl relative overflow-hidden flex flex-col">
+                    <canvas id="editor-canvas" class="w-full h-full block cursor-crosshair"></canvas>
+                    <!-- Floating Pan Controls -->
+                    <div class="absolute bottom-3 right-3 bg-neutral-900/90 border border-neutral-700 rounded-lg p-1.5 flex items-center gap-2 shadow-lg">
+                        <button id="btn-editor-pan-left" class="w-7 h-7 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 text-white rounded font-bold cursor-pointer">◀</button>
+                        <span id="editor-scroll-x" class="text-xs font-mono text-cyan-400 font-bold w-16 text-center">X: 0m</span>
+                        <button id="btn-editor-pan-right" class="w-7 h-7 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 text-white rounded font-bold cursor-pointer">▶</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <!-- Steamworks & Desktop Bridge -->
+    <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=4.5"></script>
+    <script src="game.js?v=5.0"></script>
 </body>
 </html>

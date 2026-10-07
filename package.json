@@ -1,0 +1,47 @@
+{
+  "name": "neon-pulse-speedrun",
+  "version": "1.0.0",
+  "description": "Neon Pulse: Precision Speedrun Edition - Steam Ready Desktop Build",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "serve": "npx serve .",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "keywords": [
+    "speedrun",
+    "platformer",
+    "neon",
+    "steam",
+    "precision"
+  ],
+  "author": "Mighty Skull",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "optionalDependencies": {
+    "steamworks.js": "^0.3.0"
+  },
+  "build": {
+    "appId": "com.mightyskull.neonpulsespeedrun",
+    "productName": "Neon Pulse Speedrun",
+    "win": {
+      "target": "nsis"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "game.js",
+      "style.css",
+      "steam_bridge.js",
+      "main.js",
+      "package.json"
+    ]
+  }
+}

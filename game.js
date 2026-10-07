@@ -1237,6 +1237,15 @@ const gamepadSystem = {
             if (justPressed(10)) {
                 if (typeof resetPlayerState === 'function') resetPlayerState();
             }
+
+            if (typeof settingsSystem !== 'undefined') {
+                settingsSystem.activeInputs.jump = isPressed(0);
+                settingsSystem.activeInputs.slide = slideBtn;
+                settingsSystem.activeInputs.dash = isPressed(4) || isPressed(5) || isPressed(7);
+                settingsSystem.activeInputs.thrust = isPressed(2);
+                settingsSystem.activeInputs.chrono = isPressed(3);
+                settingsSystem.updateStreamerHUD();
+            }
         }
 
         for (let i = 0; i < gp.buttons.length; i++) {
@@ -1612,7 +1621,601 @@ const dailySystem = {
     }
 };
 
-window.SteamBridge = SteamBridge;
+const DEFAULT_KEYBINDS = {
+    jump: ['Space', 'KeyW', 'ArrowUp'],
+    slide: ['KeyS', 'ArrowDown'],
+    dash: ['ShiftLeft', 'ShiftRight'],
+    thrust: ['KeyE'],
+    chrono: ['KeyQ', 'KeyF'],
+    restart: ['KeyR'],
+    pause: ['Escape', 'KeyP'],
+    ghost: ['KeyH'],
+    fullscreen: ['KeyG'],
+    settings: ['KeyO']
+};
+
+const settingsSystem = {
+    screenShake: 100,
+    flashesEnabled: true,
+    streamerInputDisplay: true,
+    liveSplitDelta: true,
+    speedZoom: true,
+    targetFPS: 'uncapped',
+    keybinds: JSON.parse(JSON.stringify(DEFAULT_KEYBINDS)),
+    listeningAction: null,
+    activeInputs: {
+        jump: false,
+        slide: false,
+        dash: false,
+        thrust: false,
+        chrono: false
+    },
+
+    load() {
+        try {
+            const ss = localStorage.getItem('neon_pulse_setting_screenshake');
+            if (ss !== null) this.screenShake = parseInt(ss, 10) || 100;
+
+            const fl = localStorage.getItem('neon_pulse_setting_flashes');
+            if (fl !== null) this.flashesEnabled = fl !== 'false';
+
+            const si = localStorage.getItem('neon_pulse_setting_streamer_hud');
+            if (si !== null) this.streamerInputDisplay = si !== 'false';
+
+            const ls = localStorage.getItem('neon_pulse_setting_livesplit');
+            if (ls !== null) this.liveSplitDelta = ls !== 'false';
+
+            const sz = localStorage.getItem('neon_pulse_setting_speedzoom');
+            if (sz !== null) this.speedZoom = sz !== 'false';
+
+            const kb = localStorage.getItem('neon_pulse_keybinds');
+            if (kb) {
+                const parsed = JSON.parse(kb);
+                if (parsed && typeof parsed === 'object') {
+                    for (const action in DEFAULT_KEYBINDS) {
+                        if (Array.isArray(parsed[action]) && parsed[action].length > 0) {
+                            this.keybinds[action] = parsed[action];
+                        }
+                    }
+                }
+            }
+        } catch(e) {}
+        this.updateUI();
+    },
+
+    save() {
+        try {
+            localStorage.setItem('neon_pulse_setting_screenshake', this.screenShake.toString());
+            localStorage.setItem('neon_pulse_setting_flashes', this.flashesEnabled.toString());
+            localStorage.setItem('neon_pulse_setting_streamer_hud', this.streamerInputDisplay.toString());
+            localStorage.setItem('neon_pulse_setting_livesplit', this.liveSplitDelta.toString());
+            localStorage.setItem('neon_pulse_setting_speedzoom', this.speedZoom.toString());
+            localStorage.setItem('neon_pulse_keybinds', JSON.stringify(this.keybinds));
+        } catch(e) {}
+    },
+
+    updateUI() {
+        const shakeSlider = document.getElementById('slider-screenshake');
+        const shakeLabel = document.getElementById('label-screenshake');
+        if (shakeSlider) shakeSlider.value = this.screenShake;
+        if (shakeLabel) shakeLabel.innerText = `${this.screenShake}%`;
+
+        const updateToggle = (id, val) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (val) {
+                el.innerText = 'ENABLED';
+                el.className = 'px-2.5 py-1 bg-emerald-950 border border-emerald-500/80 text-emerald-300 font-cyber text-[10px] rounded font-bold transition cursor-pointer';
+            } else {
+                el.innerText = 'DISABLED';
+                el.className = 'px-2.5 py-1 bg-neutral-900 border border-neutral-700 text-neutral-400 font-cyber text-[10px] rounded font-bold transition cursor-pointer';
+            }
+        };
+
+        updateToggle('btn-toggle-flashes', this.flashesEnabled);
+        updateToggle('btn-toggle-streamer-hud', this.streamerInputDisplay);
+        updateToggle('btn-toggle-livesplit', this.liveSplitDelta);
+        updateToggle('btn-toggle-speed-zoom', this.speedZoom);
+
+        const streamerDock = document.getElementById('streamer-input-dock');
+        if (streamerDock) {
+            if (this.streamerInputDisplay) streamerDock.classList.remove('hidden');
+            else streamerDock.classList.add('hidden');
+        }
+
+        const deltaBadge = document.getElementById('hud-live-delta');
+        if (deltaBadge && !this.liveSplitDelta) {
+            deltaBadge.classList.add('hidden');
+        }
+    },
+
+    populateKeybinds() {
+        const container = document.getElementById('keybinds-table');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const actionLabels = {
+            jump: 'JUMP / 2X',
+            slide: 'SLIDE / AIR DIVE',
+            dash: 'PHASE DASH',
+            thrust: 'THRUSTER BURST',
+            chrono: 'CHRONO PULSE',
+            restart: 'QUICK RESTART',
+            pause: 'PAUSE / RESUME',
+            ghost: 'TOGGLE HOLOGRAM',
+            fullscreen: 'TOGGLE FULLSCREEN',
+            settings: 'SETTINGS MENU'
+        };
+
+        for (const [action, label] of Object.entries(actionLabels)) {
+            const keys = this.keybinds[action] || [];
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between p-2 rounded bg-neutral-900 border border-neutral-800 text-xs';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'font-cyber text-neutral-300 font-bold';
+            nameDiv.innerText = label;
+
+            const keysDiv = document.createElement('div');
+            keysDiv.className = 'flex items-center gap-1.5';
+
+            keys.forEach((k) => {
+                const badge = document.createElement('span');
+                badge.className = 'px-2 py-0.5 rounded bg-neutral-950 border border-neutral-700 text-cyan-300 text-[11px] font-mono font-bold';
+                badge.innerText = k.replace(/^Key/, '').replace(/^Arrow/, '↑↓←→ ');
+                keysDiv.appendChild(badge);
+            });
+
+            const rebindBtn = document.createElement('button');
+            rebindBtn.className = 'px-2 py-0.5 rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/70 text-cyan-300 font-cyber text-[10px] font-bold transition cursor-pointer ml-2';
+            rebindBtn.innerText = this.listeningAction === action ? 'PRESS KEY...' : 'REBIND';
+            rebindBtn.onclick = () => this.startListeningForKey(action);
+
+            keysDiv.appendChild(rebindBtn);
+            row.appendChild(nameDiv);
+            row.appendChild(keysDiv);
+            container.appendChild(row);
+        }
+    },
+
+    startListeningForKey(action) {
+        this.listeningAction = action;
+        const ind = document.getElementById('keybind-listen-indicator');
+        if (ind) {
+            ind.innerText = `PRESS ANY KEY FOR [${action.toUpperCase()}]...`;
+            ind.classList.remove('hidden');
+        }
+        this.populateKeybinds();
+    },
+
+    handleKeyCapture(e) {
+        if (!this.listeningAction) return false;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const code = e.code || e.key;
+        if (code === 'Escape') {
+            this.listeningAction = null;
+            const ind = document.getElementById('keybind-listen-indicator');
+            if (ind) ind.classList.add('hidden');
+            this.populateKeybinds();
+            return true;
+        }
+
+        this.keybinds[this.listeningAction] = [code];
+        this.save();
+        this.listeningAction = null;
+
+        const ind = document.getElementById('keybind-listen-indicator');
+        if (ind) ind.classList.add('hidden');
+        this.populateKeybinds();
+        showNotification(`KEY REBOUND TO [${code.replace(/^Key/, '')}]`);
+        return true;
+    },
+
+    resetKeybinds() {
+        this.keybinds = JSON.parse(JSON.stringify(DEFAULT_KEYBINDS));
+        this.save();
+        this.populateKeybinds();
+        showNotification("KEYBINDS RESTORED TO DEFAULT");
+    },
+
+    isAction(action, e) {
+        const list = this.keybinds[action] || [];
+        return list.some(k => k === e.code || k === e.key || (k.toLowerCase() === (e.key || '').toLowerCase()));
+    },
+
+    updateStreamerHUD() {
+        if (!this.streamerInputDisplay) return;
+        const dock = document.getElementById('streamer-input-dock');
+        if (!dock) return;
+        if (typeof game !== 'undefined' && game.inMainMenu) {
+            dock.classList.add('opacity-0');
+            return;
+        }
+        dock.classList.remove('opacity-0');
+
+        const updatePill = (id, active, activeClasses, defaultClasses) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (active) {
+                el.className = activeClasses;
+            } else {
+                el.className = defaultClasses;
+            }
+        };
+
+        const activeBase = "px-2 py-0.5 rounded text-[9px] font-cyber font-bold transform scale-105 transition-all duration-75 ";
+        const defBase = "px-2 py-0.5 rounded text-[9px] font-cyber font-bold transition-all duration-75 ";
+
+        updatePill('input-key-jump', this.activeInputs.jump, activeBase + "bg-cyan-500 text-black border border-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.8)]", defBase + "bg-neutral-900 border border-neutral-700 text-neutral-400");
+        updatePill('input-key-slide', this.activeInputs.slide, activeBase + "bg-amber-500 text-black border border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.8)]", defBase + "bg-neutral-900 border border-neutral-700 text-neutral-400");
+        updatePill('input-key-dash', this.activeInputs.dash, activeBase + "bg-cyan-400 text-black border border-white shadow-[0_0_12px_rgba(6,182,212,0.8)]", defBase + "bg-neutral-900 border border-neutral-700 text-cyan-400/60");
+        updatePill('input-key-thrust', this.activeInputs.thrust, activeBase + "bg-amber-400 text-black border border-white shadow-[0_0_12px_rgba(245,158,11,0.8)]", defBase + "bg-neutral-900 border border-neutral-700 text-amber-400/60");
+        updatePill('input-key-chrono', this.activeInputs.chrono, activeBase + "bg-purple-500 text-white border border-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.8)]", defBase + "bg-neutral-900 border border-neutral-700 text-purple-400/60");
+    },
+
+    toggleModal() {
+        const modal = document.getElementById('modal-settings');
+        if (!modal) return;
+        const isHidden = modal.classList.contains('hidden');
+        if (isHidden) {
+            modal.classList.remove('hidden');
+            this.updateUI();
+            this.populateKeybinds();
+        } else {
+            modal.classList.add('hidden');
+            this.listeningAction = null;
+        }
+    }
+};
+
+const editorSystem = {
+    isOpen: false,
+    activeTool: 'platform',
+    scrollX: 0,
+    canvas: null,
+    ctx: null,
+    customLevel: {
+        id: -1,
+        name: "CUSTOM SECTOR 01",
+        dimension: 1,
+        length: 3200,
+        color: "#a855f7",
+        startSpeed: 320,
+        goldTime: 18.0,
+        diamondTime: 16.0,
+        platforms: [
+            { x: 0, y: 400, w: 400, h: 40 },
+            { x: 500, y: 380, w: 300, h: 40 },
+            { x: 900, y: 360, w: 400, h: 40 },
+            { x: 1400, y: 340, w: 500, h: 40 },
+            { x: 2000, y: 380, w: 400, h: 40 },
+            { x: 2500, y: 400, w: 700, h: 40 }
+        ],
+        jumpPads: [
+            { x: 760, y: 370, w: 35, h: 10, impulseY: -720, impulseX: 420 }
+        ],
+        rings: [
+            { x: 1320, y: 260, r: 24, boostVx: 580 }
+        ],
+        spikes: [
+            { x: 1600, y: 324, w: 40, h: 16 }
+        ],
+        lasers: [
+            { x: 2200, y: 200, w: 12, h: 180, interval: 2.0, offset: 0 }
+        ],
+        shards: [
+            { id: 1, x: 620, y: 310, taken: false },
+            { id: 2, x: 1450, y: 220, taken: false },
+            { id: 3, x: 2350, y: 320, taken: false }
+        ],
+        finishGate: { x: 3050, y: 340, w: 30, h: 60 }
+    },
+
+    init() {
+        this.canvas = document.getElementById('editor-canvas');
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
+
+        const palette = document.getElementById('editor-palette');
+        if (palette) {
+            palette.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-tool]');
+                if (!btn) return;
+                palette.querySelectorAll('.palette-item').forEach(b => {
+                    b.className = 'palette-item flex items-center gap-2 p-2 rounded-lg bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 transition text-left cursor-pointer';
+                });
+                btn.className = 'palette-item active flex items-center gap-2 p-2 rounded-lg bg-cyan-950/80 border border-cyan-400 text-cyan-300 font-bold transition text-left cursor-pointer';
+                this.activeTool = btn.getAttribute('data-tool');
+            });
+        }
+
+        this.canvas.addEventListener('click', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left + this.scrollX;
+            const clickY = e.clientY - rect.top;
+            this.handleCanvasClick(clickX, clickY);
+        });
+
+        const nameInput = document.getElementById('editor-stage-name');
+        if (nameInput) {
+            nameInput.addEventListener('input', (e) => {
+                this.customLevel.name = e.target.value.toUpperCase();
+            });
+        }
+
+        this.renderCanvas();
+    },
+
+    open() {
+        const modal = document.getElementById('modal-editor');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        this.isOpen = true;
+        this.scrollX = 0;
+        if (!this.canvas) this.init();
+        this.resizeCanvas();
+        this.renderCanvas();
+    },
+
+    close() {
+        const modal = document.getElementById('modal-editor');
+        if (modal) modal.classList.add('hidden');
+        this.isOpen = false;
+    },
+
+    resizeCanvas() {
+        if (!this.canvas) return;
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width || 800;
+        this.canvas.height = rect.height || 500;
+    },
+
+    handleCanvasClick(worldX, worldY) {
+        const gridX = Math.round(worldX / 20) * 20;
+        const gridY = Math.round(worldY / 20) * 20;
+
+        if (this.activeTool === 'eraser') {
+            this.customLevel.platforms = this.customLevel.platforms.filter(p => !(worldX >= p.x && worldX <= p.x + p.w && worldY >= p.y && worldY <= p.y + p.h));
+            this.customLevel.jumpPads = this.customLevel.jumpPads.filter(j => Math.hypot(worldX - j.x, worldY - j.y) > 30);
+            this.customLevel.rings = this.customLevel.rings.filter(r => Math.hypot(worldX - r.x, worldY - r.y) > 35);
+            this.customLevel.spikes = this.customLevel.spikes.filter(s => Math.hypot(worldX - s.x, worldY - s.y) > 25);
+            this.customLevel.lasers = this.customLevel.lasers.filter(l => Math.hypot(worldX - l.x, worldY - l.y) > 25);
+            this.customLevel.shards = this.customLevel.shards.filter(sh => Math.hypot(worldX - sh.x, worldY - sh.y) > 25);
+        } else if (this.activeTool === 'platform') {
+            this.customLevel.platforms.push({ x: gridX, y: gridY, w: 180, h: 30 });
+        } else if (this.activeTool === 'pad') {
+            this.customLevel.jumpPads.push({ x: gridX, y: gridY - 10, w: 35, h: 10, impulseY: -720, impulseX: 420 });
+        } else if (this.activeTool === 'ring') {
+            this.customLevel.rings.push({ x: gridX, y: gridY, r: 24, boostVx: 580 });
+        } else if (this.activeTool === 'spike') {
+            this.customLevel.spikes.push({ x: gridX, y: gridY - 16, w: 36, h: 16 });
+        } else if (this.activeTool === 'laser') {
+            this.customLevel.lasers.push({ x: gridX, y: gridY - 120, w: 12, h: 140, interval: 2.0, offset: 0 });
+        } else if (this.activeTool === 'shard') {
+            const nextId = (this.customLevel.shards.length % 3) + 1;
+            this.customLevel.shards.push({ id: nextId, x: gridX, y: gridY, taken: false });
+        } else if (this.activeTool === 'finish') {
+            this.customLevel.finishGate = { x: gridX, y: gridY - 60, w: 30, h: 60 };
+            this.customLevel.length = gridX + 200;
+            const lenEl = document.getElementById('editor-stage-len');
+            if (lenEl) lenEl.innerText = `${this.customLevel.length}m`;
+        }
+
+        this.renderCanvas();
+    },
+
+    pan(delta) {
+        this.scrollX = Math.max(0, Math.min(this.customLevel.length, this.scrollX + delta));
+        const readout = document.getElementById('editor-scroll-x');
+        if (readout) readout.innerText = `X: ${Math.round(this.scrollX)}m`;
+        this.renderCanvas();
+    },
+
+    renderCanvas() {
+        if (!this.ctx || !this.canvas) return;
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#030712';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.lineWidth = 1;
+        const offsetX = this.scrollX % 20;
+        for (let x = -offsetX; x < w; x += 20) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+            ctx.stroke();
+        }
+        for (let y = 0; y < h; y += 20) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+        }
+
+        ctx.save();
+        ctx.translate(-this.scrollX, 0);
+
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.2)';
+        ctx.beginPath();
+        ctx.moveTo(0, 400);
+        ctx.lineTo(this.customLevel.length + 500, 400);
+        ctx.stroke();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#a855f7';
+        ctx.lineWidth = 2;
+        this.customLevel.platforms.forEach(p => {
+            ctx.fillRect(p.x, p.y, p.w, p.h);
+            ctx.strokeRect(p.x, p.y, p.w, p.h);
+            ctx.fillStyle = '#a855f7';
+            ctx.fillRect(p.x, p.y, p.w, 3);
+            ctx.fillStyle = '#0f172a';
+        });
+
+        ctx.fillStyle = '#f59e0b';
+        this.customLevel.jumpPads.forEach(j => {
+            ctx.fillRect(j.x, j.y, j.w, j.h);
+            ctx.fillStyle = '#fbbf24';
+            ctx.beginPath();
+            ctx.moveTo(j.x + j.w / 2, j.y - 6);
+            ctx.lineTo(j.x + j.w, j.y);
+            ctx.lineTo(j.x, j.y);
+            ctx.fill();
+        });
+
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 3;
+        this.customLevel.rings.forEach(r => {
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, r.r || 24, 0, Math.PI * 2);
+            ctx.stroke();
+        });
+
+        ctx.fillStyle = '#f43f5e';
+        this.customLevel.spikes.forEach(s => {
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y + s.h);
+            ctx.lineTo(s.x + s.w / 2, s.y);
+            ctx.lineTo(s.x + s.w, s.y + s.h);
+            ctx.closePath();
+            ctx.fill();
+        });
+
+        ctx.fillStyle = 'rgba(236, 72, 153, 0.7)';
+        this.customLevel.lasers.forEach(l => {
+            ctx.fillRect(l.x, l.y, l.w, l.h);
+        });
+
+        ctx.fillStyle = '#06b6d4';
+        this.customLevel.shards.forEach(sh => {
+            ctx.beginPath();
+            ctx.arc(sh.x, sh.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        const fg = this.customLevel.finishGate || { x: 3000, y: 340, w: 30, h: 60 };
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.3)';
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3;
+        ctx.fillRect(fg.x, fg.y, fg.w, fg.h);
+        ctx.strokeRect(fg.x, fg.y, fg.w, fg.h);
+
+        ctx.fillStyle = '#06b6d4';
+        ctx.fillRect(80, 356, 22, 44);
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeRect(80, 356, 22, 44);
+
+        ctx.restore();
+    },
+
+    playtest() {
+        this.close();
+        if (typeof startCustomLevel === 'function') {
+            startCustomLevel(this.customLevel);
+        }
+    },
+
+    exportTrack() {
+        try {
+            const jsonStr = JSON.stringify(this.customLevel);
+            const encoded = (typeof btoa === 'function') ? btoa(unescape(encodeURIComponent(jsonStr))) : Buffer.from(jsonStr).toString('base64');
+            if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(encoded);
+            }
+            if (typeof showNotification === 'function') showNotification("📋 TRACK CODE COPIED TO CLIPBOARD!");
+        } catch(e) {
+            if (typeof prompt === 'function') prompt("COPY TRACK CODE:", JSON.stringify(this.customLevel));
+        }
+    },
+
+    importTrack() {
+        if (typeof prompt !== 'function') return;
+        const code = prompt("PASTE TRACK CODE OR JSON:");
+        if (!code) return;
+        try {
+            let data;
+            if (code.trim().startsWith('{')) {
+                data = JSON.parse(code.trim());
+            } else {
+                data = (typeof atob === 'function') ? JSON.parse(decodeURIComponent(escape(atob(code.trim())))) : JSON.parse(Buffer.from(code.trim(), 'base64').toString('utf8'));
+            }
+            if (data && data.platforms) {
+                this.customLevel = data;
+                const nameInput = document.getElementById('editor-stage-name');
+                if (nameInput) nameInput.value = data.name || "CUSTOM TRACK";
+                const lenEl = document.getElementById('editor-stage-len');
+                if (lenEl) lenEl.innerText = `${data.length || 3200}m`;
+                this.renderCanvas();
+                if (typeof showNotification === 'function') showNotification("✓ CUSTOM TRACK LOADED SUCCESSFULLY!");
+            }
+        } catch(e) {
+            if (typeof alert === 'function') alert("Invalid track code! Please check and try again.");
+        }
+    },
+
+    clear() {
+        if (typeof confirm === 'function' && !confirm("Clear all placed entities on canvas?")) return;
+        this.customLevel.platforms = [{ x: 0, y: 400, w: 400, h: 40 }];
+        this.customLevel.jumpPads = [];
+        this.customLevel.rings = [];
+        this.customLevel.spikes = [];
+        this.customLevel.lasers = [];
+        this.customLevel.shards = [];
+        this.customLevel.finishGate = { x: 1200, y: 340, w: 30, h: 60 };
+        this.customLevel.length = 1400;
+        this.renderCanvas();
+    }
+};
+
+function startCustomLevel(customLvl) {
+    game.inMainMenu = false;
+    game.isEndless = false;
+    game.isMultiplayer = false;
+    game.currentLevelIdx = -1;
+    game.level = JSON.parse(JSON.stringify(customLvl));
+    game.level.platforms.forEach(p => { if (!p.phase) p.phase = 'NEUTRAL'; });
+
+    const menuScreen = document.getElementById('screen-main-menu');
+    if (menuScreen) menuScreen.classList.add('hidden');
+    const header = document.getElementById('game-header');
+    if (header) header.classList.remove('hidden');
+
+    const lvlName = document.getElementById('hud-level-name');
+    if (lvlName) lvlName.innerText = `CUSTOM // ${customLvl.name}`;
+    const dimTag = document.getElementById('hud-dim-tag');
+    if (dimTag) dimTag.innerText = "CUSTOM";
+
+    resetPlayerState();
+    if (typeof startVisualRaceCountdown === 'function') {
+        startVisualRaceCountdown({
+            roundNum: 1,
+            isBO3: false,
+            isRoulette: false,
+            customTrackName: customLvl.name || 'CUSTOM SECTOR',
+            onGo: () => {
+                game.isCountingDown = false;
+                game.runTime = 0;
+            }
+        });
+    } else {
+        game.isCountingDown = false;
+        game.runTime = 0;
+    }
+}
+window.startCustomLevel = startCustomLevel;
+
+window.DEFAULT_KEYBINDS = DEFAULT_KEYBINDS;
+window.settingsSystem = settingsSystem;
+window.editorSystem = editorSystem;
+
+window.SteamBridge = typeof SteamBridge !== 'undefined' ? SteamBridge : null;
 window.ACHIEVEMENTS = ACHIEVEMENTS;
 window.achievementSystem = achievementSystem;
 window.gamepadSystem = gamepadSystem;
@@ -4208,24 +4811,48 @@ function killPlayer(force = false) {
     }
 
     audio.playDeath();
-    game.screenShake = 14;
+    const shakeMult = (typeof settingsSystem !== 'undefined' ? settingsSystem.screenShake : 100) / 100;
+    game.screenShake = 16 * shakeMult;
 
     if (game.isEndless) {
         showNotification(`💥 MARATHON OVER! DISTANCE: ${game.endlessDistance}m // BEST: ${game.endlessBestDistance}m`);
     }
 
-    const skin = getActiveSkinData();
-    for (let i = 0; i < 24; i++) {
+    const skin = (typeof getActiveSkinData === 'function') ? getActiveSkinData() : { color: '#06b6d4' };
+    
+    // Spawn Neon Glass Polygonal Shatter Shards
+    for (let i = 0; i < 26; i++) {
+        const angle = (Math.PI * 2 / 26) * i + (Math.random() - 0.5) * 0.4;
+        const speed = 220 + Math.random() * 400;
+        const size = 5 + Math.random() * 6;
         game.particles.push({
             x: game.player.x + 11,
             y: game.player.y + 20,
-            vx: (Math.random() - 0.5) * 450,
-            vy: (Math.random() - 0.5) * 450,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 60,
+            rot: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 16,
             life: 0.5,
             maxLife: 0.5,
-            color: Math.random() < 0.5 ? skin.color : '#ec4899',
-            size: Math.random() * 4 + 3
+            color: (i % 2 === 0) ? skin.color : '#ec4899',
+            size: size,
+            isPolygon: true,
+            points: [
+                { x: -size, y: -size * 0.5 },
+                { x: size * 0.8, y: -size },
+                { x: size * 0.5, y: size },
+                { x: -size * 0.6, y: size * 0.7 }
+            ]
         });
+    }
+
+    // Flash overlay if not photosensitive
+    if (typeof settingsSystem === 'undefined' || settingsSystem.flashesEnabled !== false) {
+        const warp = document.getElementById('warp-overlay');
+        if (warp) {
+            warp.style.opacity = '0.35';
+            setTimeout(() => { if (warp) warp.style.opacity = '0'; }, 100);
+        }
     }
 
     game.attempts++;
@@ -4297,6 +4924,43 @@ function updatePhysics(rawDt) {
     game.runTime += dt;
     const stopwatch = document.getElementById('hud-stopwatch');
     if (stopwatch) stopwatch.innerText = formatTime(game.runTime);
+
+    // LiveSplit Real-Time Delta HUD
+    const deltaEl = document.getElementById('hud-live-delta');
+    const deltaValEl = document.getElementById('hud-live-delta-val');
+    if (deltaEl && deltaValEl) {
+        const liveSplitEnabled = (typeof settingsSystem === 'undefined' || settingsSystem.liveSplitDelta !== false);
+        if (liveSplitEnabled && !game.isEndless && !game.inMainMenu && game.level && game.level.length) {
+            deltaEl.classList.remove('hidden');
+            const startX = 80;
+            const totalDist = Math.max(100, game.level.length - startX);
+            const progress = Math.max(0, Math.min(1.0, (game.player.x - startX) / totalDist));
+            
+            let targetTime = null;
+            try {
+                const savedPb = localStorage.getItem(`neon_pulse_pb_${game.currentLevelIdx}`);
+                if (savedPb) targetTime = parseFloat(savedPb);
+                else if (game.level.goldTime) targetTime = game.level.goldTime;
+            } catch(e) {}
+
+            if (targetTime && progress > 0.03) {
+                const expected = targetTime * progress;
+                const delta = game.runTime - expected;
+                const isAhead = delta <= 0;
+                deltaValEl.innerText = `${isAhead ? '-' : '+'}${Math.abs(delta).toFixed(2)}s`;
+                if (isAhead) {
+                    deltaEl.className = "flex items-center gap-1 bg-emerald-950/90 border border-emerald-500/80 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)]";
+                } else {
+                    deltaEl.className = "flex items-center gap-1 bg-rose-950/90 border border-rose-500/80 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.4)]";
+                }
+            } else {
+                deltaValEl.innerText = targetTime ? `PB: ${formatTime(targetTime).slice(3)}` : 'PACE --.--';
+                deltaEl.className = "flex items-center gap-1 bg-neutral-900/90 border border-neutral-700 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold text-neutral-400";
+            }
+        } else {
+            deltaEl.classList.add('hidden');
+        }
+    }
 
     // Live Speedometer HUD Update
     const speedVal = document.getElementById('hud-speed-val');
@@ -5701,14 +6365,26 @@ function render() {
 
     const frameDt = game.lastFrameDelta || 0.016;
 
+    const shakeMult = (typeof settingsSystem !== 'undefined' ? settingsSystem.screenShake : 100) / 100;
     if (game.screenShake > 0) {
-        ctx.translate((Math.random() - 0.5) * game.screenShake, (Math.random() - 0.5) * game.screenShake);
+        const effShake = game.screenShake * shakeMult;
+        ctx.translate((Math.random() - 0.5) * effShake, (Math.random() - 0.5) * effShake);
         game.screenShake *= Math.pow(0.88, frameDt * 60);
         if (game.screenShake < 0.3) game.screenShake = 0;
     }
 
-    ctx.translate(offsetX, offsetY);
-    ctx.scale(scale, scale);
+    // Dynamic Supersonic Camera Zoom-Out
+    const speedZoomEnabled = (typeof settingsSystem === 'undefined' || settingsSystem.speedZoom !== false);
+    const targetZoom = (!speedZoomEnabled || game.inMainMenu) ? 1.0 :
+        Math.max(0.92, 1.0 - Math.max(0, (game.player.vx - 380) / 3600));
+
+    if (game.currentCamZoom === undefined) game.currentCamZoom = 1.0;
+    game.currentCamZoom += (targetZoom - game.currentCamZoom) * Math.min(1.0, frameDt * 10);
+    const zoom = game.currentCamZoom;
+
+    // Viewport transform with centered dynamic zoom
+    ctx.translate(offsetX + (V_WIDTH / 2) * (1 - zoom) * scale, offsetY + (V_HEIGHT / 2) * (1 - zoom) * scale);
+    ctx.scale(scale * zoom, scale * zoom);
 
     // Render state interpolation between physics sub-steps for smooth 60/120/144/240Hz
     const alpha = (game.renderAlpha !== undefined) ? game.renderAlpha : 1.0;
@@ -5976,18 +6652,40 @@ function drawShockwaves() {
 
 function drawSpeedLines() {
     ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
-    ctx.lineWidth = 1.5;
-    const now = Date.now() * 0.02;
+    const vx = game.player.vx;
+    const intensity = Math.min(1.0, Math.max(0, (vx - 390) / 260));
+    const now = Date.now() * 0.035;
     const px = game.player.renderX !== undefined ? game.player.renderX : game.player.x;
-    for (let i = 0; i < 6; i++) {
-        const y = 60 + ((i * 75 + (now * 25) % 150) % (V_HEIGHT - 120));
-        const x = px + 150 + ((i * 120 + now * 40) % 500);
-        const len = 40 + (i % 3) * 35;
+
+    // Forward supersonic wind streaks
+    ctx.strokeStyle = `rgba(6, 182, 212, ${0.18 + intensity * 0.35})`;
+    ctx.lineWidth = 1.5 + intensity * 1.5;
+    const count = 7 + Math.floor(intensity * 9);
+    for (let i = 0; i < count; i++) {
+        const y = 40 + ((i * 55 + (now * 40) % 250) % (V_HEIGHT - 80));
+        const x = px - 80 + ((i * 95 + now * 110) % (V_WIDTH + 160));
+        const len = 60 + (i % 3) * 40 + intensity * 70;
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x + len, y);
         ctx.stroke();
+    }
+
+    // Peripheral top and bottom edge streaks
+    if (intensity > 0.2) {
+        ctx.strokeStyle = `rgba(255, 255, 255, ${intensity * 0.35})`;
+        ctx.lineWidth = 1;
+        for (let e = 0; e < 5; e++) {
+            const topY = 12 + e * 8;
+            const botY = V_HEIGHT - 12 - e * 8;
+            const edgeX = px - 50 + ((e * 130 + now * 140) % (V_WIDTH + 100));
+            ctx.beginPath();
+            ctx.moveTo(edgeX, topY);
+            ctx.lineTo(edgeX + 100, topY);
+            ctx.moveTo(edgeX - 40, botY);
+            ctx.lineTo(edgeX + 80, botY);
+            ctx.stroke();
+        }
     }
     ctx.restore();
 }
@@ -6589,9 +7287,33 @@ function drawParticles() {
     const dt = game.lastFrameDelta || 0.016;
     for (let i = game.particles.length - 1; i >= 0; i--) {
         const part = game.particles[i];
-        ctx.fillStyle = part.color;
-        ctx.globalAlpha = Math.max(0, part.life / part.maxLife);
-        ctx.fillRect(part.x, part.y, part.size, part.size);
+        const alpha = Math.max(0, part.life / part.maxLife);
+        ctx.globalAlpha = alpha;
+
+        if (part.isPolygon && part.points) {
+            ctx.save();
+            ctx.translate(part.x, part.y);
+            ctx.rotate(part.rot || 0);
+            ctx.fillStyle = part.color;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(part.points[0].x, part.points[0].y);
+            for (let pt = 1; pt < part.points.length; pt++) {
+                ctx.lineTo(part.points[pt].x, part.points[pt].y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+
+            part.rot = (part.rot || 0) + (part.vRot || 0) * dt;
+            part.vy += 650 * dt; // Gravity on shattered glass
+        } else {
+            ctx.fillStyle = part.color;
+            ctx.fillRect(part.x, part.y, part.size, part.size);
+        }
+
         part.x += part.vx * dt;
         part.y += part.vy * dt;
         part.life -= dt;
@@ -10227,6 +10949,11 @@ function handleFullscreenChange() {
 window.addEventListener('keydown', (e) => {
     audio.init();
 
+    // 0. Custom keybind listener interceptor
+    if (typeof settingsSystem !== 'undefined' && settingsSystem.listeningAction) {
+        if (settingsSystem.handleKeyCapture(e)) return;
+    }
+
     // 1. Allow typing in input fields without game controls intercepting keys
     const active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
@@ -10237,15 +10964,22 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
-    // 2. Global Hotkeys: G (Fullscreen), H (Ghost Hologram), M (Stage Matrix), ESC / P (Pause / Close Modals)
-    // These must execute ANYWHERE (Main Menu, In-Game, Paused, Modals)!
-    if (e.code === 'KeyG' || e.key === 'g' || e.key === 'G') {
+    const isAction = (act) => typeof settingsSystem !== 'undefined' ? settingsSystem.isAction(act, e) : false;
+
+    // 2. Global Hotkeys: Settings [O], Fullscreen [G], Ghost [H], Matrix [M], Pause [ESC / P]
+    if (isAction('settings') || e.code === 'KeyO' || e.key === 'o' || e.key === 'O') {
+        e.preventDefault();
+        if (typeof settingsSystem !== 'undefined') settingsSystem.toggleModal();
+        return;
+    }
+
+    if (isAction('fullscreen') || e.code === 'KeyG' || e.key === 'g' || e.key === 'G') {
         e.preventDefault();
         toggleFullscreen();
         return;
     }
 
-    if (e.code === 'KeyH' || e.key === 'h' || e.key === 'H') {
+    if (isAction('ghost') || e.code === 'KeyH' || e.key === 'h' || e.key === 'H') {
         e.preventDefault();
         toggleGhostSetting();
         return;
@@ -10268,7 +11002,7 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
-    if (e.code === 'Escape' || e.code === 'KeyP' || e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+    if (isAction('pause') || e.code === 'Escape' || e.code === 'KeyP' || e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
         if (game.isCountingDown) return;
         e.preventDefault();
         const menuModal = document.getElementById('modal-menu');
@@ -10278,6 +11012,8 @@ window.addEventListener('keydown', (e) => {
         const howModal = document.getElementById('modal-howtoplay');
         const mpModal = document.getElementById('modal-multiplayer');
         const lockerModal = document.getElementById('modal-locker');
+        const settingsModal = document.getElementById('modal-settings');
+        const editorModal = document.getElementById('modal-editor');
 
         const anyOpen = (menuModal && !menuModal.classList.contains('hidden')) ||
                         (lbModal && !lbModal.classList.contains('hidden')) ||
@@ -10285,7 +11021,9 @@ window.addEventListener('keydown', (e) => {
                         (achModal && !achModal.classList.contains('hidden')) ||
                         (howModal && !howModal.classList.contains('hidden')) ||
                         (mpModal && !mpModal.classList.contains('hidden')) ||
-                        (lockerModal && !lockerModal.classList.contains('hidden'));
+                        (lockerModal && !lockerModal.classList.contains('hidden')) ||
+                        (settingsModal && !settingsModal.classList.contains('hidden')) ||
+                        (editorModal && !editorModal.classList.contains('hidden'));
 
         if (anyOpen) {
             if (menuModal) { menuModal.classList.add('hidden'); menuModal.style.display = 'none'; }
@@ -10295,6 +11033,8 @@ window.addEventListener('keydown', (e) => {
             if (howModal) { howModal.classList.add('hidden'); howModal.style.display = 'none'; }
             if (mpModal) { mpModal.classList.add('hidden'); mpModal.style.display = 'none'; }
             if (lockerModal) { lockerModal.classList.add('hidden'); }
+            if (settingsModal) { settingsModal.classList.add('hidden'); }
+            if (editorModal) { editorModal.classList.add('hidden'); }
             if (!game.inMainMenu && !game.victory) setPause(false);
             return;
         }
@@ -10305,64 +11045,90 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
-    // 3. Main Menu Guard: While on the Main Menu, do NOT start the game via Space/Enter/keys!
-    // The player must explicitly click or select a gamemode button.
-    if (game.inMainMenu) {
-        return;
-    }
-
-    // 4. In-Game Pause / Countdown Guard
+    if (game.inMainMenu) return;
     if (game.isPaused || game.isCountingDown) return;
 
-    // 5. In-Game Movement & Ability Controls
     if (e.code === 'KeyB' || e.key === 'b' || e.key === 'B') {
         toggleBotDemo();
         return;
     }
-    if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R') {
+
+    if (isAction('restart') || e.code === 'KeyR' || e.key === 'r' || e.key === 'R') {
         resetPlayerState();
         return;
     }
 
-    if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
+    if (isAction('jump') || e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
         e.preventDefault();
-        if (e.repeat) return; // Prevent OS key-repeat from consuming double jumps while holding space
+        if (e.repeat) return;
         game.inputs.jumpHeld = true;
         game.inputs.jumpPressedThisFrame = true;
-        game.inputs.jumpBufferTime = 0.16; // 160ms responsive jump buffer
+        game.inputs.jumpBufferTime = 0.16;
+        if (typeof settingsSystem !== 'undefined') {
+            settingsSystem.activeInputs.jump = true;
+            settingsSystem.updateStreamerHUD();
+        }
         if (game.botDemo) toggleBotDemo(false);
     }
 
-    if (e.code === 'KeyS' || e.code === 'ArrowDown') {
+    if (isAction('slide') || e.code === 'KeyS' || e.code === 'ArrowDown') {
         e.preventDefault();
         game.inputs.slideHeld = true;
+        if (typeof settingsSystem !== 'undefined') {
+            settingsSystem.activeInputs.slide = true;
+            settingsSystem.updateStreamerHUD();
+        }
         if (game.botDemo) toggleBotDemo(false);
     }
 
-    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    if (isAction('dash') || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         e.preventDefault();
+        if (typeof settingsSystem !== 'undefined') {
+            settingsSystem.activeInputs.dash = true;
+            settingsSystem.updateStreamerHUD();
+            setTimeout(() => { settingsSystem.activeInputs.dash = false; settingsSystem.updateStreamerHUD(); }, 200);
+        }
         triggerPhaseDash();
-    } else if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E') {
+    } else if (isAction('thrust') || e.code === 'KeyE' || e.key === 'e' || e.key === 'E') {
         e.preventDefault();
+        if (typeof settingsSystem !== 'undefined') {
+            settingsSystem.activeInputs.thrust = true;
+            settingsSystem.updateStreamerHUD();
+            setTimeout(() => { settingsSystem.activeInputs.thrust = false; settingsSystem.updateStreamerHUD(); }, 200);
+        }
         triggerThrusterBurst();
-    } else if (e.code === 'KeyQ' || e.key === 'q' || e.key === 'Q' || e.code === 'KeyF' || e.key === 'f' || e.key === 'F') {
+    } else if (isAction('chrono') || e.code === 'KeyQ' || e.key === 'q' || e.key === 'Q' || e.code === 'KeyF' || e.key === 'f' || e.key === 'F') {
         e.preventDefault();
+        if (typeof settingsSystem !== 'undefined') {
+            settingsSystem.activeInputs.chrono = true;
+            settingsSystem.updateStreamerHUD();
+            setTimeout(() => { settingsSystem.activeInputs.chrono = false; settingsSystem.updateStreamerHUD(); }, 200);
+        }
         triggerChronoPulse();
     }
 });
 
 window.addEventListener('keyup', (e) => {
-    // Don't process game keyup when typing in input fields
     const active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
         return;
     }
     if (game.inMainMenu) return;
-    if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
+    const isAction = (act) => typeof settingsSystem !== 'undefined' ? settingsSystem.isAction(act, e) : false;
+
+    if (isAction('jump') || e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
         game.inputs.jumpHeld = false;
+        if (typeof settingsSystem !== 'undefined') {
+            settingsSystem.activeInputs.jump = false;
+            settingsSystem.updateStreamerHUD();
+        }
     }
-    if (e.code === 'KeyS' || e.code === 'ArrowDown') {
+    if (isAction('slide') || e.code === 'KeyS' || e.code === 'ArrowDown') {
         game.inputs.slideHeld = false;
+        if (typeof settingsSystem !== 'undefined') {
+            settingsSystem.activeInputs.slide = false;
+            settingsSystem.updateStreamerHUD();
+        }
     }
 });
 
@@ -10553,6 +11319,102 @@ bindClick('btn-locker-open', () => {
         lockerModal.classList.remove('hidden');
         lockerModal.style.display = '';
     }
+});
+
+// Settings & Keybinds Modal Bindings
+bindClick('btn-settings-open', () => {
+    if (typeof settingsSystem !== 'undefined') settingsSystem.toggleModal();
+});
+bindClick('btn-main-settings', () => {
+    if (typeof settingsSystem !== 'undefined') settingsSystem.toggleModal();
+});
+bindClick('btn-pause-settings', () => {
+    if (typeof settingsSystem !== 'undefined') settingsSystem.toggleModal();
+});
+bindClick('btn-close-settings', () => {
+    if (typeof settingsSystem !== 'undefined') settingsSystem.toggleModal();
+});
+bindClick('tab-settings-gameplay', () => {
+    const p1 = document.getElementById('settings-panel-gameplay');
+    const p2 = document.getElementById('settings-panel-keys');
+    const t1 = document.getElementById('tab-settings-gameplay');
+    const t2 = document.getElementById('tab-settings-keys');
+    if (p1 && p2 && t1 && t2) {
+        p1.classList.remove('hidden');
+        p2.classList.add('hidden');
+        t1.className = 'px-3 py-1 bg-cyan-950 border border-cyan-500/70 text-cyan-300 rounded font-cyber text-xs font-bold transition cursor-pointer';
+        t2.className = 'px-3 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-400 rounded font-cyber text-xs font-bold transition cursor-pointer';
+    }
+});
+bindClick('tab-settings-keys', () => {
+    const p1 = document.getElementById('settings-panel-gameplay');
+    const p2 = document.getElementById('settings-panel-keys');
+    const t1 = document.getElementById('tab-settings-gameplay');
+    const t2 = document.getElementById('tab-settings-keys');
+    if (p1 && p2 && t1 && t2) {
+        p2.classList.remove('hidden');
+        p1.classList.add('hidden');
+        t2.className = 'px-3 py-1 bg-cyan-950 border border-cyan-500/70 text-cyan-300 rounded font-cyber text-xs font-bold transition cursor-pointer';
+        t1.className = 'px-3 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-400 rounded font-cyber text-xs font-bold transition cursor-pointer';
+        if (typeof settingsSystem !== 'undefined') settingsSystem.populateKeybinds();
+    }
+});
+bindClick('btn-toggle-flashes', () => {
+    if (typeof settingsSystem !== 'undefined') {
+        settingsSystem.flashesEnabled = !settingsSystem.flashesEnabled;
+        settingsSystem.save();
+        settingsSystem.updateUI();
+    }
+});
+bindClick('btn-toggle-streamer-hud', () => {
+    if (typeof settingsSystem !== 'undefined') {
+        settingsSystem.streamerInputDisplay = !settingsSystem.streamerInputDisplay;
+        settingsSystem.save();
+        settingsSystem.updateUI();
+    }
+});
+bindClick('btn-toggle-livesplit', () => {
+    if (typeof settingsSystem !== 'undefined') {
+        settingsSystem.liveSplitDelta = !settingsSystem.liveSplitDelta;
+        settingsSystem.save();
+        settingsSystem.updateUI();
+    }
+});
+bindClick('btn-toggle-speed-zoom', () => {
+    if (typeof settingsSystem !== 'undefined') {
+        settingsSystem.speedZoom = !settingsSystem.speedZoom;
+        settingsSystem.save();
+        settingsSystem.updateUI();
+    }
+});
+bindClick('btn-reset-keybinds', () => {
+    if (typeof settingsSystem !== 'undefined') settingsSystem.resetKeybinds();
+});
+
+// Custom Track Builder / Level Editor Bindings
+bindClick('btn-main-builder', () => {
+    if (typeof editorSystem !== 'undefined') editorSystem.open();
+});
+bindClick('btn-editor-close', () => {
+    if (typeof editorSystem !== 'undefined') editorSystem.close();
+});
+bindClick('btn-editor-playtest', () => {
+    if (typeof editorSystem !== 'undefined') editorSystem.playtest();
+});
+bindClick('btn-editor-export', () => {
+    if (typeof editorSystem !== 'undefined') editorSystem.exportTrack();
+});
+bindClick('btn-editor-import', () => {
+    if (typeof editorSystem !== 'undefined') editorSystem.importTrack();
+});
+bindClick('btn-editor-clear', () => {
+    if (typeof editorSystem !== 'undefined') editorSystem.clear();
+});
+bindClick('btn-editor-pan-left', () => {
+    if (typeof editorSystem !== 'undefined') editorSystem.pan(-160);
+});
+bindClick('btn-editor-pan-right', () => {
+    if (typeof editorSystem !== 'undefined') editorSystem.pan(160);
 });
 
 bindClick('btn-close-locker', () => {
@@ -10881,10 +11743,22 @@ bindClick('btn-victory-main-menu', () => {
 });
 
 bindClick('btn-victory-replay', () => {
+    if (game.currentLevelIdx === -1 && typeof editorSystem !== 'undefined') {
+        const vicModal = document.getElementById('modal-victory');
+        if (vicModal) vicModal.classList.add('hidden');
+        startCustomLevel(editorSystem.customLevel);
+        return;
+    }
     startLevel(game.currentLevelIdx);
 });
 
 bindClick('btn-victory-next', () => {
+    if (game.currentLevelIdx === -1 && typeof editorSystem !== 'undefined') {
+        const vicModal = document.getElementById('modal-victory');
+        if (vicModal) vicModal.classList.add('hidden');
+        editorSystem.open();
+        return;
+    }
     const nextIdx = (game.currentLevelIdx + 1) % LEVELS.length;
     startLevel(nextIdx);
 });
@@ -11262,6 +12136,34 @@ window.onload = function() {
     if (typeof achievementSystem !== 'undefined') achievementSystem.load();
     if (typeof dailySystem !== 'undefined') dailySystem.load();
     if (typeof gamepadSystem !== 'undefined') gamepadSystem.init();
+    if (typeof settingsSystem !== 'undefined') {
+        settingsSystem.load();
+        const shakeSlider = document.getElementById('slider-screenshake');
+        if (shakeSlider) {
+            shakeSlider.addEventListener('input', (e) => {
+                settingsSystem.screenShake = parseInt(e.target.value, 10) || 100;
+                settingsSystem.save();
+                const label = document.getElementById('label-screenshake');
+                if (label) label.innerText = `${settingsSystem.screenShake}%`;
+            });
+        }
+        const musSlider = document.getElementById('settings-slider-mus');
+        if (musSlider) {
+            musSlider.addEventListener('input', (e) => {
+                if (typeof setMusicVolume === 'function') setMusicVolume(e.target.value);
+                const lbl = document.getElementById('settings-label-mus');
+                if (lbl) lbl.innerText = `${e.target.value}%`;
+            });
+        }
+        const sfxSlider = document.getElementById('settings-slider-sfx');
+        if (sfxSlider) {
+            sfxSlider.addEventListener('input', (e) => {
+                if (typeof setSfxVolume === 'function') setSfxVolume(e.target.value);
+                const lbl = document.getElementById('settings-label-sfx');
+                if (lbl) lbl.innerText = `${e.target.value}%`;
+            });
+        }
+    }
 
     setupPilotTagInputs();
     updateCanvasViewport();
