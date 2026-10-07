@@ -116,6 +116,38 @@ Personalize your runner with unlocks earned through medals, shard collection, da
 
 ---
 
+### ⏱️ LiveSplit-Style Real-Time Pace Delta HUD
+- **Continuous Millisecond Comparison**: Positioned right beside the stopwatch in the header HUD (`#hud-live-delta`), displaying your live continuous ahead/behind delta against your Personal Best (or Gold author par).
+- **Instant Visual Color Bloom**: Glowing neon emerald for ahead (`-0.34s`) and vibrant rose for behind (`+0.21s`).
+- **Fully Toggleable**: Can be toggled on or off in the Settings menu.
+
+---
+
+### ⚡ Supersonic Speed Warp & Dynamic Camera Zoom
+- **Centered Dynamic Zoom**: Exceeding 380 km/h (via wave-dashes, booster rings, or rocket slides) smoothly scales the camera down to `0.92x` centered on the runner, expanding peripheral vision and forward reaction time.
+- **Peripheral Speed Streaks**: Dynamic high-velocity streaks flash across the viewport borders at extreme velocity.
+
+---
+
+### 💥 Neon Glass Polygonal Shatter Death VFX
+- **26 Geometric Shards**: On crash or hazard collision, the runner bursts into 26 spinning polygonal neon glass shards with individual vertex trajectories, angular spin momentum, and gravity physics.
+- **Screen Shake Slider Scaling**: Screen shake is scaled according to player preferences (`0%` to `150%`).
+- **Photosensitivity Protection**: Harsh screen flashes are safely toggled off via the Accessibility setting.
+
+---
+
+### ⌨️ Streamer Input Overlay HUD
+- **Real-Time Keystroke Visualizer**: A sleek neon dock in the bottom-left corner (`#streamer-input-dock`) displaying `[JUMP]`, `[SLIDE]`, `[DASH]`, `[THRUST]`, and `[CHRONO]`.
+- **Instant Response**: Illuminates with glowing borders in real-time as keys, touch buttons, or gamepad controls are pressed.
+
+---
+
+### ⚙️ Settings, Accessibility & Custom Key Rebinding (`[O]`)
+- **Gameplay & Accessibility**: Sliders for screen shake intensity (`0% - 150%`), audio synth levels, and toggles for flashing lights, Streamer HUD, LiveSplit Delta, and FOV Zoom.
+- **Custom Key Rebinding**: Rebind any gameplay key with 1-click interactive key capture. All custom mappings persist permanently in `localStorage` with a 1-click reset to defaults.
+
+---
+
 ## 🕹️ Controls
 
 | Action | Primary Key | Alternative / Gamepad |
@@ -138,9 +170,10 @@ Personalize your runner with unlocks earned through medals, shard collection, da
 
 ## 🛠️ Community Track Builder & Level Editor
 Build, playtest, and share custom obstacle courses directly in-game:
-- **Interactive Grid Editor**: Place platforms, jump pads, speed booster rings, spikes, lasers, cyber shards, and finish gates.
-- **Instant Playtest Mode**: Test run your custom course immediately with full physics and stopwatch timers.
-- **1-Click Share Codes**: Export your stage into compact shareable track codes to challenge friends, or import community tracks.
+- **Palette**: Place custom platforms, kinetic launch pads, speed catapult rings, spikes, laser beams, cyber shards, and finish gates.
+- **Snapping & Pan**: 20px grid snapping with floating left/right pan controls.
+- **▶ TEST RUN Playtesting**: 1-click instant playtest mode running your custom stage with full physics, in-game header HUD, and stopwatch timers. Safe spawn platform guarantee prevents void falling.
+- **1-Click Share & Import**: Export stages to compact base64 codes copied to clipboard, and import community tracks to race instantly.
 
 ---
 

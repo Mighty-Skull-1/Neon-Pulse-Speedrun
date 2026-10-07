@@ -1896,8 +1896,11 @@ const editorSystem = {
         jumpPads: [
             { x: 760, y: 370, w: 35, h: 10, impulseY: -720, impulseX: 420 }
         ],
+        trampolines: [
+            { x: 760, y: 370, w: 35, h: 10, launchVy: -720, launchVx: 420 }
+        ],
         rings: [
-            { x: 1320, y: 260, r: 24, boostVx: 580 }
+            { x: 1320, y: 260, r: 24, type: 'BOOST', color: '#f59e0b', boostVx: 580 }
         ],
         spikes: [
             { x: 1600, y: 324, w: 40, h: 16 }
@@ -1910,6 +1913,11 @@ const editorSystem = {
             { id: 2, x: 1450, y: 220, taken: false },
             { id: 3, x: 2350, y: 320, taken: false }
         ],
+        portals: [],
+        speedPads: [],
+        glitchPlatforms: [],
+        phaseGates: [],
+        chronoOrbs: [],
         finishGate: { x: 3050, y: 340, w: 30, h: 60 }
     },
 
@@ -1977,23 +1985,32 @@ const editorSystem = {
         const gridY = Math.round(worldY / 20) * 20;
 
         if (this.activeTool === 'eraser') {
-            this.customLevel.platforms = this.customLevel.platforms.filter(p => !(worldX >= p.x && worldX <= p.x + p.w && worldY >= p.y && worldY <= p.y + p.h));
-            this.customLevel.jumpPads = this.customLevel.jumpPads.filter(j => Math.hypot(worldX - j.x, worldY - j.y) > 30);
-            this.customLevel.rings = this.customLevel.rings.filter(r => Math.hypot(worldX - r.x, worldY - r.y) > 35);
-            this.customLevel.spikes = this.customLevel.spikes.filter(s => Math.hypot(worldX - s.x, worldY - s.y) > 25);
-            this.customLevel.lasers = this.customLevel.lasers.filter(l => Math.hypot(worldX - l.x, worldY - l.y) > 25);
-            this.customLevel.shards = this.customLevel.shards.filter(sh => Math.hypot(worldX - sh.x, worldY - sh.y) > 25);
+            if (this.customLevel.platforms) this.customLevel.platforms = this.customLevel.platforms.filter(p => !(worldX >= p.x && worldX <= p.x + p.w && worldY >= p.y && worldY <= p.y + p.h));
+            if (this.customLevel.jumpPads) this.customLevel.jumpPads = this.customLevel.jumpPads.filter(j => Math.hypot(worldX - j.x, worldY - j.y) > 30);
+            if (this.customLevel.trampolines) this.customLevel.trampolines = this.customLevel.trampolines.filter(j => Math.hypot(worldX - j.x, worldY - j.y) > 30);
+            if (this.customLevel.rings) this.customLevel.rings = this.customLevel.rings.filter(r => Math.hypot(worldX - r.x, worldY - r.y) > 35);
+            if (this.customLevel.spikes) this.customLevel.spikes = this.customLevel.spikes.filter(s => Math.hypot(worldX - s.x, worldY - s.y) > 25);
+            if (this.customLevel.lasers) this.customLevel.lasers = this.customLevel.lasers.filter(l => Math.hypot(worldX - l.x, worldY - l.y) > 25);
+            if (this.customLevel.shards) this.customLevel.shards = this.customLevel.shards.filter(sh => Math.hypot(worldX - sh.x, worldY - sh.y) > 25);
         } else if (this.activeTool === 'platform') {
-            this.customLevel.platforms.push({ x: gridX, y: gridY, w: 180, h: 30 });
+            if (!this.customLevel.platforms) this.customLevel.platforms = [];
+            this.customLevel.platforms.push({ x: gridX, y: gridY, w: 180, h: 30, phase: 'NEUTRAL' });
         } else if (this.activeTool === 'pad') {
+            if (!this.customLevel.jumpPads) this.customLevel.jumpPads = [];
+            if (!this.customLevel.trampolines) this.customLevel.trampolines = [];
             this.customLevel.jumpPads.push({ x: gridX, y: gridY - 10, w: 35, h: 10, impulseY: -720, impulseX: 420 });
+            this.customLevel.trampolines.push({ x: gridX, y: gridY - 10, w: 35, h: 10, launchVy: -720, launchVx: 420 });
         } else if (this.activeTool === 'ring') {
-            this.customLevel.rings.push({ x: gridX, y: gridY, r: 24, boostVx: 580 });
+            if (!this.customLevel.rings) this.customLevel.rings = [];
+            this.customLevel.rings.push({ x: gridX, y: gridY, r: 24, type: 'BOOST', color: '#f59e0b', boostVx: 580 });
         } else if (this.activeTool === 'spike') {
+            if (!this.customLevel.spikes) this.customLevel.spikes = [];
             this.customLevel.spikes.push({ x: gridX, y: gridY - 16, w: 36, h: 16 });
         } else if (this.activeTool === 'laser') {
+            if (!this.customLevel.lasers) this.customLevel.lasers = [];
             this.customLevel.lasers.push({ x: gridX, y: gridY - 120, w: 12, h: 140, interval: 2.0, offset: 0 });
         } else if (this.activeTool === 'shard') {
+            if (!this.customLevel.shards) this.customLevel.shards = [];
             const nextId = (this.customLevel.shards.length % 3) + 1;
             this.customLevel.shards.push({ id: nextId, x: gridX, y: gridY, taken: false });
         } else if (this.activeTool === 'finish') {
@@ -2162,12 +2179,18 @@ const editorSystem = {
 
     clear() {
         if (typeof confirm === 'function' && !confirm("Clear all placed entities on canvas?")) return;
-        this.customLevel.platforms = [{ x: 0, y: 400, w: 400, h: 40 }];
+        this.customLevel.platforms = [{ x: 0, y: 400, w: 400, h: 40, phase: 'NEUTRAL' }];
         this.customLevel.jumpPads = [];
+        this.customLevel.trampolines = [];
         this.customLevel.rings = [];
         this.customLevel.spikes = [];
         this.customLevel.lasers = [];
         this.customLevel.shards = [];
+        this.customLevel.portals = [];
+        this.customLevel.speedPads = [];
+        this.customLevel.glitchPlatforms = [];
+        this.customLevel.phaseGates = [];
+        this.customLevel.chronoOrbs = [];
         this.customLevel.finishGate = { x: 1200, y: 340, w: 30, h: 60 };
         this.customLevel.length = 1400;
         this.renderCanvas();
@@ -2178,28 +2201,120 @@ function startCustomLevel(customLvl) {
     game.inMainMenu = false;
     game.isEndless = false;
     game.isMultiplayer = false;
+    game.isDailyChallenge = false;
+    game.isCustomLevel = true;
     game.currentLevelIdx = -1;
-    game.level = JSON.parse(JSON.stringify(customLvl));
-    game.level.platforms.forEach(p => { if (!p.phase) p.phase = 'NEUTRAL'; });
+    game.victory = false;
+    game.attempts = 1;
+    game.shardsCollected.clear();
+    game.deathsThisRun = 0;
+    setPause(false);
 
+    // Deep clone custom level object
+    const lvl = JSON.parse(JSON.stringify(customLvl || editorSystem.customLevel || {}));
+    lvl.name = lvl.name || "CUSTOM TRACK";
+    lvl.dimension = lvl.dimension || 1;
+    lvl.length = lvl.length || 3200;
+    lvl.color = lvl.color || "#a855f7";
+    lvl.startSpeed = lvl.startSpeed || 320;
+    lvl.bpm = lvl.bpm || 135;
+
+    // Ensure all required entity arrays exist
+    if (!Array.isArray(lvl.platforms)) lvl.platforms = [];
+    if (!Array.isArray(lvl.spikes)) lvl.spikes = [];
+    if (!Array.isArray(lvl.lasers)) lvl.lasers = [];
+    if (!Array.isArray(lvl.rings)) lvl.rings = [];
+    if (!Array.isArray(lvl.shards)) lvl.shards = [];
+    if (!Array.isArray(lvl.portals)) lvl.portals = [];
+    if (!Array.isArray(lvl.speedPads)) lvl.speedPads = [];
+    if (!Array.isArray(lvl.glitchPlatforms)) lvl.glitchPlatforms = [];
+    if (!Array.isArray(lvl.phaseGates)) lvl.phaseGates = [];
+    if (!Array.isArray(lvl.chronoOrbs)) lvl.chronoOrbs = [];
+
+    // Map jumpPads to trampolines for physics
+    lvl.trampolines = [];
+    if (Array.isArray(lvl.jumpPads)) {
+        lvl.jumpPads.forEach(j => {
+            lvl.trampolines.push({
+                x: j.x,
+                y: j.y,
+                w: j.w || 35,
+                h: j.h || 10,
+                launchVy: j.impulseY || j.launchVy || -720,
+                launchVx: j.impulseX || j.launchVx || 420
+            });
+        });
+    }
+
+    // Ensure starting platform exists under spawn coordinates (80, 400)
+    let hasSpawnPlatform = false;
+    for (let i = 0; i < lvl.platforms.length; i++) {
+        const p = lvl.platforms[i];
+        if (!p.phase) p.phase = 'NEUTRAL';
+        if (p.x <= 80 && (p.x + p.w) >= 100 && Math.abs(p.y - 400) < 60) {
+            hasSpawnPlatform = true;
+        }
+    }
+    if (!hasSpawnPlatform) {
+        lvl.platforms.unshift({ x: 0, y: 400, w: 400, h: 40, phase: 'NEUTRAL' });
+    }
+
+    // Ensure finish gate
+    if (!lvl.finishGate) {
+        lvl.finishGate = { x: lvl.length - 100, y: 340, w: 30, h: 60 };
+    }
+
+    game.level = lvl;
+
+    // Hide Main Menu
     const menuScreen = document.getElementById('screen-main-menu');
-    if (menuScreen) menuScreen.classList.add('hidden');
-    const header = document.getElementById('game-header');
-    if (header) header.classList.remove('hidden');
+    if (menuScreen) {
+        menuScreen.classList.add('hidden');
+        menuScreen.style.display = 'none';
+    }
+
+    // Hide all modal overlays
+    const allModals = [
+        'modal-victory', 'modal-menu', 'modal-leaderboard', 'modal-daily',
+        'modal-howtoplay', 'modal-multiplayer', 'modal-pause', 'modal-locker',
+        'modal-achievements', 'modal-editor', 'modal-settings'
+    ];
+    allModals.forEach(id => {
+        const m = document.getElementById(id);
+        if (m) {
+            m.classList.add('hidden');
+            m.style.display = 'none';
+        }
+    });
+
+    // Show in-game HUD header
+    const ingameHeader = document.getElementById('ingame-header');
+    if (ingameHeader) {
+        ingameHeader.classList.remove('hidden');
+        ingameHeader.style.display = '';
+    }
 
     const lvlName = document.getElementById('hud-level-name');
-    if (lvlName) lvlName.innerText = `CUSTOM // ${customLvl.name}`;
+    if (lvlName) lvlName.innerText = `CUSTOM // ${lvl.name}`;
     const dimTag = document.getElementById('hud-dim-tag');
     if (dimTag) dimTag.innerText = "CUSTOM";
+    const endlessBadge = document.getElementById('hud-endless-badge');
+    if (endlessBadge) endlessBadge.classList.add('hidden');
+    const hudPct = document.getElementById('hud-pct-text');
+    const hudFill = document.getElementById('hud-progress-fill');
+    if (hudPct) hudPct.innerText = "0%";
+    if (hudFill) hudFill.style.width = "0%";
 
+    updateShardHUD();
+    updateAbilityHUD();
     resetPlayerState();
+
     if (typeof startVisualRaceCountdown === 'function') {
         startVisualRaceCountdown({
-            roundNum: 1,
-            isBO3: false,
-            isRoulette: false,
-            customTrackName: customLvl.name || 'CUSTOM SECTOR',
-            onGo: () => {
+            isMultiplayer: false,
+            title: `CUSTOM // ${lvl.name}`,
+            bpm: lvl.bpm,
+            onComplete: () => {
                 game.isCountingDown = false;
                 game.runTime = 0;
             }
@@ -2207,6 +2322,7 @@ function startCustomLevel(customLvl) {
     } else {
         game.isCountingDown = false;
         game.runTime = 0;
+        if (!audio.muted) audio.startMusic(lvl.bpm);
     }
 }
 window.startCustomLevel = startCustomLevel;
@@ -4295,8 +4411,8 @@ function renderLeaderboardRows(onlineScores, levelIdx, currentFilter) {
 }
 
 function populateLeaderboard(levelIdx) {
-    if (typeof levelIdx === 'undefined' && typeof game !== 'undefined') {
-        levelIdx = game.currentLevelIdx;
+    if ((typeof levelIdx === 'undefined' || levelIdx < 0 || (typeof LEVELS !== 'undefined' && levelIdx >= LEVELS.length)) && typeof game !== 'undefined') {
+        levelIdx = (game.currentLevelIdx !== undefined && game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length) ? game.currentLevelIdx : 0;
     }
     const tbody = document.getElementById('leaderboard-table-body');
     if (!tbody) return;
@@ -4938,9 +5054,11 @@ function updatePhysics(rawDt) {
             
             let targetTime = null;
             try {
-                const savedPb = localStorage.getItem(`neon_pulse_pb_${game.currentLevelIdx}`);
-                if (savedPb) targetTime = parseFloat(savedPb);
-                else if (game.level.goldTime) targetTime = game.level.goldTime;
+                if (!game.isCustomLevel && game.currentLevelIdx >= 0) {
+                    const savedPb = localStorage.getItem(`neon_pulse_pb_${game.currentLevelIdx}`);
+                    if (savedPb) targetTime = parseFloat(savedPb);
+                }
+                if (!targetTime && game.level.goldTime) targetTime = game.level.goldTime;
             } catch(e) {}
 
             if (targetTime && progress > 0.03) {
@@ -5903,51 +6021,70 @@ function triggerVictory() {
             DreamloLB.submitScore(99, finalTime, shardsCount, game.selectedAbility);
         }
         showNotification("🏆 DAILY CHALLENGE CLEAR! VAPORWAVE EXOSUIT UNLOCKED!");
-    } else {
+    } else if (game.isCustomLevel) {
+        showNotification(`🎉 CUSTOM TRACK COMPLETED IN ${formatTime(finalTime)}!`);
+    } else if (game.currentLevelIdx >= 0) {
         saveRunToLeaderboard(game.currentLevelIdx, finalTime, shardsCount, game.selectedAbility);
     }
 
     // Save Ghost Run for Challenge Links & Solo PB Ghost
-    game.lastCompletedGhost = {
-        tag: game.pilotTag,
-        stage: game.currentLevelIdx,
-        time: finalTime,
-        skin: (typeof getActiveSkinData === 'function') ? getActiveSkinData().id : dailySystem.activeSkin,
-        path: [...game.ghostRecord]
-    };
+    if (!game.isCustomLevel && game.currentLevelIdx >= 0) {
+        game.lastCompletedGhost = {
+            tag: game.pilotTag,
+            stage: game.currentLevelIdx,
+            time: finalTime,
+            skin: (typeof getActiveSkinData === 'function') ? getActiveSkinData().id : dailySystem.activeSkin,
+            path: [...game.ghostRecord]
+        };
+    }
 
     // Calculate and Save Stage Medal
-    const medal = getStageMedal(game.currentLevelIdx, finalTime, shardsCount);
-    if (medal) {
-        try {
-            const medalKey = `neon_pulse_medal_${game.currentLevelIdx}`;
-            const prevMedal = localStorage.getItem(medalKey);
-            const medalRanks = { 'BRONZE': 1, 'SILVER': 2, 'GOLD': 3, 'DIAMOND': 4 };
-            if (!prevMedal || (medalRanks[medal.tier] || 0) > (medalRanks[prevMedal] || 0)) {
-                localStorage.setItem(medalKey, medal.tier);
-            }
-        } catch(e) {}
+    let medal = null;
+    if (!game.isCustomLevel && game.currentLevelIdx >= 0) {
+        medal = getStageMedal(game.currentLevelIdx, finalTime, shardsCount);
+        if (medal) {
+            try {
+                const medalKey = `neon_pulse_medal_${game.currentLevelIdx}`;
+                const prevMedal = localStorage.getItem(medalKey);
+                const medalRanks = { 'BRONZE': 1, 'SILVER': 2, 'GOLD': 3, 'DIAMOND': 4 };
+                if (!prevMedal || (medalRanks[medal.tier] || 0) > (medalRanks[prevMedal] || 0)) {
+                    localStorage.setItem(medalKey, medal.tier);
+                }
+            } catch(e) {}
 
+            const medalIcon = document.getElementById('vic-medal-icon');
+            const medalTier = document.getElementById('vic-medal-tier');
+            const medalDesc = document.getElementById('vic-medal-desc');
+            const targetTimeEl = document.getElementById('vic-target-time');
+            if (medalIcon) medalIcon.innerText = medal.icon;
+            if (medalTier) {
+                medalTier.innerText = medal.label;
+                medalTier.className = `text-xs font-cyber font-bold tracking-wider ${medal.color}`;
+            }
+            if (medalDesc) {
+                if (medal.tier === 'DIAMOND') medalDesc.innerText = "DEV AUTHOR TIME + ALL 3 SHARDS!";
+                else if (medal.tier === 'GOLD') medalDesc.innerText = "Gold speedrun target par time achieved!";
+                else if (medal.tier === 'SILVER') medalDesc.innerText = "Silver standard completed!";
+                else medalDesc.innerText = "Bronze completion medal awarded!";
+            }
+            if (targetTimeEl) targetTimeEl.innerText = `PAR: ${formatTime(targetParTime)}`;
+        }
+    } else if (game.isCustomLevel) {
         const medalIcon = document.getElementById('vic-medal-icon');
         const medalTier = document.getElementById('vic-medal-tier');
         const medalDesc = document.getElementById('vic-medal-desc');
         const targetTimeEl = document.getElementById('vic-target-time');
-        if (medalIcon) medalIcon.innerText = medal.icon;
+        if (medalIcon) medalIcon.innerText = '🛠️';
         if (medalTier) {
-            medalTier.innerText = medal.label;
-            medalTier.className = `text-xs font-cyber font-bold tracking-wider ${medal.color}`;
+            medalTier.innerText = 'CUSTOM TRACK FINISH';
+            medalTier.className = 'text-xs font-cyber font-bold tracking-wider text-cyan-300';
         }
-        if (medalDesc) {
-            if (medal.tier === 'DIAMOND') medalDesc.innerText = "DEV AUTHOR TIME + ALL 3 SHARDS!";
-            else if (medal.tier === 'GOLD') medalDesc.innerText = "Gold speedrun target par time achieved!";
-            else if (medal.tier === 'SILVER') medalDesc.innerText = "Silver standard completed!";
-            else medalDesc.innerText = "Bronze completion medal awarded!";
-        }
-        if (targetTimeEl) targetTimeEl.innerText = `PAR: ${formatTime(targetParTime)}`;
+        if (medalDesc) medalDesc.innerText = 'Course designed in Track Builder!';
+        if (targetTimeEl) targetTimeEl.innerText = `TIME: ${formatTime(finalTime)}`;
     }
 
     // Achievement & Bounty Evaluations for Stage Victory
-    if (typeof achievementSystem !== 'undefined') {
+    if (typeof achievementSystem !== 'undefined' && !game.isCustomLevel) {
         if (game.currentLevelIdx === 0) achievementSystem.unlock('first_steps');
         if (game.currentLevelIdx >= 1) achievementSystem.unlock('sector_clear_1');
         if (game.currentLevelIdx >= 9) achievementSystem.unlock('sector_clear_5');
@@ -5983,7 +6120,7 @@ function triggerVictory() {
         if (shardTotal >= 50) achievementSystem.unlock('shard_collector_50');
     }
 
-    if (typeof dailySystem !== 'undefined') {
+    if (typeof dailySystem !== 'undefined' && !game.isCustomLevel) {
         dailySystem.updateBountyProgress('stage_clear', 1);
         if (game.currentLevelIdx >= 10) dailySystem.updateBountyProgress('stage_clear_dim2', 1);
         if (medal && (medal.tier === 'GOLD' || medal.tier === 'DIAMOND')) {
@@ -5999,22 +6136,24 @@ function triggerVictory() {
         MP.broadcastFinish(finalTime);
     }
 
-    try {
-        const pbKey = `neon_pulse_pb_${game.currentLevelIdx}`;
-        const prevPb = localStorage.getItem(pbKey);
-        const pbNotif = document.getElementById('vic-pb-notification');
-        if (!prevPb || finalTime < parseFloat(prevPb)) {
-            localStorage.setItem(pbKey, finalTime.toString());
-            localStorage.setItem(`neon_pulse_shards_${game.currentLevelIdx}`, shardsCount.toString());
-            // Save Solo PB Ghost Run
-            try {
-                localStorage.setItem(`neon_pulse_pb_ghost_${game.currentLevelIdx}`, JSON.stringify(game.lastCompletedGhost));
-            } catch(e) {}
-            if (pbNotif) pbNotif.classList.remove('hidden');
-        } else {
-            if (pbNotif) pbNotif.classList.add('hidden');
-        }
-    } catch(e) {}
+    if (!game.isCustomLevel && game.currentLevelIdx >= 0) {
+        try {
+            const pbKey = `neon_pulse_pb_${game.currentLevelIdx}`;
+            const prevPb = localStorage.getItem(pbKey);
+            const pbNotif = document.getElementById('vic-pb-notification');
+            if (!prevPb || finalTime < parseFloat(prevPb)) {
+                localStorage.setItem(pbKey, finalTime.toString());
+                localStorage.setItem(`neon_pulse_shards_${game.currentLevelIdx}`, shardsCount.toString());
+                // Save Solo PB Ghost Run
+                try {
+                    localStorage.setItem(`neon_pulse_pb_ghost_${game.currentLevelIdx}`, JSON.stringify(game.lastCompletedGhost));
+                } catch(e) {}
+                if (pbNotif) pbNotif.classList.remove('hidden');
+            } else {
+                if (pbNotif) pbNotif.classList.add('hidden');
+            }
+        } catch(e) {}
+    }
 
     const vicLevel = document.getElementById('victory-level-name');
     const vicTime = document.getElementById('vic-time');
@@ -6066,40 +6205,46 @@ function runBotPilotAI() {
     let mustSlide = false;
 
     // 1. Spikes
-    for (let i = 0; i < lvl.spikes.length; i++) {
-        const s = lvl.spikes[i];
-        if (s.x > p.x && s.x - p.x < lookahead) {
-            if (!s.inverted && p.gravityDir === 1) mustJump = true;
-            else if (s.inverted && p.gravityDir === -1) mustJump = true;
+    if (lvl.spikes) {
+        for (let i = 0; i < lvl.spikes.length; i++) {
+            const s = lvl.spikes[i];
+            if (s.x > p.x && s.x - p.x < lookahead) {
+                if (!s.inverted && p.gravityDir === 1) mustJump = true;
+                else if (s.inverted && p.gravityDir === -1) mustJump = true;
+            }
         }
     }
 
     // 2. Lasers
-    for (let i = 0; i < lvl.lasers.length; i++) {
-        const l = lvl.lasers[i];
-        if (l.x + l.w > p.x && l.x - p.x < lookahead * 0.85) {
-            if (l.h <= 35 && l.y <= 360) {
-                if (p.isGrounded || isCeilingOverhead()) {
-                    mustSlide = true;
+    if (lvl.lasers) {
+        for (let i = 0; i < lvl.lasers.length; i++) {
+            const l = lvl.lasers[i];
+            if (l.x + l.w > p.x && l.x - p.x < lookahead * 0.85) {
+                if (l.h <= 35 && l.y <= 360) {
+                    if (p.isGrounded || isCeilingOverhead()) {
+                        mustSlide = true;
+                    }
+                } else if (p.isGrounded && l.h > 35) {
+                    mustJump = true;
                 }
-            } else if (p.isGrounded && l.h > 35) {
-                mustJump = true;
             }
         }
     }
 
     // 3. Jump Rings & Gravity Rings
-    for (let i = 0; i < lvl.rings.length; i++) {
-        const r = lvl.rings[i];
-        if (r.x > p.x && r.x - p.x < 75 && Math.abs(p.y - r.y) < 110) {
-            if (p.isGrounded) {
-                mustJump = true;
+    if (lvl.rings) {
+        for (let i = 0; i < lvl.rings.length; i++) {
+            const r = lvl.rings[i];
+            if (r.x > p.x && r.x - p.x < 75 && Math.abs(p.y - r.y) < 110) {
+                if (p.isGrounded) {
+                    mustJump = true;
+                }
             }
         }
     }
 
     // 4. Void / Chasm edge detection
-    if (p.isGrounded) {
+    if (p.isGrounded && lvl.platforms) {
         const checkX = p.x + p.w + 24;
         let hasSurface = false;
         let hasFloorBelow = false;
@@ -6511,26 +6656,33 @@ function render() {
     }
 
     // 5. Spikes
-    for (let i = 0; i < lvl.spikes.length; i++) {
-        const s = lvl.spikes[i];
-        if (s.x + s.w > cameraX && s.x < cameraX + V_WIDTH) {
-            drawSpike(s.x, s.y, s.w, s.h, s.inverted);
+    if (lvl.spikes) {
+        for (let i = 0; i < lvl.spikes.length; i++) {
+            const s = lvl.spikes[i];
+            if (s.x + s.w > cameraX && s.x < cameraX + V_WIDTH) {
+                drawSpike(s.x, s.y, s.w, s.h, s.inverted);
+            }
         }
     }
 
     // 6. Lasers
-    for (let i = 0; i < lvl.lasers.length; i++) {
-        const l = lvl.lasers[i];
-        if (l.x + l.w > cameraX && l.x < cameraX + V_WIDTH) {
-            drawLaser(l);
+    if (lvl.lasers) {
+        for (let i = 0; i < lvl.lasers.length; i++) {
+            const l = lvl.lasers[i];
+            if (l.x + l.w > cameraX && l.x < cameraX + V_WIDTH) {
+                drawLaser(l);
+            }
         }
     }
 
     // 7. Jump Rings
-    for (let i = 0; i < lvl.rings.length; i++) {
-        const r = lvl.rings[i];
-        if (r.x + r.r > cameraX && r.x - r.r < cameraX + V_WIDTH) {
-            drawRing(r);
+    if (lvl.rings) {
+        for (let i = 0; i < lvl.rings.length; i++) {
+            const r = lvl.rings[i];
+            const rR = r.r || 24;
+            if (r.x + rR > cameraX && r.x - rR < cameraX + V_WIDTH) {
+                drawRing(r);
+            }
         }
     }
 
@@ -6560,23 +6712,27 @@ function render() {
     }
 
     // 8. Gravity Portals
-    for (let i = 0; i < lvl.portals.length; i++) {
-        const prt = lvl.portals[i];
-        if (prt.x + prt.w > cameraX && prt.x < cameraX + V_WIDTH) {
-            drawPortal(prt);
+    if (lvl.portals) {
+        for (let i = 0; i < lvl.portals.length; i++) {
+            const prt = lvl.portals[i];
+            if (prt.x + prt.w > cameraX && prt.x < cameraX + V_WIDTH) {
+                drawPortal(prt);
+            }
         }
     }
 
     // 9. Secret Shards
-    for (let i = 0; i < lvl.shards.length; i++) {
-        const sh = lvl.shards[i];
-        if (!sh.taken && sh.x + 20 > cameraX && sh.x - 20 < cameraX + V_WIDTH) {
-            drawShard(sh.x, sh.y);
+    if (lvl.shards) {
+        for (let i = 0; i < lvl.shards.length; i++) {
+            const sh = lvl.shards[i];
+            if (!sh.taken && sh.x + 20 > cameraX && sh.x - 20 < cameraX + V_WIDTH) {
+                drawShard(sh.x, sh.y);
+            }
         }
     }
 
     // 10. Finish Gate Indicator (Only on non-endless stages)
-    if (!game.isEndless) {
+    if (!game.isEndless && lvl.length) {
         drawFinishGate(lvl.length);
     }
 
@@ -7629,6 +7785,7 @@ function spawnNextEndlessChunk() {
 function startEndlessMode() {
     audio.init();
     game.isEndless = true;
+    game.isCustomLevel = false;
     game.currentLevelIdx = -1;
     game.inMainMenu = false;
     game.victory = false;
@@ -10008,6 +10165,7 @@ function generateDailyLevel(seed = getTodaySeed()) {
 function startDailyChallenge() {
     game.inMainMenu = false;
     game.isEndless = false;
+    game.isCustomLevel = false;
     game.isDailyChallenge = true;
     game.isCountingDown = false;
     game.currentLevelIdx = 99;
@@ -10412,9 +10570,13 @@ function startLockerPreviewAnimation() {
 // 12. LEVEL FLOW & STAGE MATRIX POPULATION
 // ============================================================================
 function startLevel(idx, skipCountdown = false) {
+    if (idx === undefined || idx === null || idx < 0 || idx >= LEVELS.length) {
+        idx = 0;
+    }
     game.inMainMenu = false;
     game.isEndless = false;
     game.isDailyChallenge = false;
+    game.isCustomLevel = false;
     game.isCountingDown = false;
     game.currentLevelIdx = idx;
     if (!skipCountdown) {
@@ -10523,6 +10685,7 @@ function returnToMainMenu() {
     game.isEndless = false;
     game.isDailyChallenge = false;
     game.isMultiplayer = false;
+    game.isCustomLevel = false;
     game.ghostActive = false;
     game.ghostData = null;
     game.victory = false;
@@ -11247,7 +11410,8 @@ const bindClick = (id, fn) => {
 
 bindClick('btn-main-play', () => {
     audio.init();
-    startLevel(game.currentLevelIdx);
+    const idx = (game.currentLevelIdx !== undefined && game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length) ? game.currentLevelIdx : 0;
+    startLevel(idx);
 });
 
 bindClick('btn-main-random', () => {
@@ -11276,7 +11440,8 @@ bindClick('btn-main-stages', () => {
 
 bindClick('btn-main-ranks', () => {
     game.openedLeaderboardFrom = 'main';
-    populateLeaderboard(game.currentLevelIdx);
+    const idx = (game.currentLevelIdx !== undefined && game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length) ? game.currentLevelIdx : 0;
+    populateLeaderboard(idx);
     const lbModal = document.getElementById('modal-leaderboard');
     if (lbModal) {
         lbModal.classList.remove('hidden');
@@ -11537,7 +11702,8 @@ bindClick('btn-howtoplay-confirm', () => {
         howModal.style.display = 'none';
     }
     audio.init();
-    startLevel(game.currentLevelIdx);
+    const idx = (game.currentLevelIdx !== undefined && game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length) ? game.currentLevelIdx : 0;
+    startLevel(idx);
 });
 
 bindClick('btn-menu-audio', () => {
@@ -11653,7 +11819,8 @@ if (achModalEl) {
 bindClick('btn-leaderboard-open', () => {
     game.openedLeaderboardFrom = 'inGame';
     setPause(true);
-    populateLeaderboard(game.currentLevelIdx);
+    const idx = (game.currentLevelIdx !== undefined && game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length) ? game.currentLevelIdx : 0;
+    populateLeaderboard(idx);
     const lbModal = document.getElementById('modal-leaderboard');
     if (lbModal) {
         lbModal.classList.remove('hidden');
@@ -11743,34 +11910,59 @@ bindClick('btn-victory-main-menu', () => {
 });
 
 bindClick('btn-victory-replay', () => {
-    if (game.currentLevelIdx === -1 && typeof editorSystem !== 'undefined') {
-        const vicModal = document.getElementById('modal-victory');
-        if (vicModal) vicModal.classList.add('hidden');
+    const vicModal = document.getElementById('modal-victory');
+    if (vicModal) {
+        vicModal.classList.add('hidden');
+        vicModal.style.display = 'none';
+    }
+    if (game.isCustomLevel && typeof editorSystem !== 'undefined') {
         startCustomLevel(editorSystem.customLevel);
         return;
     }
-    startLevel(game.currentLevelIdx);
+    if (game.isEndless) {
+        startEndlessMode();
+        return;
+    }
+    if (game.isDailyChallenge) {
+        startDailyChallenge();
+        return;
+    }
+    const idx = (game.currentLevelIdx !== undefined && game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length) ? game.currentLevelIdx : 0;
+    startLevel(idx);
 });
 
 bindClick('btn-victory-next', () => {
-    if (game.currentLevelIdx === -1 && typeof editorSystem !== 'undefined') {
-        const vicModal = document.getElementById('modal-victory');
-        if (vicModal) vicModal.classList.add('hidden');
+    const vicModal = document.getElementById('modal-victory');
+    if (vicModal) {
+        vicModal.classList.add('hidden');
+        vicModal.style.display = 'none';
+    }
+    if (game.isCustomLevel && typeof editorSystem !== 'undefined') {
         editorSystem.open();
         return;
     }
-    const nextIdx = (game.currentLevelIdx + 1) % LEVELS.length;
+    if (game.isEndless || game.isDailyChallenge) {
+        returnToMainMenu();
+        return;
+    }
+    const curIdx = (game.currentLevelIdx !== undefined && game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length) ? game.currentLevelIdx : 0;
+    const nextIdx = (curIdx + 1) % LEVELS.length;
     startLevel(nextIdx);
 });
 
 bindClick('btn-victory-ranks', () => {
+    if (game.isCustomLevel) {
+        showNotification("ℹ️ LEADERBOARDS ARE ONLY AVAILABLE FOR OFFICIAL STAGES");
+        return;
+    }
     game.openedLeaderboardFrom = 'victory';
     const vicModal = document.getElementById('modal-victory');
     if (vicModal) {
         vicModal.classList.add('hidden');
         vicModal.style.display = 'none';
     }
-    populateLeaderboard(game.currentLevelIdx);
+    const idx = (game.currentLevelIdx !== undefined && game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length) ? game.currentLevelIdx : 0;
+    populateLeaderboard(idx);
     const lbModal = document.getElementById('modal-leaderboard');
     if (lbModal) {
         lbModal.classList.remove('hidden');
