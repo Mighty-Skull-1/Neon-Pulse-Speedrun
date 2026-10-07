@@ -617,6 +617,42 @@ class SoundEngine {
         } catch(e) {}
     }
 
+    playNavTick() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(740, now);
+            osc.frequency.exponentialRampToValueAtTime(1180, now + 0.025);
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+            osc.connect(gain);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.035);
+        } catch(e) {}
+    }
+
+    playConfirm() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(520, now);
+            osc.frequency.exponentialRampToValueAtTime(1040, now + 0.06);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+            osc.connect(gain);
+            gain.connect(this.getSfxDestination() || this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.08);
+        } catch(e) {}
+    }
+
     startMusic(bpm) {
         this.stopMusic();
         this.currentBpm = bpm || 128;
@@ -1089,10 +1125,65 @@ function showGamepadToast(name, connected = true) {
     }, 3500);
 }
 
+const DEFAULT_GAMEPAD_BINDS = {
+    jump: [0],               // A
+    slide: [1, 13, 6],       // B, D-pad Down, LT
+    dash: [4, 5, 7],         // LB, RB, RT
+    thrust: [2],             // X
+    chrono: [3],             // Y
+    restart: [8, 10],        // Back/View, L3
+    pause: [9]               // Start/Options
+};
+
+const GAMEPAD_BUTTON_NAMES = {
+    0: 'A / CROSS (0)',
+    1: 'B / CIRCLE (1)',
+    2: 'X / SQUARE (2)',
+    3: 'Y / TRIANGLE (3)',
+    4: 'LB / L1 (4)',
+    5: 'RB / R1 (5)',
+    6: 'LT / L2 (6)',
+    7: 'RT / R2 (7)',
+    8: 'BACK / VIEW (8)',
+    9: 'START / OPTIONS (9)',
+    10: 'L3 / STICK CLICK (10)',
+    11: 'R3 / STICK CLICK (11)',
+    12: 'D-PAD UP (12)',
+    13: 'D-PAD DOWN (13)',
+    14: 'D-PAD LEFT (14)',
+    15: 'D-PAD RIGHT (15)',
+    16: 'GUIDE / HOME (16)'
+};
+
+const GAMEPAD_BUTTON_SHORT = {
+    0: 'A',
+    1: 'B',
+    2: 'X',
+    3: 'Y',
+    4: 'LB',
+    5: 'RB',
+    6: 'LT',
+    7: 'RT',
+    8: 'BACK',
+    9: 'START',
+    10: 'L3',
+    11: 'R3',
+    12: 'D-UP',
+    13: 'D-DOWN',
+    14: 'D-LEFT',
+    15: 'D-RIGHT',
+    16: 'GUIDE'
+};
+
 const gamepadSystem = {
     connected: false,
     gamepadIndex: null,
     prevButtons: {},
+    prevJumpHeld: false,
+    prevSlideHeld: false,
+    currentFocusEl: null,
+    navActiveDir: null,
+    navRepeatTimer: 0,
 
     init() {
         window.addEventListener('gamepadconnected', (e) => {
@@ -1101,6 +1192,9 @@ const gamepadSystem = {
             console.log(`[Gamepad] Connected: ${e.gamepad.id} (index ${e.gamepad.index})`);
             showGamepadToast(e.gamepad.id.slice(0, 32).toUpperCase(), true);
             document.body.classList.add('gamepad-active');
+            if (typeof settingsSystem !== 'undefined') {
+                settingsSystem.updateGamepadStatus(e.gamepad.id, true);
+            }
         });
 
         window.addEventListener('gamepaddisconnected', (e) => {
@@ -1110,8 +1204,266 @@ const gamepadSystem = {
                 console.log(`[Gamepad] Disconnected`);
                 showGamepadToast(e.gamepad.id.slice(0, 32).toUpperCase(), false);
                 document.body.classList.remove('gamepad-active');
+                this.clearFocus();
+                if (typeof settingsSystem !== 'undefined') {
+                    settingsSystem.updateGamepadStatus('', false);
+                }
+                // Disconnect Safety: Pause game so player doesn't crash during a run
+                if (typeof game !== 'undefined' && !game.inMainMenu && !game.isPaused && !game.victory) {
+                    if (typeof setPause === 'function') setPause(true);
+                    if (typeof showNotification === 'function') showNotification("⚠️ CONTROLLER DISCONNECTED — PAUSED");
+                }
             }
         });
+    },
+
+    vibrate(duration = 100, strongMagnitude = 0.5, weakMagnitude = 0.5) {
+        if (!this.connected) return;
+        const intensity = (typeof settingsSystem !== 'undefined' && settingsSystem.vibrationIntensity !== undefined)
+            ? settingsSystem.vibrationIntensity / 100
+            : 1.0;
+        if (intensity <= 0) return;
+
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        const gp = (this.gamepadIndex !== null && gamepads[this.gamepadIndex]) ? gamepads[this.gamepadIndex] : null;
+        if (!gp) return;
+
+        const sMag = Math.max(0, Math.min(1, strongMagnitude * intensity));
+        const wMag = Math.max(0, Math.min(1, weakMagnitude * intensity));
+
+        try {
+            if (gp.vibrationActuator && typeof gp.vibrationActuator.playEffect === 'function') {
+                gp.vibrationActuator.playEffect('dual-rumble', {
+                    startDelay: 0,
+                    duration: duration,
+                    weakMagnitude: wMag,
+                    strongMagnitude: sMag
+                }).catch(() => {});
+            } else if (gp.hapticActuators && gp.hapticActuators.length > 0 && typeof gp.hapticActuators[0].pulse === 'function') {
+                gp.hapticActuators[0].pulse(sMag, duration).catch(() => {});
+            }
+        } catch(e) {}
+    },
+
+    getActiveModal() {
+        const modalIds = [
+            'modal-settings',
+            'modal-editor',
+            'modal-race-result',
+            'modal-achievements',
+            'modal-locker',
+            'modal-leaderboard',
+            'modal-daily',
+            'modal-howtoplay',
+            'modal-multiplayer',
+            'modal-pause',
+            'modal-victory',
+            'modal-menu'
+        ];
+        for (const id of modalIds) {
+            const m = document.getElementById(id);
+            if (m && !m.classList.contains('hidden') && m.style.display !== 'none') {
+                return m;
+            }
+        }
+        return null;
+    },
+
+    closeActiveModal(modalEl) {
+        if (!modalEl) return;
+        const id = modalEl.id;
+        if (id === 'modal-settings') {
+            if (typeof settingsSystem !== 'undefined') settingsSystem.close();
+        } else if (id === 'modal-editor') {
+            if (typeof editorSystem !== 'undefined') editorSystem.close();
+        } else if (id === 'modal-achievements') {
+            if (typeof achievementSystem !== 'undefined') achievementSystem.closeModal();
+        } else if (id === 'modal-locker') {
+            if (typeof lockerSystem !== 'undefined' && typeof lockerSystem.closeModal === 'function') lockerSystem.closeModal();
+            else { modalEl.classList.add('hidden'); modalEl.style.display = 'none'; }
+        } else if (id === 'modal-leaderboard') {
+            if (typeof closeLeaderboardModal === 'function') closeLeaderboardModal();
+            else { modalEl.classList.add('hidden'); modalEl.style.display = 'none'; }
+        } else if (id === 'modal-pause') {
+            if (typeof setPause === 'function') setPause(false);
+        } else if (id === 'modal-victory') {
+            if (typeof returnToMainMenu === 'function') returnToMainMenu();
+        } else {
+            modalEl.classList.add('hidden');
+            modalEl.style.display = 'none';
+        }
+        this.clearFocus();
+    },
+
+    getFocusableElements(container) {
+        if (!container) return [];
+        const selector = 'button, input[type="range"], input[type="text"], select, [tabindex="0"]';
+        const raw = Array.from(container.querySelectorAll(selector));
+        return raw.filter(el => {
+            if (el.disabled) return false;
+            if (el.classList.contains('hidden') || el.style.display === 'none') return false;
+            let p = el.parentElement;
+            while (p && p !== container && p !== document.body) {
+                if (p.classList.contains('hidden') || p.style.display === 'none') return false;
+                p = p.parentElement;
+            }
+            const r = el.getBoundingClientRect();
+            const top = (r.top !== undefined) ? r.top : 0;
+            const bottom = (r.bottom !== undefined) ? r.bottom : (top + (r.height || 0));
+            const maxH = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : 1080;
+            return r.width > 0 && r.height > 0 && bottom >= 0 && top <= maxH;
+        });
+    },
+
+    setFocus(el) {
+        if (this.currentFocusEl && this.currentFocusEl !== el) {
+            this.currentFocusEl.classList.remove('gamepad-focus-ring');
+        }
+        this.currentFocusEl = el;
+        if (el) {
+            el.classList.add('gamepad-focus-ring');
+            if (typeof el.focus === 'function') {
+                el.focus({ preventScroll: true });
+            }
+        }
+    },
+
+    clearFocus() {
+        if (this.currentFocusEl) {
+            this.currentFocusEl.classList.remove('gamepad-focus-ring');
+            this.currentFocusEl = null;
+        }
+        const rings = document.querySelectorAll('.gamepad-focus-ring');
+        rings.forEach(r => r.classList.remove('gamepad-focus-ring'));
+    },
+
+    handleUINavigate(dir, container) {
+        if (!container) return;
+        const candidates = this.getFocusableElements(container);
+        if (candidates.length === 0) return;
+
+        if (!this.currentFocusEl || !candidates.includes(this.currentFocusEl)) {
+            this.setFocus(candidates[0]);
+            this.currentFocusEl.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+            if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
+            this.vibrate(10, 0.15, 0.1);
+            return;
+        }
+
+        const curr = this.currentFocusEl;
+
+        // If currently focused element is a range slider and moving left/right: adjust value
+        if (curr.tagName === 'INPUT' && curr.type === 'range' && (dir === 'left' || dir === 'right')) {
+            const min = parseFloat(curr.min) || 0;
+            const max = parseFloat(curr.max) || 100;
+            const step = parseFloat(curr.step) || Math.max(1, Math.round((max - min) / 20));
+            const oldVal = parseFloat(curr.value) || 0;
+            let newVal = dir === 'left' ? oldVal - step : oldVal + step;
+            newVal = Math.max(min, Math.min(max, newVal));
+            if (newVal !== oldVal) {
+                curr.value = newVal;
+                curr.dispatchEvent(new Event('input', { bubbles: true }));
+                curr.dispatchEvent(new Event('change', { bubbles: true }));
+                if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
+                this.vibrate(15, 0.2, 0.15);
+            }
+            return;
+        }
+
+        // Spatial 2D search
+        const cr = curr.getBoundingClientRect();
+        const cx = cr.left + cr.width / 2;
+        const cy = cr.top + cr.height / 2;
+
+        let bestCand = null;
+        let bestScore = Infinity;
+
+        for (const cand of candidates) {
+            if (cand === curr) continue;
+            const r = cand.getBoundingClientRect();
+            const candX = r.left + r.width / 2;
+            const candY = r.top + r.height / 2;
+            const dx = candX - cx;
+            const dy = candY - cy;
+
+            let inDir = false;
+            let score = Infinity;
+
+            if (dir === 'up') {
+                if (dy < -6) {
+                    inDir = true;
+                    score = Math.abs(dy) + Math.abs(dx) * 1.5;
+                }
+            } else if (dir === 'down') {
+                if (dy > 6) {
+                    inDir = true;
+                    score = Math.abs(dy) + Math.abs(dx) * 1.5;
+                }
+            } else if (dir === 'left') {
+                if (dx < -6) {
+                    inDir = true;
+                    score = Math.abs(dx) + Math.abs(dy) * 1.8;
+                }
+            } else if (dir === 'right') {
+                if (dx > 6) {
+                    inDir = true;
+                    score = Math.abs(dx) + Math.abs(dy) * 1.8;
+                }
+            }
+
+            if (inDir && score < bestScore) {
+                bestScore = score;
+                bestCand = cand;
+            }
+        }
+
+        // Sequential fallback if no geometric candidate in that exact direction
+        if (!bestCand) {
+            const idx = candidates.indexOf(curr);
+            if (dir === 'down' || dir === 'right') {
+                bestCand = candidates[(idx + 1) % candidates.length];
+            } else if (dir === 'up' || dir === 'left') {
+                bestCand = candidates[(idx - 1 + candidates.length) % candidates.length];
+            }
+        }
+
+        if (bestCand && bestCand !== curr) {
+            this.setFocus(bestCand);
+            bestCand.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+            if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
+            this.vibrate(10, 0.15, 0.1);
+        }
+    },
+
+    cycleSettingsTab(direction) {
+        const tabs = ['gameplay', 'keys', 'controller'];
+        let currentIdx = 0;
+        const panelKeys = document.getElementById('settings-panel-keys');
+        const panelController = document.getElementById('settings-panel-controller');
+        if (panelController && !panelController.classList.contains('hidden')) currentIdx = 2;
+        else if (panelKeys && !panelKeys.classList.contains('hidden')) currentIdx = 1;
+
+        const nextIdx = (currentIdx + direction + tabs.length) % tabs.length;
+        if (typeof settingsSystem !== 'undefined') {
+            settingsSystem.switchTab(tabs[nextIdx]);
+        }
+        const tabBtn = document.getElementById(`tab-settings-${tabs[nextIdx]}`);
+        if (tabBtn) this.setFocus(tabBtn);
+    },
+
+    cycleLockerTab() {
+        const skinBtn = document.getElementById('tab-locker-skins');
+        const trailBtn = document.getElementById('tab-locker-trails');
+        if (typeof lockerSystem !== 'undefined') {
+            const nextTab = (lockerSystem.activeTab === 'skins') ? 'trails' : 'skins';
+            if (nextTab === 'trails' && trailBtn) {
+                trailBtn.click();
+                this.setFocus(trailBtn);
+            } else if (skinBtn) {
+                skinBtn.click();
+                this.setFocus(skinBtn);
+            }
+        }
     },
 
     update() {
@@ -1125,6 +1477,9 @@ const gamepadSystem = {
                     gp = gamepads[i];
                     this.gamepadIndex = i;
                     this.connected = true;
+                    if (typeof settingsSystem !== 'undefined') {
+                        settingsSystem.updateGamepadStatus(gp.id, true);
+                    }
                     break;
                 }
             }
@@ -1141,113 +1496,221 @@ const gamepadSystem = {
             return pressed && !wasPressed;
         };
 
-        const achModal = document.getElementById('modal-achievements');
-        const dailyModal = document.getElementById('modal-daily');
-        const stageModal = document.getElementById('modal-menu');
-        const lockerModal = document.getElementById('modal-locker');
-        const lbModal = document.getElementById('modal-leaderboard');
-        const howModal = document.getElementById('modal-howtoplay');
-        const mpModal = document.getElementById('modal-multiplayer');
-
-        const anyModalOpen = (achModal && !achModal.classList.contains('hidden')) ||
-                             (dailyModal && !dailyModal.classList.contains('hidden')) ||
-                             (stageModal && !stageModal.classList.contains('hidden')) ||
-                             (lockerModal && !lockerModal.classList.contains('hidden')) ||
-                             (lbModal && !lbModal.classList.contains('hidden')) ||
-                             (howModal && !howModal.classList.contains('hidden')) ||
-                             (mpModal && !mpModal.classList.contains('hidden'));
-
-        // Button 1 (B / Circle) -> Close modals
-        if (justPressed(1)) {
-            if (anyModalOpen) {
-                if (achModal) { achModal.classList.add('hidden'); achModal.style.display = 'none'; }
-                if (dailyModal) { dailyModal.classList.add('hidden'); dailyModal.style.display = 'none'; }
-                if (stageModal) { stageModal.classList.add('hidden'); stageModal.style.display = 'none'; }
-                if (lockerModal) { lockerModal.classList.add('hidden'); lockerModal.style.display = 'none'; }
-                if (lbModal && typeof closeLeaderboardModal === 'function') closeLeaderboardModal();
-                if (howModal) { howModal.classList.add('hidden'); howModal.style.display = 'none'; }
-                if (mpModal) { mpModal.classList.add('hidden'); mpModal.style.display = 'none'; }
-                if (!game.inMainMenu && !game.victory) setPause(false);
+        // 1. Controller Rebinding Mode: capture any button press
+        if (typeof settingsSystem !== 'undefined' && settingsSystem.listeningGamepadAction) {
+            for (let i = 0; i < gp.buttons.length; i++) {
+                if (justPressed(i)) {
+                    settingsSystem.captureGamepadButton(i);
+                    this.vibrate(30, 0.4, 0.2);
+                    for (let j = 0; j < gp.buttons.length; j++) {
+                        this.prevButtons[j] = isPressed(j);
+                    }
+                    return;
+                }
             }
-        }
-
-        // Button 9 (Start / Options) -> Pause / Resume
-        if (justPressed(9)) {
-            if (anyModalOpen) {
-                if (achModal) { achModal.classList.add('hidden'); achModal.style.display = 'none'; }
-                if (dailyModal) { dailyModal.classList.add('hidden'); dailyModal.style.display = 'none'; }
-                if (stageModal) { stageModal.classList.add('hidden'); stageModal.style.display = 'none'; }
-                if (lockerModal) { lockerModal.classList.add('hidden'); lockerModal.style.display = 'none'; }
-                if (!game.inMainMenu && !game.victory) setPause(false);
-            } else if (!game.inMainMenu && !game.isCountingDown) {
-                setPause(!game.isPaused);
+            for (let i = 0; i < gp.buttons.length; i++) {
+                this.prevButtons[i] = isPressed(i);
             }
+            return;
         }
 
-        // Button 8 (Select / Back / View) -> Open Level Select
-        if (justPressed(8)) {
-            if (!anyModalOpen) {
-                if (typeof populateStageMenu === 'function') populateStageMenu();
-                if (stageModal) stageModal.classList.remove('hidden');
-                if (!game.inMainMenu) setPause(true);
+        const activeModal = this.getActiveModal();
+        const isUIMode = Boolean(
+            (typeof game !== 'undefined' && game.inMainMenu) ||
+            (typeof game !== 'undefined' && game.isPaused) ||
+            activeModal ||
+            (typeof game !== 'undefined' && game.victory)
+        );
+
+        const deadzone = 0.45;
+        const axisX = (gp.axes && Math.abs(gp.axes[0]) > deadzone) ? gp.axes[0] : 0;
+        const axisY = (gp.axes && Math.abs(gp.axes[1]) > deadzone) ? gp.axes[1] : 0;
+
+        // 2. UI NAVIGATION MODE
+        if (isUIMode) {
+            let activeContainer = activeModal;
+            if (!activeContainer) {
+                if (typeof game !== 'undefined' && game.isPaused) {
+                    activeContainer = document.getElementById('modal-pause');
+                } else if (typeof game !== 'undefined' && game.victory) {
+                    activeContainer = document.getElementById('modal-victory');
+                } else if (typeof game !== 'undefined' && game.inMainMenu) {
+                    activeContainer = document.getElementById('screen-main-menu');
+                }
             }
-        }
+            if (!activeContainer) activeContainer = document.body;
 
-        // Button 12 (D-pad Up) on Main Menu -> Open Achievements
-        if (justPressed(12) && game.inMainMenu) {
-            achievementSystem.toggleModal();
-        }
+            // Auto-acquire focus on first element in current container
+            if (!this.currentFocusEl || (activeContainer.contains && !activeContainer.contains(this.currentFocusEl))) {
+                const candidates = this.getFocusableElements(activeContainer);
+                if (candidates.length > 0) {
+                    this.setFocus(candidates[0]);
+                }
+            }
 
-        // In-Game Runner Controls
-        if (!game.inMainMenu && !game.isPaused && !game.isCountingDown) {
-            // Button 0 (A / Cross) -> Jump
-            const aPressed = isPressed(0);
+            // Directional Input from D-pad or Left Stick
+            let navDir = null;
+            if (isPressed(12) || axisY < -deadzone) navDir = 'up';
+            else if (isPressed(13) || axisY > deadzone) navDir = 'down';
+            else if (isPressed(14) || axisX < -deadzone) navDir = 'left';
+            else if (isPressed(15) || axisX > deadzone) navDir = 'right';
+
+            const now = performance.now();
+            if (navDir) {
+                let shouldTrigger = false;
+                if (this.navActiveDir !== navDir) {
+                    this.navActiveDir = navDir;
+                    this.navRepeatTimer = now + 250;
+                    shouldTrigger = true;
+                } else if (now >= this.navRepeatTimer) {
+                    this.navRepeatTimer = now + 120;
+                    shouldTrigger = true;
+                }
+                if (shouldTrigger) {
+                    this.handleUINavigate(navDir, activeContainer);
+                }
+            } else {
+                this.navActiveDir = null;
+                this.navRepeatTimer = 0;
+            }
+
+            // Button 0 (A / Cross) -> Click focused element
             if (justPressed(0)) {
+                if (this.currentFocusEl) {
+                    this.currentFocusEl.click();
+                    if (typeof audio !== 'undefined' && audio.playConfirm) audio.playConfirm();
+                    this.vibrate(25, 0.4, 0.2);
+                }
+            }
+
+            // Button 1 (B / Circle) -> Close modals / Cancel rebinding / Resume
+            if (justPressed(1)) {
+                if (typeof settingsSystem !== 'undefined' && (settingsSystem.listeningGamepadAction || settingsSystem.listeningAction)) {
+                    settingsSystem.listeningGamepadAction = null;
+                    settingsSystem.listeningAction = null;
+                    const ind1 = document.getElementById('gamepad-listen-indicator');
+                    if (ind1) ind1.classList.add('hidden');
+                    const ind2 = document.getElementById('keybind-listen-indicator');
+                    if (ind2) ind2.classList.add('hidden');
+                    settingsSystem.populateGamepadBinds();
+                    settingsSystem.populateKeybinds();
+                    this.vibrate(20, 0.2, 0.1);
+                } else if (activeModal) {
+                    this.closeActiveModal(activeModal);
+                    this.vibrate(20, 0.2, 0.1);
+                } else if (typeof game !== 'undefined' && game.isPaused) {
+                    if (typeof setPause === 'function') setPause(false);
+                    this.vibrate(20, 0.2, 0.1);
+                }
+            }
+
+            // Bumpers LB (4) and RB (5) -> Cycle tabs in Settings or Locker
+            if (justPressed(4) || justPressed(5)) {
+                const dir = justPressed(5) ? 1 : -1;
+                const settingsModal = document.getElementById('modal-settings');
+                const lockerModal = document.getElementById('modal-locker');
+                if (settingsModal && !settingsModal.classList.contains('hidden') && settingsModal.style.display !== 'none') {
+                    this.cycleSettingsTab(dir);
+                    if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
+                    this.vibrate(15, 0.2, 0.1);
+                } else if (lockerModal && !lockerModal.classList.contains('hidden') && lockerModal.style.display !== 'none') {
+                    this.cycleLockerTab();
+                    if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
+                    this.vibrate(15, 0.2, 0.1);
+                }
+            }
+
+            // Button 9 (Start / Options) -> Toggle Settings or Resume Pause
+            if (justPressed(9)) {
+                if (activeModal) {
+                    this.closeActiveModal(activeModal);
+                } else if (typeof game !== 'undefined' && game.isPaused) {
+                    if (typeof setPause === 'function') setPause(false);
+                } else if (typeof game !== 'undefined' && game.inMainMenu) {
+                    if (typeof settingsSystem !== 'undefined') settingsSystem.toggleModal();
+                }
+            }
+
+            // Button 8 (Select / Back) -> Level Select from Main Menu
+            if (justPressed(8)) {
+                if (!activeModal && typeof game !== 'undefined' && game.inMainMenu) {
+                    if (typeof populateStageMenu === 'function') populateStageMenu();
+                    const stageModal = document.getElementById('modal-menu');
+                    if (stageModal) stageModal.classList.remove('hidden');
+                }
+            }
+
+        } else if (!game.isCountingDown) {
+            // 3. IN-GAME RUNNER CONTROLS (Straight away in gameplay!)
+            this.clearFocus();
+
+            const binds = (typeof settingsSystem !== 'undefined' && settingsSystem.gamepadBinds)
+                ? settingsSystem.gamepadBinds
+                : DEFAULT_GAMEPAD_BINDS;
+
+            const checkActionPressed = (actionName) => {
+                const list = binds[actionName] || [];
+                return list.some(idx => isPressed(idx));
+            };
+            const checkActionJustPressed = (actionName) => {
+                const list = binds[actionName] || [];
+                return list.some(idx => justPressed(idx));
+            };
+
+            // Jump
+            const jumpHeld = checkActionPressed('jump');
+            if (checkActionJustPressed('jump')) {
                 game.inputs.jumpHeld = true;
                 game.inputs.jumpPressedThisFrame = true;
                 game.inputs.jumpBufferTime = 0.16;
                 if (game.botDemo && typeof toggleBotDemo === 'function') toggleBotDemo(false);
-            } else if (!aPressed && this.prevButtons[0]) {
+            } else if (!jumpHeld && this.prevButtons['jumpHeld']) {
                 game.inputs.jumpHeld = false;
             }
+            this.prevButtons['jumpHeld'] = jumpHeld;
 
-            // Button 1 (B / Circle) or Button 13 (D-pad Down) or LT (6) or Stick Down -> Slide
-            const stickDown = gp.axes && gp.axes[1] > 0.5;
-            const slideBtn = isPressed(1) || isPressed(13) || isPressed(6) || stickDown;
-            if (slideBtn) {
+            // Slide (Bound buttons or Left Stick Down or LT)
+            const stickDown = axisY > deadzone;
+            const slideHeld = checkActionPressed('slide') || stickDown;
+            if (slideHeld) {
                 game.inputs.slideHeld = true;
                 if (game.botDemo && typeof toggleBotDemo === 'function') toggleBotDemo(false);
-            } else if (this.prevButtons['slide']) {
+            } else if (this.prevButtons['slideHeld']) {
                 game.inputs.slideHeld = false;
             }
-            this.prevButtons['slide'] = slideBtn;
+            this.prevButtons['slideHeld'] = slideHeld;
 
-            // Button 4 (LB) or 5 (RB) or 7 (RT) -> Phase Dash
-            if (justPressed(4) || justPressed(5) || justPressed(7)) {
+            // Phase Dash
+            if (checkActionJustPressed('dash')) {
                 if (typeof triggerPhaseDash === 'function') triggerPhaseDash();
             }
 
-            // Button 2 (X / Square) -> Thruster Burst
-            if (justPressed(2)) {
+            // Thruster Burst
+            if (checkActionJustPressed('thrust')) {
                 if (typeof triggerThrusterBurst === 'function') triggerThrusterBurst();
             }
 
-            // Button 3 (Y / Triangle) -> Chrono Pulse
-            if (justPressed(3)) {
+            // Chrono Pulse
+            if (checkActionJustPressed('chrono')) {
                 if (typeof triggerChronoPulse === 'function') triggerChronoPulse();
             }
 
-            // Button 10 (Left Stick Click) -> Quick Reset
-            if (justPressed(10)) {
+            // Quick Restart
+            if (checkActionJustPressed('restart')) {
                 if (typeof resetPlayerState === 'function') resetPlayerState();
             }
 
+            // Pause / Resume
+            if (checkActionJustPressed('pause')) {
+                if (typeof setPause === 'function') setPause(!game.isPaused);
+            }
+
             if (typeof settingsSystem !== 'undefined') {
-                settingsSystem.activeInputs.jump = isPressed(0);
-                settingsSystem.activeInputs.slide = slideBtn;
-                settingsSystem.activeInputs.dash = isPressed(4) || isPressed(5) || isPressed(7);
-                settingsSystem.activeInputs.thrust = isPressed(2);
-                settingsSystem.activeInputs.chrono = isPressed(3);
+                settingsSystem.activeInputs.jump = jumpHeld;
+                settingsSystem.activeInputs.slide = slideHeld;
+                settingsSystem.activeInputs.dash = checkActionPressed('dash');
+                settingsSystem.activeInputs.thrust = checkActionPressed('thrust');
+                settingsSystem.activeInputs.chrono = checkActionPressed('chrono');
                 settingsSystem.updateStreamerHUD();
             }
         }
@@ -1640,13 +2103,16 @@ const DEFAULT_KEYBINDS = {
 
 const settingsSystem = {
     screenShake: 100,
+    vibrationIntensity: 100,
     flashesEnabled: true,
     streamerInputDisplay: true,
     liveSplitDelta: true,
     speedZoom: true,
     targetFPS: 'uncapped',
     keybinds: JSON.parse(JSON.stringify(DEFAULT_KEYBINDS)),
+    gamepadBinds: JSON.parse(JSON.stringify(DEFAULT_GAMEPAD_BINDS)),
     listeningAction: null,
+    listeningGamepadAction: null,
     activeInputs: {
         jump: false,
         slide: false,
@@ -1659,6 +2125,9 @@ const settingsSystem = {
         try {
             const ss = localStorage.getItem('neon_pulse_setting_screenshake');
             if (ss !== null) this.screenShake = parseInt(ss, 10) || 100;
+
+            const vi = localStorage.getItem('neon_pulse_setting_vibration');
+            if (vi !== null) this.vibrationIntensity = parseInt(vi, 10) || 100;
 
             const fl = localStorage.getItem('neon_pulse_setting_flashes');
             if (fl !== null) this.flashesEnabled = fl !== 'false';
@@ -1683,6 +2152,18 @@ const settingsSystem = {
                     }
                 }
             }
+
+            const gpb = localStorage.getItem('neon_pulse_gamepad_binds');
+            if (gpb) {
+                const parsedGp = JSON.parse(gpb);
+                if (parsedGp && typeof parsedGp === 'object') {
+                    for (const action in DEFAULT_GAMEPAD_BINDS) {
+                        if (Array.isArray(parsedGp[action]) && parsedGp[action].length > 0) {
+                            this.gamepadBinds[action] = parsedGp[action];
+                        }
+                    }
+                }
+            }
         } catch(e) {}
         this.updateUI();
     },
@@ -1690,11 +2171,13 @@ const settingsSystem = {
     save() {
         try {
             localStorage.setItem('neon_pulse_setting_screenshake', this.screenShake.toString());
+            localStorage.setItem('neon_pulse_setting_vibration', this.vibrationIntensity.toString());
             localStorage.setItem('neon_pulse_setting_flashes', this.flashesEnabled.toString());
             localStorage.setItem('neon_pulse_setting_streamer_hud', this.streamerInputDisplay.toString());
             localStorage.setItem('neon_pulse_setting_livesplit', this.liveSplitDelta.toString());
             localStorage.setItem('neon_pulse_setting_speedzoom', this.speedZoom.toString());
             localStorage.setItem('neon_pulse_keybinds', JSON.stringify(this.keybinds));
+            localStorage.setItem('neon_pulse_gamepad_binds', JSON.stringify(this.gamepadBinds));
         } catch(e) {}
     },
 
@@ -1703,6 +2186,11 @@ const settingsSystem = {
         const shakeLabel = document.getElementById('label-screenshake');
         if (shakeSlider) shakeSlider.value = this.screenShake;
         if (shakeLabel) shakeLabel.innerText = `${this.screenShake}%`;
+
+        const vibeSlider = document.getElementById('slider-controller-vibration');
+        const vibeLabel = document.getElementById('label-controller-vibration');
+        if (vibeSlider) vibeSlider.value = this.vibrationIntensity;
+        if (vibeLabel) vibeLabel.innerText = `${this.vibrationIntensity}%`;
 
         const updateToggle = (id, val) => {
             const el = document.getElementById(id);
@@ -1730,6 +2218,30 @@ const settingsSystem = {
         const deltaBadge = document.getElementById('hud-live-delta');
         if (deltaBadge && !this.liveSplitDelta) {
             deltaBadge.classList.add('hidden');
+        }
+
+        this.updateGamepadStatus();
+    },
+
+    updateGamepadStatus(name, connected) {
+        const dot = document.getElementById('controller-status-dot');
+        const text = document.getElementById('controller-status-text');
+        const isConn = (connected !== undefined) ? connected : (typeof gamepadSystem !== 'undefined' && gamepadSystem.connected);
+        if (dot) {
+            if (isConn) {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] transition-colors';
+            } else {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-neutral-600 transition-colors';
+            }
+        }
+        if (text) {
+            if (isConn) {
+                text.innerText = (name || 'CONTROLLER') + ' — CONNECTED & ACTIVE';
+                text.className = 'text-[10px] font-mono text-emerald-400 font-bold';
+            } else {
+                text.innerText = 'NO CONTROLLER DETECTED — PRESS ANY BUTTON';
+                text.className = 'text-[10px] font-mono text-neutral-400';
+            }
         }
     },
 
@@ -1784,6 +2296,9 @@ const settingsSystem = {
 
     startListeningForKey(action) {
         this.listeningAction = action;
+        this.listeningGamepadAction = null;
+        const indGp = document.getElementById('gamepad-listen-indicator');
+        if (indGp) indGp.classList.add('hidden');
         const ind = document.getElementById('keybind-listen-indicator');
         if (ind) {
             ind.innerText = `PRESS ANY KEY FOR [${action.toUpperCase()}]...`;
@@ -1793,9 +2308,19 @@ const settingsSystem = {
     },
 
     handleKeyCapture(e) {
-        if (!this.listeningAction) return false;
+        if (!this.listeningAction && !this.listeningGamepadAction) return false;
         e.preventDefault();
         e.stopPropagation();
+
+        if (this.listeningGamepadAction && e.code === 'Escape') {
+            this.listeningGamepadAction = null;
+            const ind = document.getElementById('gamepad-listen-indicator');
+            if (ind) ind.classList.add('hidden');
+            this.populateGamepadBinds();
+            return true;
+        }
+
+        if (!this.listeningAction) return false;
 
         const code = e.code || e.key;
         if (code === 'Escape') {
@@ -1822,6 +2347,125 @@ const settingsSystem = {
         this.save();
         this.populateKeybinds();
         showNotification("KEYBINDS RESTORED TO DEFAULT");
+    },
+
+    populateGamepadBinds() {
+        const container = document.getElementById('gamepad-binds-table');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const actionLabels = {
+            jump: 'JUMP / 2X JUMP',
+            slide: 'SLIDE / AIR DIVE',
+            dash: 'PHASE DASH',
+            thrust: 'THRUSTER BURST',
+            chrono: 'CHRONO PULSE',
+            restart: 'QUICK RESTART',
+            pause: 'PAUSE / RESUME'
+        };
+
+        for (const [action, label] of Object.entries(actionLabels)) {
+            const btns = this.gamepadBinds[action] || [];
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between p-2 rounded bg-neutral-900 border border-neutral-800 text-xs';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'font-cyber text-neutral-300 font-bold';
+            nameDiv.innerText = label;
+
+            const keysDiv = document.createElement('div');
+            keysDiv.className = 'flex items-center gap-1.5';
+
+            btns.forEach((b) => {
+                const badge = document.createElement('span');
+                badge.className = 'px-2 py-0.5 rounded bg-neutral-950 border border-neutral-700 text-cyan-300 text-[11px] font-mono font-bold';
+                badge.innerText = (typeof GAMEPAD_BUTTON_SHORT !== 'undefined' && GAMEPAD_BUTTON_SHORT[b]) ? GAMEPAD_BUTTON_SHORT[b] : `BTN ${b}`;
+                keysDiv.appendChild(badge);
+            });
+
+            const rebindBtn = document.createElement('button');
+            const isListening = this.listeningGamepadAction === action;
+            rebindBtn.className = isListening
+                ? 'px-2 py-0.5 rounded bg-amber-950 border border-amber-500 text-amber-300 font-cyber text-[10px] font-bold transition cursor-pointer ml-2 animate-pulse'
+                : 'px-2 py-0.5 rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/70 text-cyan-300 font-cyber text-[10px] font-bold transition cursor-pointer ml-2';
+            rebindBtn.innerText = isListening ? 'PRESS BUTTON...' : 'REBIND';
+            rebindBtn.onclick = () => this.startListeningForGamepad(action);
+
+            keysDiv.appendChild(rebindBtn);
+            row.appendChild(nameDiv);
+            row.appendChild(keysDiv);
+            container.appendChild(row);
+        }
+    },
+
+    startListeningForGamepad(action) {
+        this.listeningGamepadAction = action;
+        this.listeningAction = null;
+        const indKey = document.getElementById('keybind-listen-indicator');
+        if (indKey) indKey.classList.add('hidden');
+        const ind = document.getElementById('gamepad-listen-indicator');
+        if (ind) {
+            ind.innerText = `PRESS ANY CONTROLLER BUTTON FOR [${action.toUpperCase()}]...`;
+            ind.classList.remove('hidden');
+        }
+        this.populateGamepadBinds();
+    },
+
+    captureGamepadButton(buttonIdx) {
+        if (!this.listeningGamepadAction) return;
+        const action = this.listeningGamepadAction;
+        this.gamepadBinds[action] = [buttonIdx];
+        this.save();
+        this.listeningGamepadAction = null;
+
+        const ind = document.getElementById('gamepad-listen-indicator');
+        if (ind) ind.classList.add('hidden');
+        this.populateGamepadBinds();
+
+        const name = (typeof GAMEPAD_BUTTON_NAMES !== 'undefined' && GAMEPAD_BUTTON_NAMES[buttonIdx])
+            ? GAMEPAD_BUTTON_NAMES[buttonIdx]
+            : `BUTTON ${buttonIdx}`;
+        if (typeof showNotification === 'function') showNotification(`CONTROLLER BOUND TO [${name}]`);
+        if (typeof audio !== 'undefined' && audio.playConfirm) audio.playConfirm();
+    },
+
+    resetGamepadBinds() {
+        this.gamepadBinds = JSON.parse(JSON.stringify(DEFAULT_GAMEPAD_BINDS));
+        this.save();
+        this.populateGamepadBinds();
+        if (typeof showNotification === 'function') showNotification("CONTROLLER BINDS RESTORED TO DEFAULT");
+        if (typeof audio !== 'undefined' && audio.playConfirm) audio.playConfirm();
+    },
+
+    switchTab(tab) {
+        const panels = {
+            gameplay: document.getElementById('settings-panel-gameplay'),
+            keys: document.getElementById('settings-panel-keys'),
+            controller: document.getElementById('settings-panel-controller')
+        };
+        const tabs = {
+            gameplay: document.getElementById('tab-settings-gameplay'),
+            keys: document.getElementById('tab-settings-keys'),
+            controller: document.getElementById('tab-settings-controller')
+        };
+        const activeClass = 'px-3 py-1 bg-cyan-950 border border-cyan-500/70 text-cyan-300 rounded font-cyber text-xs font-bold transition cursor-pointer';
+        const inactiveClass = 'px-3 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-400 rounded font-cyber text-xs font-bold transition cursor-pointer';
+
+        for (const key of ['gameplay', 'keys', 'controller']) {
+            if (panels[key]) {
+                if (key === tab) panels[key].classList.remove('hidden');
+                else panels[key].classList.add('hidden');
+            }
+            if (tabs[key]) {
+                tabs[key].className = (key === tab) ? activeClass : inactiveClass;
+            }
+        }
+
+        if (tab === 'keys') this.populateKeybinds();
+        if (tab === 'controller') {
+            this.populateGamepadBinds();
+            this.updateGamepadStatus();
+        }
     },
 
     isAction(action, e) {
@@ -1866,6 +2510,8 @@ const settingsSystem = {
         modal.style.display = 'flex';
         this.updateUI();
         this.populateKeybinds();
+        this.populateGamepadBinds();
+        this.updateGamepadStatus();
     },
 
     close() {
@@ -1874,6 +2520,11 @@ const settingsSystem = {
         modal.classList.add('hidden');
         modal.style.display = 'none';
         this.listeningAction = null;
+        this.listeningGamepadAction = null;
+        const ind1 = document.getElementById('keybind-listen-indicator');
+        if (ind1) ind1.classList.add('hidden');
+        const ind2 = document.getElementById('gamepad-listen-indicator');
+        if (ind2) ind2.classList.add('hidden');
     },
 
     toggleModal() {
@@ -2352,6 +3003,9 @@ function startCustomLevel(customLvl) {
 window.startCustomLevel = startCustomLevel;
 
 window.DEFAULT_KEYBINDS = DEFAULT_KEYBINDS;
+window.DEFAULT_GAMEPAD_BINDS = DEFAULT_GAMEPAD_BINDS;
+window.GAMEPAD_BUTTON_NAMES = GAMEPAD_BUTTON_NAMES;
+window.GAMEPAD_BUTTON_SHORT = GAMEPAD_BUTTON_SHORT;
 window.settingsSystem = settingsSystem;
 window.editorSystem = editorSystem;
 
@@ -4648,6 +5302,7 @@ function triggerPhaseDash() {
         }
         showNotification("⚡ PHASE DASH [SHIFT]!");
     }
+    if (typeof gamepadSystem !== 'undefined') gamepadSystem.vibrate(120, 0.7, 0.4);
     updateAbilityHUD();
 }
 
@@ -4707,6 +5362,7 @@ function triggerThrusterBurst() {
         game.screenShake = 6;
         showNotification("🚀 PLASMA THRUST + 2X JUMP RESET [E]!");
     }
+    if (typeof gamepadSystem !== 'undefined') gamepadSystem.vibrate(90, 0.5, 0.3);
     updateAbilityHUD();
 }
 
@@ -4731,6 +5387,7 @@ function triggerChronoPulse() {
         });
     }
     showNotification("⏱️ CHRONO TIME DILATION [Q]!");
+    if (typeof gamepadSystem !== 'undefined') gamepadSystem.vibrate(180, 0.4, 0.6);
     updateAbilityHUD();
 }
 
@@ -4953,6 +5610,7 @@ function killPlayer(force = false) {
     audio.playDeath();
     const shakeMult = (typeof settingsSystem !== 'undefined' ? settingsSystem.screenShake : 100) / 100;
     game.screenShake = 16 * shakeMult;
+    if (typeof gamepadSystem !== 'undefined') gamepadSystem.vibrate(300, 0.9, 0.8);
 
     if (game.isEndless) {
         showNotification(`💥 MARATHON OVER! DISTANCE: ${game.endlessDistance}m // BEST: ${game.endlessBestDistance}m`);
@@ -5955,6 +6613,7 @@ function checkInteractions() {
                     sh.taken = true;
                     game.shardsCollected.add(sh.id);
                     audio.playShard(game.shardsCollected.size);
+                    if (typeof gamepadSystem !== 'undefined') gamepadSystem.vibrate(40, 0.3, 0.2);
                     updateShardHUD();
                     showNotification(`SECRET GEM ACQUIRED (${game.shardsCollected.size}/3)!`);
                     for (let k = 0; k < 14; k++) {
@@ -6021,6 +6680,7 @@ function triggerVictory() {
     game.victory = true;
     audio.playVictory();
     audio.pauseMusic();
+    if (typeof gamepadSystem !== 'undefined') gamepadSystem.vibrate(280, 0.8, 0.6);
 
     const lvl = game.level;
     const finalTime = game.runTime;
@@ -11548,29 +12208,20 @@ bindClick('btn-close-settings', () => {
     if (typeof settingsSystem !== 'undefined') settingsSystem.toggleModal();
 });
 bindClick('tab-settings-gameplay', () => {
-    const p1 = document.getElementById('settings-panel-gameplay');
-    const p2 = document.getElementById('settings-panel-keys');
-    const t1 = document.getElementById('tab-settings-gameplay');
-    const t2 = document.getElementById('tab-settings-keys');
-    if (p1 && p2 && t1 && t2) {
-        p1.classList.remove('hidden');
-        p2.classList.add('hidden');
-        t1.className = 'px-3 py-1 bg-cyan-950 border border-cyan-500/70 text-cyan-300 rounded font-cyber text-xs font-bold transition cursor-pointer';
-        t2.className = 'px-3 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-400 rounded font-cyber text-xs font-bold transition cursor-pointer';
-    }
+    if (typeof settingsSystem !== 'undefined') settingsSystem.switchTab('gameplay');
 });
 bindClick('tab-settings-keys', () => {
-    const p1 = document.getElementById('settings-panel-gameplay');
-    const p2 = document.getElementById('settings-panel-keys');
-    const t1 = document.getElementById('tab-settings-gameplay');
-    const t2 = document.getElementById('tab-settings-keys');
-    if (p1 && p2 && t1 && t2) {
-        p2.classList.remove('hidden');
-        p1.classList.add('hidden');
-        t2.className = 'px-3 py-1 bg-cyan-950 border border-cyan-500/70 text-cyan-300 rounded font-cyber text-xs font-bold transition cursor-pointer';
-        t1.className = 'px-3 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-400 rounded font-cyber text-xs font-bold transition cursor-pointer';
-        if (typeof settingsSystem !== 'undefined') settingsSystem.populateKeybinds();
-    }
+    if (typeof settingsSystem !== 'undefined') settingsSystem.switchTab('keys');
+});
+bindClick('tab-settings-controller', () => {
+    if (typeof settingsSystem !== 'undefined') settingsSystem.switchTab('controller');
+});
+bindClick('btn-reset-gamepad-binds', () => {
+    if (typeof settingsSystem !== 'undefined') settingsSystem.resetGamepadBinds();
+});
+bindClick('btn-controller-test-vibe', () => {
+    if (typeof gamepadSystem !== 'undefined') gamepadSystem.vibrate(350, 0.9, 0.9);
+    if (typeof showNotification === 'function') showNotification("📳 HAPTIC RUMBLE TEST SENT");
 });
 bindClick('btn-toggle-flashes', () => {
     if (typeof settingsSystem !== 'undefined') {
@@ -12401,6 +13052,16 @@ window.onload = function() {
                 if (typeof setSfxVolume === 'function') setSfxVolume(e.target.value);
                 const lbl = document.getElementById('settings-label-sfx');
                 if (lbl) lbl.innerText = `${e.target.value}%`;
+            });
+        }
+        const vibeSlider = document.getElementById('slider-controller-vibration');
+        if (vibeSlider) {
+            vibeSlider.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                settingsSystem.vibrationIntensity = isNaN(val) ? 100 : val;
+                settingsSystem.save();
+                const lbl = document.getElementById('label-controller-vibration');
+                if (lbl) lbl.innerText = `${settingsSystem.vibrationIntensity}%`;
             });
         }
     }

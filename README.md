@@ -142,29 +142,45 @@ Personalize your runner with unlocks earned through medals, shard collection, da
 
 ---
 
-### ⚙️ Settings, Accessibility & Custom Key Rebinding (`[O]`)
+### ⚙️ Settings, Accessibility & Custom Rebinding (`[O]`)
 - **Gameplay & Accessibility**: Sliders for screen shake intensity (`0% - 150%`), audio synth levels, and toggles for flashing lights, Streamer HUD, LiveSplit Delta, and FOV Zoom.
-- **Custom Key Rebinding**: Rebind any gameplay key with 1-click interactive key capture. All custom mappings persist permanently in `localStorage` with a 1-click reset to defaults.
+- **Custom Keyboard & Controller Rebinding**: 
+  - Dedicated tabs for **Custom Keybinds** and **🎮 Controller / Gamepad**.
+  - Rebind any runner action to custom gamepad buttons with 1-click capture.
+  - Haptic rumble intensity slider (`0% - 100%`) with interactive rumble test.
+  - All custom key and controller mappings persist in `localStorage` with 1-click reset to defaults.
+- **🎮 Full Gamepad & Controller Experience (Xbox, PlayStation, Steam Deck)**:
+  - **Spatial 2D UI Navigation**: Seamlessly navigate menus, stage select, locker, achievements, and pause screens using D-Pad or Left Stick with a pulsating cyber neon focus ring.
+  - **In-Menu Slider Control**: Adjust screen shake, audio volumes, and rumble intensity sliders directly using D-Pad Left / Right.
+  - **Quick Select & Back**: `[A / ✕]` activates focused buttons; `[B / ○]` smoothly closes modals and resumes pause.
+  - **Bumper Tab Cycling**: `[LB]` and `[RB]` cycle tabs in Settings and the Cyber Locker.
+  - **Dual-Rumble Haptics**: Immersive tactile rumble on dashes, thrusters, bullet-time chrono dilation, hazard crashes, shard pickups, and podium victories.
+  - **Controller Disconnect Safety**: Automatically pauses active runs if your controller disconnects, saving your speedrun from accidental crashes.
+  - **Seamless Gameplay Transition**: Instant handoff between UI navigation and 120Hz sub-frame runner physics without input latency.
 
 ---
 
 ## 🕹️ Controls
 
-| Action | Primary Key | Alternative / Gamepad |
-|---|---|---|
-| **Jump / Double Jump** | `[SPACE]` | `[W]` / `[UP]` / Gamepad `[A / ✕]` |
-| **Slide / Air Dive** | `[S]` | `[DOWN]` / Gamepad `[B / ○]` / `[LT]` |
-| **Phase Dash** | `[SHIFT]` | Gamepad `[LB]` / `[RB]` / `[RT]` |
-| **Thruster Burst** | `[E]` | Gamepad `[X / □]` |
-| **Chrono Pulse** | `[Q]` | `[F]` / Gamepad `[Y / △]` |
-| **Settings & Keybinds** | `[O]` | Header `[⚙️]` / Pause Menu |
-| **Track Builder** | Main Menu `[🛠️]` | In-Game Community Level Lab |
-| **Pause / Resume** | `[ESC]` | `[P]` / Gamepad `[START]` |
-| **Toggle Fullscreen** | `[G]` | Top `[⛶]` Button |
-| **Toggle Solo Hologram** | `[H]` | Top `[👻]` Button |
-| **Quick Restart** | `[R]` | Gamepad Left Stick Click |
-| **Stage Matrix** | `[M]` | Gamepad `[SELECT]` |
-| **Toggle AI Pilot Demo** | `[B]` | Top `[🤖 DEMO]` Button |
+| Action | Primary Key | Alternative | Controller / Gamepad |
+|---|---|---|---|
+| **Jump / Double Jump** | `[SPACE]` | `[W]` / `[UP]` | `[A / ✕]` (Button 0) |
+| **Slide / Air Dive** | `[S]` | `[DOWN]` | `[B / ○]` (Button 1) / `[LT]` / Stick Down |
+| **Phase Dash** | `[SHIFT]` | — | `[LB]` / `[RB]` / `[RT]` |
+| **Thruster Burst** | `[E]` | — | `[X / □]` (Button 2) |
+| **Chrono Pulse** | `[Q]` | `[F]` | `[Y / △]` (Button 3) |
+| **UI Navigate** | — | — | D-Pad / Left Stick |
+| **UI Select** | `[ENTER]` | Mouse Click | `[A / ✕]` (Button 0) |
+| **UI Back / Close Modal** | `[ESC]` | — | `[B / ○]` (Button 1) |
+| **Cycle Modal Tabs** | — | — | Bumpers `[LB]` / `[RB]` |
+| **Settings & Keybinds** | `[O]` | Header `[⚙️]` / Pause Menu | Gamepad `[START]` (in menu) |
+| **Track Builder** | Main Menu `[🛠️]` | In-Game Community Level Lab | — |
+| **Pause / Resume** | `[ESC]` | `[P]` | Gamepad `[START]` (in-game) |
+| **Toggle Fullscreen** | `[G]` | Top `[⛶]` Button | — |
+| **Toggle Solo Hologram** | `[H]` | Top `[👻]` Button | — |
+| **Quick Restart** | `[R]` | — | Gamepad `[BACK]` / Left Stick Click |
+| **Stage Matrix** | `[M]` | — | Gamepad `[BACK]` (in menu) |
+| **Toggle AI Pilot Demo** | `[B]` | Top `[🤖 DEMO]` Button | — |
 
 ---
 

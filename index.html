@@ -1421,6 +1421,7 @@
                 <div class="flex gap-2 border-b border-neutral-800 pb-2">
                     <button id="tab-settings-gameplay" class="px-3 py-1 bg-cyan-950 border border-cyan-500/70 text-cyan-300 rounded font-cyber text-xs font-bold transition cursor-pointer">GAMEPLAY & ACCESSIBILITY</button>
                     <button id="tab-settings-keys" class="px-3 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-400 rounded font-cyber text-xs font-bold transition cursor-pointer">CUSTOM KEYBINDS</button>
+                    <button id="tab-settings-controller" class="px-3 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-400 rounded font-cyber text-xs font-bold transition cursor-pointer">🎮 CONTROLLER / GAMEPAD</button>
                 </div>
 
                 <!-- Tab 1: Gameplay, Visuals & Audio -->
@@ -1506,6 +1507,57 @@
                             ↺ RESET TO DEFAULTS
                         </button>
                         <span id="keybind-listen-indicator" class="text-amber-400 font-cyber text-xs hidden animate-pulse">PRESS ANY KEY TO BIND...</span>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Controller & Gamepad Bindings -->
+                <div id="settings-panel-controller" class="hidden flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
+                    <!-- Gamepad Connection Status Card -->
+                    <div class="bg-neutral-950 p-3 rounded-lg border border-neutral-800 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🎮</span>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-cyber font-bold text-neutral-300 text-xs">CONTROLLER HARDWARE</span>
+                                    <span id="controller-status-dot" class="w-2.5 h-2.5 rounded-full bg-neutral-600 transition-colors"></span>
+                                </div>
+                                <div id="controller-status-text" class="text-[10px] font-mono text-neutral-400">NO CONTROLLER DETECTED — PRESS ANY BUTTON</div>
+                            </div>
+                        </div>
+                        <div class="hidden sm:flex items-center gap-2">
+                            <span class="text-[9px] font-mono text-cyan-400/90 bg-neutral-900 px-2 py-1 rounded border border-neutral-800">NAV: D-PAD / STICK | SELECT: [A] | BACK: [B]</span>
+                        </div>
+                    </div>
+
+                    <!-- Vibration / Haptic Feedback Slider -->
+                    <div class="bg-neutral-950 p-3 rounded-lg border border-neutral-800 space-y-1.5">
+                        <div class="flex justify-between items-center">
+                            <span class="font-cyber font-bold text-neutral-300">📳 HAPTIC RUMBLE INTENSITY</span>
+                            <div class="flex items-center gap-2">
+                                <span id="label-controller-vibration" class="font-mono text-cyan-400 font-bold">100%</span>
+                                <button id="btn-controller-test-vibe" class="px-2 py-0.5 rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/70 text-cyan-300 font-cyber text-[10px] font-bold transition cursor-pointer">TEST RUMBLE</button>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-neutral-400">Controls dual-rumble actuator intensity on collisions, dashes, thruster burns, and stage clears.</p>
+                        <input id="slider-controller-vibration" type="range" min="0" max="100" value="100" class="w-full accent-cyan-400 cursor-pointer">
+                    </div>
+
+                    <!-- Gamepad Rebinding Header & Table -->
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="font-cyber font-bold text-neutral-300 text-xs">CUSTOM CONTROLLER MAPPINGS</span>
+                            <span class="text-[9px] font-mono text-neutral-500">CLICK REBIND & PRESS ANY CONTROLLER BUTTON</span>
+                        </div>
+                        <div id="gamepad-binds-table" class="space-y-1.5 font-mono">
+                            <!-- Controller bind rows generated dynamically by settingsSystem.populateGamepadBinds() -->
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-2 border-t border-neutral-800">
+                        <button id="btn-reset-gamepad-binds" class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-cyber text-xs rounded border border-neutral-700 transition cursor-pointer">
+                            ↺ RESET CONTROLLER BINDS
+                        </button>
+                        <span id="gamepad-listen-indicator" class="text-amber-400 font-cyber text-xs hidden animate-pulse">PRESS ANY CONTROLLER BUTTON TO BIND...</span>
                     </div>
                 </div>
             </div>
@@ -1614,6 +1666,6 @@
     <!-- Steamworks & Desktop Bridge -->
     <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=5.2"></script>
+    <script src="game.js?v=5.3"></script>
 </body>
 </html>
