@@ -808,7 +808,7 @@ const SteamBridge = {
 };
 
 // ============================================================================
-// STEAM READY ACHIEVEMENTS MATRIX (28 ACHIEVEMENTS)
+// STEAM READY ACHIEVEMENTS MATRIX (29 ACHIEVEMENTS)
 // ============================================================================
 const ACHIEVEMENTS = [
     { id: "first_steps", title: "FIRST STEP", desc: "Clear Stage 01 Highline Drift", icon: "👟", category: "CAMPAIGN" },
@@ -823,6 +823,7 @@ const ACHIEVEMENTS = [
     { id: "sector_clear_5", title: "APEX VICTOR", desc: "Clear Dimension α (Stages 01 through 10)", icon: "🏆", category: "CAMPAIGN" },
     { id: "stage_20_clear", title: "SINGULARITY BREACH", desc: "Conquer Dimension β Final Abyss (Stage 20)", icon: "🌌", category: "CAMPAIGN" },
     { id: "flawless_run", title: "UNTOUCHABLE", desc: "Complete any stage with 0 deaths or resets", icon: "🛡️", category: "SPEEDRUN" },
+    { id: "grandmaster_perfection", title: "GRANDMASTER PERFECTION", desc: "Complete all 20 campaign sectors with 0 deaths and all 60 cyber shards collected", icon: "👑", category: "SPEEDRUN" },
     { id: "first_gold_medal", title: "GOLD STANDARD", desc: "Earn your first Gold Par Medal", icon: "🥇", category: "SPEEDRUN" },
     { id: "five_gold_medals", title: "GILDED PACESETTER", desc: "Earn 5 Gold Par Medals across stages", icon: "🌟", category: "SPEEDRUN" },
     { id: "ten_gold_medals", title: "GOLD MASTER", desc: "Earn 10 Gold Par Medals across stages", icon: "👑", category: "SPEEDRUN" },
@@ -918,12 +919,14 @@ const achievementSystem = {
             let goldCount = 0;
             let diamondCount = 0;
             let shardTotal = 0;
+            let flawlessCount = 0;
             for (let i = 0; i < 20; i++) {
                 const m = localStorage.getItem(`neon_pulse_medal_${i}`);
                 if (m === 'GOLD' || m === 'DIAMOND') goldCount++;
                 if (m === 'DIAMOND') diamondCount++;
                 const s = parseInt(localStorage.getItem(`neon_pulse_shards_${i}`) || '0', 10);
                 shardTotal += s;
+                if (localStorage.getItem(`neon_pulse_flawless_${i}`) === '1') flawlessCount++;
             }
             if (goldCount >= 1) this.unlock('first_gold_medal', false);
             if (goldCount >= 5) this.unlock('five_gold_medals', false);
@@ -932,6 +935,7 @@ const achievementSystem = {
             if (diamondCount >= 3) this.unlock('three_author_medals', false);
             if (shardTotal >= 10) this.unlock('shard_collector_10', false);
             if (shardTotal >= 50) this.unlock('shard_collector_50', false);
+            if (flawlessCount === 20 && shardTotal >= 60) this.unlock('grandmaster_perfection', false);
 
             const endlessBest = parseInt(localStorage.getItem('neon_pulse_endless_best') || '0', 10);
             if (endlessBest >= 1000) this.unlock('endless_1000m', false);
@@ -1855,17 +1859,31 @@ const settingsSystem = {
         updatePill('input-key-chrono', this.activeInputs.chrono, activeBase + "bg-purple-500 text-white border border-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.8)]", defBase + "bg-neutral-900 border border-neutral-700 text-purple-400/60");
     },
 
+    open() {
+        const modal = document.getElementById('modal-settings');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        this.updateUI();
+        this.populateKeybinds();
+    },
+
+    close() {
+        const modal = document.getElementById('modal-settings');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        this.listeningAction = null;
+    },
+
     toggleModal() {
         const modal = document.getElementById('modal-settings');
         if (!modal) return;
-        const isHidden = modal.classList.contains('hidden');
+        const isHidden = modal.classList.contains('hidden') || modal.style.display === 'none';
         if (isHidden) {
-            modal.classList.remove('hidden');
-            this.updateUI();
-            this.populateKeybinds();
+            this.open();
         } else {
-            modal.classList.add('hidden');
-            this.listeningAction = null;
+            this.close();
         }
     }
 };
@@ -1960,6 +1978,7 @@ const editorSystem = {
         const modal = document.getElementById('modal-editor');
         if (!modal) return;
         modal.classList.remove('hidden');
+        modal.style.display = 'flex';
         this.isOpen = true;
         this.scrollX = 0;
         if (!this.canvas) this.init();
@@ -1969,13 +1988,18 @@ const editorSystem = {
 
     close() {
         const modal = document.getElementById('modal-editor');
-        if (modal) modal.classList.add('hidden');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
         this.isOpen = false;
     },
 
     resizeCanvas() {
         if (!this.canvas) return;
-        const rect = this.canvas.parentElement.getBoundingClientRect();
+        const rect = (this.canvas.parentElement && typeof this.canvas.parentElement.getBoundingClientRect === 'function')
+            ? this.canvas.parentElement.getBoundingClientRect()
+            : { width: 800, height: 500 };
         this.canvas.width = rect.width || 800;
         this.canvas.height = rect.height || 500;
     },
@@ -6085,6 +6109,21 @@ function triggerVictory() {
 
     // Achievement & Bounty Evaluations for Stage Victory
     if (typeof achievementSystem !== 'undefined' && !game.isCustomLevel) {
+        if (!game.isEndless && !game.isDailyChallenge && game.currentLevelIdx >= 0 && game.currentLevelIdx < 20) {
+            if ((game.deathsThisRun || 0) === 0) {
+                try {
+                    localStorage.setItem(`neon_pulse_flawless_${game.currentLevelIdx}`, '1');
+                } catch(e) {}
+            }
+            try {
+                const shardKey = `neon_pulse_shards_${game.currentLevelIdx}`;
+                const prevShards = parseInt(localStorage.getItem(shardKey) || '0', 10);
+                if (shardsCount > prevShards) {
+                    localStorage.setItem(shardKey, shardsCount.toString());
+                }
+            } catch(e) {}
+        }
+
         if (game.currentLevelIdx === 0) achievementSystem.unlock('first_steps');
         if (game.currentLevelIdx >= 1) achievementSystem.unlock('sector_clear_1');
         if (game.currentLevelIdx >= 9) achievementSystem.unlock('sector_clear_5');
@@ -6107,17 +6146,20 @@ function triggerVictory() {
         let goldTotal = 0;
         let diamondTotal = 0;
         let shardTotal = 0;
+        let flawlessTotal = 0;
         for (let i = 0; i < 20; i++) {
             const m = localStorage.getItem(`neon_pulse_medal_${i}`);
             if (m === 'GOLD' || m === 'DIAMOND') goldTotal++;
             if (m === 'DIAMOND') diamondTotal++;
             shardTotal += parseInt(localStorage.getItem(`neon_pulse_shards_${i}`) || '0', 10);
+            if (localStorage.getItem(`neon_pulse_flawless_${i}`) === '1') flawlessTotal++;
         }
         if (goldTotal >= 5) achievementSystem.unlock('five_gold_medals');
         if (goldTotal >= 10) achievementSystem.unlock('ten_gold_medals');
         if (diamondTotal >= 3) achievementSystem.unlock('three_author_medals');
         if (shardTotal >= 10) achievementSystem.unlock('shard_collector_10');
         if (shardTotal >= 50) achievementSystem.unlock('shard_collector_50');
+        if (flawlessTotal === 20 && shardTotal >= 60) achievementSystem.unlock('grandmaster_perfection');
     }
 
     if (typeof dailySystem !== 'undefined' && !game.isCustomLevel) {
@@ -6143,7 +6185,10 @@ function triggerVictory() {
             const pbNotif = document.getElementById('vic-pb-notification');
             if (!prevPb || finalTime < parseFloat(prevPb)) {
                 localStorage.setItem(pbKey, finalTime.toString());
-                localStorage.setItem(`neon_pulse_shards_${game.currentLevelIdx}`, shardsCount.toString());
+                const prevShards = parseInt(localStorage.getItem(`neon_pulse_shards_${game.currentLevelIdx}`) || '0', 10);
+                if (shardsCount > prevShards) {
+                    localStorage.setItem(`neon_pulse_shards_${game.currentLevelIdx}`, shardsCount.toString());
+                }
                 // Save Solo PB Ghost Run
                 try {
                     localStorage.setItem(`neon_pulse_pb_ghost_${game.currentLevelIdx}`, JSON.stringify(game.lastCompletedGhost));
@@ -10719,7 +10764,10 @@ function returnToMainMenu() {
     const seriesBadge = document.getElementById('hud-series-badge');
     const countdownOverlay = document.getElementById('overlay-race-countdown');
 
-    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalLocker, modalAch, modalVictory, modalHow, modalMp, modalRaceResult];
+    const modalSettings = document.getElementById('modal-settings');
+    const modalEditor = document.getElementById('modal-editor');
+
+    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalLocker, modalAch, modalVictory, modalHow, modalMp, modalRaceResult, modalSettings, modalEditor];
     allModals.forEach(m => {
         if (m) {
             m.classList.add('hidden');

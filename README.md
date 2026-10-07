@@ -179,7 +179,7 @@ Build, playtest, and share custom obstacle courses directly in-game:
 
 ## 🚀 Steam & Desktop Executable Packaging
 Neon Pulse is 100% Steam-ready with native desktop packaging support:
-- **Steamworks SDK Bridge (`steam_bridge.js`)**: Automatically syncs the 24 in-game achievements with the Steam overlay, provides Steam Cloud sync hooks, and reports Rich Presence.
+- **Steamworks SDK Bridge (`steam_bridge.js`)**: Automatically syncs the 29 in-game achievements (including Grandmaster Perfection) with the Steam overlay, provides Steam Cloud sync hooks, and reports Rich Presence.
 - **Standalone Desktop Build (Electron / Tauri)**:
   ```bash
   # Install desktop packaging dependencies

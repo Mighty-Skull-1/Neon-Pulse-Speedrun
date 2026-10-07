@@ -310,142 +310,186 @@
             </div>
 
             <!-- Title Screen / Main Menu View Overlay -->
-            <div id="screen-main-menu" class="absolute inset-0 z-30 bg-black/65 backdrop-blur-[2px] flex flex-col items-center justify-between p-6 overflow-y-auto">
+            <div id="screen-main-menu" class="absolute inset-0 z-30 bg-black/75 backdrop-blur-[2px] flex flex-col items-center justify-between p-3 sm:p-5 overflow-y-auto">
                 <!-- Top Status Bar in Main Menu -->
-                <div class="w-full flex items-center justify-between max-w-4xl border-b border-neutral-800 pb-3">
+                <div class="w-full flex items-center justify-between max-w-5xl bg-neutral-950/80 border border-neutral-800/80 rounded-xl px-3 sm:px-4 py-2 shadow-lg backdrop-blur-md">
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-cyber text-neutral-400 flex items-center gap-1">
-                            <span>👤</span> PILOT:
+                        <span class="text-xs font-cyber text-neutral-400 flex items-center gap-1.5">
+                            <span class="text-cyan-400">👤</span> PILOT:
                         </span>
-                        <input id="input-pilot-tag" type="text" maxlength="15" value="PULSE_PILOT" placeholder="USERNAME" class="text-xs font-cyber font-bold text-cyan-400 bg-neutral-900 border border-cyan-800 hover:border-cyan-400 focus:border-cyan-400 px-2.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-cyan-400 uppercase tracking-wider w-36 text-center cursor-text transition" title="Click to edit your Pilot Username">
+                        <input id="input-pilot-tag" type="text" maxlength="15" value="PULSE_PILOT" placeholder="USERNAME" class="text-xs font-cyber font-bold text-cyan-400 bg-neutral-900 border border-cyan-800/80 hover:border-cyan-400 focus:border-cyan-400 px-2.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-cyan-400 uppercase tracking-wider w-32 sm:w-36 text-center cursor-text transition shadow-inner" title="Click to edit your Pilot Username">
                         <span id="main-pilot-display" class="hidden">PULSE_PILOT</span>
                     </div>
-                    <div class="flex items-center gap-2 sm:gap-3">
-                        <div class="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-[10px] font-cyber text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
+                    <div class="flex items-center gap-1.5 sm:gap-2">
+                        <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-[10px] font-cyber text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
                             <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
                             <span>LIVE DEMO</span>
                         </div>
-                        <button id="btn-menu-audio" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-cyber text-cyan-400 rounded flex items-center gap-1 transition">
+                        <button id="btn-menu-audio" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-cyber text-cyan-400 rounded-lg flex items-center gap-1 transition cursor-pointer">
                             <span id="menu-audio-icon">🔊</span>
                             <span id="menu-audio-text">AUDIO: ON</span>
                         </button>
-                        <button id="btn-menu-ghost" class="px-2.5 py-1 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/70 text-xs font-cyber text-cyan-300 rounded flex items-center gap-1 transition cursor-pointer shadow-[0_0_8px_rgba(6,182,212,0.3)]" title="Toggle Solo Hologram Ghost [H]">
+                        <button id="btn-menu-ghost" class="px-2.5 py-1 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/70 text-xs font-cyber text-cyan-300 rounded-lg flex items-center gap-1 transition cursor-pointer shadow-[0_0_8px_rgba(6,182,212,0.3)]" title="Toggle Solo Hologram Ghost [H]">
                             <span>👻</span>
                             <span id="menu-ghost-text">HOLOGRAM: ON</span>
                         </button>
-                        <button id="btn-menu-achievements" class="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-500/70 text-xs font-cyber text-amber-300 rounded flex items-center gap-1 transition cursor-pointer shadow-[0_0_8px_rgba(245,158,11,0.3)]" title="View Steam & In-Game Achievements [A]">
+                        <button id="btn-menu-achievements" class="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-500/70 text-xs font-cyber text-amber-300 rounded-lg flex items-center gap-1 transition cursor-pointer shadow-[0_0_8px_rgba(245,158,11,0.3)]" title="View Steam & In-Game Achievements [A]">
                             <span>⭐</span>
                             <span id="btn-menu-achievements-text">ACHIEVEMENTS [A]</span>
                         </button>
-                        <button id="btn-menu-fullscreen" onclick="toggleFullscreen()" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-green-400 text-xs font-cyber text-green-400 rounded flex items-center gap-1 transition cursor-pointer" title="Toggle Fullscreen [G]">
+                        <button id="btn-menu-fullscreen" onclick="toggleFullscreen()" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-emerald-400 text-xs font-cyber text-emerald-400 rounded-lg flex items-center gap-1 transition cursor-pointer" title="Toggle Fullscreen [G]">
                             <span>⛶</span> <span id="btn-menu-fullscreen-text">FULLSCREEN</span>
                         </button>
-                        <div class="text-xs font-cyber text-neutral-400">
+                        <div class="hidden md:flex items-center gap-1.5 text-xs font-cyber text-neutral-400 border-l border-neutral-800 pl-2.5">
                             SYSTEM: <span class="text-emerald-400 font-bold">OPERATIONAL</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Center Hero Branding -->
-                <div class="flex flex-col items-center text-center my-auto py-4">
-                    <div class="inline-flex items-center gap-2 px-3 py-1 bg-cyan-950/60 border border-cyan-500/40 rounded-full text-[10px] font-cyber tracking-widest text-cyan-300 uppercase mb-3">
-                        <span>⚡</span> 20 STAGES • ENDLESS MARATHON • 1V1 ONLINE RACING
+                <!-- Center Content Hub: Header + 2-Column Grid -->
+                <div class="w-full max-w-5xl my-auto py-3 flex flex-col items-center">
+                    <!-- Hero Title & Subtitle -->
+                    <div class="text-center mb-4">
+                        <div class="inline-flex items-center gap-2 px-3 py-0.5 bg-cyan-950/60 border border-cyan-500/40 rounded-full text-[10px] font-cyber tracking-widest text-cyan-300 uppercase mb-2 shadow-[0_0_12px_rgba(6,182,212,0.2)]">
+                            <span>⚡</span> PRECISION SPEEDRUN &amp; MULTIVERSE EDITION
+                        </div>
+                        <h1 class="text-4xl sm:text-6xl font-cyber font-extrabold tracking-wider glow-cyan text-white drop-shadow-[0_0_25px_rgba(6,182,212,0.6)]">
+                            NEON PULSE
+                        </h1>
+                        <p class="text-xs text-neutral-400 max-w-md mx-auto mt-1 font-mono">
+                            20 handcrafted campaign sectors • Procedural endless marathon • Community level builder
+                        </p>
                     </div>
-                    <h1 class="text-4xl sm:text-6xl font-cyber font-bold tracking-wider glow-cyan text-white">
-                        NEON PULSE
-                    </h1>
-                    <p class="text-xs sm:text-sm font-cyber tracking-widest text-cyan-300/80 mt-1 uppercase">
-                        Precision Speedrun & Multiverse Edition
-                    </p>
-                    <p class="text-xs text-neutral-400 max-w-md mt-2 font-mono">
-                        Handcrafted speedrun campaigns, procedural endless marathon, ghost challenges, and real-time online racing.
-                    </p>
 
-                    <!-- Daily Seeded Speedrun Banner -->
-                    <div class="w-full max-w-lg mt-4 bg-gradient-to-r from-pink-950/70 via-purple-950/80 to-indigo-950/70 border border-pink-500/60 rounded-xl p-2.5 sm:p-3 flex items-center justify-between shadow-[0_0_30px_rgba(236,72,153,0.3)] relative overflow-hidden">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-pink-500/20 border border-pink-400/60 flex items-center justify-center text-lg sm:text-xl shadow-[0_0_10px_rgba(236,72,153,0.4)]">
-                                📅
+                    <!-- 2-Column Structured Menu Panels -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 w-full">
+                        <!-- LEFT PANEL: Missions & Game Modes (7 cols) -->
+                        <div class="lg:col-span-7 flex flex-col gap-2.5">
+                            <!-- Campaign Section Card -->
+                            <div class="bg-neutral-900/80 border border-cyan-500/30 rounded-xl p-3.5 shadow-[0_0_20px_rgba(6,182,212,0.15)] backdrop-blur-sm flex flex-col gap-2.5">
+                                <div class="flex items-center justify-between border-b border-neutral-800 pb-2">
+                                    <span class="text-xs font-cyber font-bold text-cyan-300 flex items-center gap-2 tracking-wider">
+                                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                                        CAMPAIGN OPERATIONS
+                                    </span>
+                                    <span class="text-[10px] font-mono text-neutral-400">20 HANDCRAFTED SECTORS</span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    <button id="btn-main-play" class="btn-shimmer py-3 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.5)] transition transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                                        <span class="text-sm">▶</span>
+                                        <div class="text-left">
+                                            <div>DIMENSION α</div>
+                                            <div class="text-[9px] font-mono opacity-80 font-normal">SECTORS 01–10</div>
+                                        </div>
+                                    </button>
+                                    <button id="btn-main-dim2" class="py-3 px-4 bg-purple-950/80 hover:bg-purple-900 border border-purple-500/70 hover:border-purple-400 text-purple-200 font-cyber font-bold text-xs tracking-wider rounded-lg transition transform active:scale-95 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(168,85,247,0.3)] cursor-pointer">
+                                        <span class="text-sm">🌀</span>
+                                        <div class="text-left">
+                                            <div>DIMENSION β</div>
+                                            <div class="text-[9px] font-mono text-purple-300/80 font-normal">SECTORS 11–20</div>
+                                        </div>
+                                    </button>
+                                </div>
+                                <div class="flex items-center gap-2 pt-0.5">
+                                    <button id="btn-main-stages" class="flex-1 py-1.5 px-3 bg-neutral-950 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-neutral-300 hover:text-cyan-300 font-cyber text-xs rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                        <span>☰</span> STAGE MATRIX
+                                    </button>
+                                    <button id="btn-main-random" onclick="if(window.playRandomStage)window.playRandomStage();" class="flex-1 py-1.5 px-3 bg-neutral-950 hover:bg-amber-950/60 border border-neutral-700 hover:border-amber-400 text-neutral-300 hover:text-amber-300 font-cyber font-bold text-xs rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                        <span>🎲</span> RANDOM QUICK
+                                    </button>
+                                </div>
                             </div>
-                            <div class="text-left">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-xs font-cyber font-bold text-pink-300">DAILY SEEDED SPEEDRUN</span>
-                                    <span id="daily-date-tag" class="text-[9px] px-1.5 py-0.2 rounded bg-pink-950/90 border border-pink-500/60 text-pink-300 font-mono font-bold">TODAY</span>
-                                </div>
-                                <div class="text-[10px] text-neutral-400 flex items-center gap-2 mt-0.5 font-mono">
-                                    <span>RESET: <strong id="daily-countdown-text" class="text-pink-400 font-bold">--:--:--</strong></span>
-                                    <span>•</span>
-                                    <span>PB: <strong id="daily-menu-pb" class="text-amber-400 font-bold">--:--.---</strong></span>
-                                </div>
+
+                            <!-- Special Gamemodes (Endless & 1v1) -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <button id="btn-main-endless" class="btn-shimmer p-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-cyber font-bold text-xs tracking-wider rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.4)] transition transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+                                    <span class="text-base">⚡</span>
+                                    <div class="text-left">
+                                        <div>ENDLESS MARATHON</div>
+                                        <div class="text-[9px] font-mono opacity-80 font-normal">PROCEDURAL SPEED RUN</div>
+                                    </div>
+                                </button>
+                                <button id="btn-main-multiplayer" class="p-3 bg-rose-950/80 hover:bg-rose-900 border border-rose-500/70 hover:border-rose-400 text-rose-200 font-cyber font-bold text-xs tracking-wider rounded-xl transition transform active:scale-95 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(244,63,94,0.3)] cursor-pointer">
+                                    <span class="text-base">⚔️</span>
+                                    <div class="text-left">
+                                        <div>ONLINE RACE &amp; GHOSTS</div>
+                                        <div class="text-[9px] font-mono text-rose-300/80 font-normal">1V1 LIVE RIVALS</div>
+                                    </div>
+                                </button>
                             </div>
                         </div>
-                        <button id="btn-main-play-daily" class="btn-shimmer py-2 px-3 sm:px-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(236,72,153,0.6)] transition transform active:scale-95 flex items-center gap-1 cursor-pointer">
-                            <span>⚡</span> PLAY TODAY
-                        </button>
-                    </div>
 
-                    <!-- Main Menu Primary Game Modes -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 w-full max-w-lg">
-                        <button id="btn-main-play" class="btn-shimmer py-2 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.5)] transition transform active:scale-95 flex items-center justify-center gap-1.5">
-                            <span>▶</span> CAMPAIGN: DIM-α (01–10)
-                        </button>
-                        <button id="btn-main-dim2" class="py-2 px-4 bg-purple-950/80 hover:bg-purple-900 border border-purple-500/70 hover:border-purple-400 text-purple-200 font-cyber font-bold text-xs tracking-wider rounded-lg transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
-                            <span>🌀</span> CAMPAIGN: DIM-β (11–20)
-                        </button>
-                        <button id="btn-main-endless" class="btn-shimmer py-2 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(245,158,11,0.5)] transition transform active:scale-95 flex items-center justify-center gap-1.5">
-                            <span>⚡</span> ENDLESS MARATHON
-                        </button>
-                        <button id="btn-main-multiplayer" class="py-2 px-4 bg-rose-950/80 hover:bg-rose-900 border border-rose-500/70 hover:border-rose-400 text-rose-200 font-cyber font-bold text-xs tracking-wider rounded-lg transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(244,63,94,0.3)]">
-                            <span>⚔️</span> ONLINE RACE & GHOSTS
-                        </button>
-                    </div>
+                        <!-- RIGHT PANEL: Daily Seeded & Community/Hub (5 cols) -->
+                        <div class="lg:col-span-5 flex flex-col gap-2.5">
+                            <!-- Daily Seeded Speedrun Banner -->
+                            <div class="bg-gradient-to-r from-pink-950/70 via-purple-950/80 to-indigo-950/70 border border-pink-500/60 rounded-xl p-3 flex items-center justify-between shadow-[0_0_25px_rgba(236,72,153,0.25)] relative overflow-hidden backdrop-blur-sm">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-10 h-10 rounded-lg bg-pink-500/20 border border-pink-400/60 flex items-center justify-center text-xl shadow-[0_0_10px_rgba(236,72,153,0.4)] shrink-0">
+                                        📅
+                                    </div>
+                                    <div class="text-left">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-xs font-cyber font-bold text-pink-300">DAILY SEEDED SPEEDRUN</span>
+                                            <span id="daily-date-tag" class="text-[9px] px-1.5 py-0.2 rounded bg-pink-950/90 border border-pink-500/60 text-pink-300 font-mono font-bold">TODAY</span>
+                                        </div>
+                                        <div class="text-[10px] text-neutral-400 flex items-center gap-2 mt-0.5 font-mono">
+                                            <span>RESET: <strong id="daily-countdown-text" class="text-pink-400 font-bold">--:--:--</strong></span>
+                                            <span>•</span>
+                                            <span>PB: <strong id="daily-menu-pb" class="text-amber-400 font-bold">--:--.---</strong></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button id="btn-main-play-daily" class="btn-shimmer py-2 px-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-cyber font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(236,72,153,0.6)] transition transform active:scale-95 flex items-center gap-1 cursor-pointer shrink-0">
+                                    <span>⚡</span> PLAY
+                                </button>
+                            </div>
 
-                    <div class="flex flex-wrap items-center justify-center gap-2 mt-2.5 w-full max-w-lg">
-                        <button id="btn-main-locker" class="py-1.5 px-3 bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/70 hover:border-cyan-400 text-cyan-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.3)] cursor-pointer">
-                            <span>🎨</span> CYBER LOCKER
-                        </button>
-                        <button id="btn-main-builder" class="py-1.5 px-3 bg-purple-950/60 hover:bg-purple-900/80 border border-purple-500/70 hover:border-purple-400 text-purple-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(168,85,247,0.3)] cursor-pointer">
-                            <span>🛠️</span> TRACK BUILDER
-                        </button>
-                        <button id="btn-main-settings" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-cyan-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.25)] cursor-pointer">
-                            <span>⚙️</span> SETTINGS & KEYS
-                        </button>
-                        <button id="btn-main-random" onclick="if(window.playRandomStage)window.playRandomStage();" class="py-1.5 px-3 bg-amber-950/50 hover:bg-amber-900/70 border border-amber-500/60 hover:border-amber-400 text-amber-300 font-cyber font-bold text-xs rounded transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.25)] cursor-pointer">
-                            <span>🎲</span> RANDOM QUICK
-                        </button>
-                        <button id="btn-main-stages" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-neutral-300 font-cyber text-xs rounded transition flex items-center gap-1.5">
-                            <span>☰</span> STAGE MATRIX
-                        </button>
-                        <button id="btn-main-daily" class="relative py-1.5 px-3 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-600/60 hover:border-amber-400 text-amber-300 font-cyber text-xs rounded transition flex items-center gap-1.5">
-                            <span>🎁</span> REWARDS
-                            <span id="main-daily-dot" class="hidden w-2 h-2 rounded-full bg-pink-500 animate-ping"></span>
-                        </button>
-                        <button id="btn-main-ranks" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-neutral-500 text-neutral-300 font-cyber text-xs rounded transition flex items-center gap-1.5">
-                            <span>🏆</span> TIME RANKS
-                        </button>
-                        <button id="btn-main-howtoplay" class="py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-neutral-500 text-neutral-300 font-cyber text-xs rounded transition flex items-center gap-1.5">
-                            <span>❓</span> HOW TO PLAY
-                        </button>
-                    </div>
-                </div>
+                            <!-- Hub & Customization Cards (2x2 Grid) -->
+                            <div class="grid grid-cols-2 gap-2">
+                                <button id="btn-main-builder" class="p-2.5 bg-neutral-900/90 hover:bg-neutral-800 border border-purple-500/50 hover:border-purple-400 text-purple-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 shadow-[0_0_10px_rgba(168,85,247,0.2)] cursor-pointer">
+                                    <span class="text-base">🛠️</span>
+                                    <div class="text-left">
+                                        <div>TRACK BUILDER</div>
+                                        <div class="text-[9px] font-mono text-neutral-400 font-normal">CREATE &amp; SHARE</div>
+                                    </div>
+                                </button>
+                                <button id="btn-main-locker" class="p-2.5 bg-neutral-900/90 hover:bg-neutral-800 border border-cyan-500/50 hover:border-cyan-400 text-cyan-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer">
+                                    <span class="text-base">🎨</span>
+                                    <div class="text-left">
+                                        <div>CYBER LOCKER</div>
+                                        <div class="text-[9px] font-mono text-neutral-400 font-normal">SKINS &amp; TRAILS</div>
+                                    </div>
+                                </button>
+                                <button id="btn-main-daily" class="relative p-2.5 bg-neutral-900/90 hover:bg-neutral-800 border border-amber-500/50 hover:border-amber-400 text-amber-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 shadow-[0_0_10px_rgba(245,158,11,0.2)] cursor-pointer">
+                                    <span class="text-base">🎁</span>
+                                    <div class="text-left">
+                                        <div class="flex items-center gap-1">
+                                            REWARDS
+                                            <span id="main-daily-dot" class="hidden w-2 h-2 rounded-full bg-pink-500 animate-ping"></span>
+                                        </div>
+                                        <div class="text-[9px] font-mono text-neutral-400 font-normal">DAILY BOUNTIES</div>
+                                    </div>
+                                </button>
+                                <button id="btn-main-ranks" class="p-2.5 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-neutral-300 hover:text-amber-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
+                                    <span class="text-base">🏆</span>
+                                    <div class="text-left">
+                                        <div>TIME RANKS</div>
+                                        <div class="text-[9px] font-mono text-neutral-400 font-normal">LEADERBOARDS</div>
+                                    </div>
+                                </button>
+                            </div>
 
-                <!-- Footer Keys Quick Bar -->
-                <div class="w-full flex flex-wrap items-center justify-center gap-2.5 text-[10px] font-mono text-neutral-500 border-t border-neutral-900 pt-3">
-                    <span><strong class="text-neutral-300 font-bold">[SPACE]</strong> JUMP & 2X</span>
-                    <span>•</span>
-                    <span><strong class="text-neutral-300 font-bold">[S / DOWN]</strong> SLIDE</span>
-                    <span>•</span>
-                    <span><strong class="text-cyan-400 font-bold">[SHIFT]</strong> DASH</span>
-                    <span>•</span>
-                    <span><strong class="text-amber-400 font-bold">[E]</strong> THRUST</span>
-                    <span>•</span>
-                    <span><strong class="text-purple-400 font-bold">[Q / F]</strong> CHRONO</span>
-                    <span>•</span>
-                    <span><strong class="text-neutral-300 font-bold">[ESC / P]</strong> PAUSE</span>
-                    <span>•</span>
-                    <span><strong class="text-green-400 font-bold">[G]</strong> FULLSCREEN</span>
-                    <span>•</span>
-                    <span><strong class="text-neutral-300 font-bold">[R]</strong> RESTART</span>
+                            <!-- Settings & Utilities Row -->
+                            <div class="flex items-center gap-2">
+                                <button id="btn-main-settings" class="flex-1 py-2 px-3 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-cyan-300 font-cyber font-bold text-xs rounded-lg transition flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer">
+                                    <span>⚙️</span> SETTINGS &amp; KEYS
+                                </button>
+                                <button id="btn-main-howtoplay" class="flex-1 py-2 px-3 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 hover:border-neutral-500 text-neutral-300 font-cyber text-xs rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <span>❓</span> HOW TO PLAY
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -639,7 +683,7 @@
                                 <h2 class="text-base sm:text-lg font-cyber font-bold tracking-wider text-amber-400">ACHIEVEMENT MATRIX</h2>
                                 <span class="text-[9px] px-2 py-0.5 rounded bg-amber-950/80 border border-amber-500/50 text-amber-300 font-mono font-bold">STEAM READY</span>
                             </div>
-                            <p class="text-[11px] text-neutral-400 font-mono">28 achievements spanning speed tech, campaign mastery, par times, and secrets.</p>
+                            <p class="text-[11px] text-neutral-400 font-mono">29 achievements spanning speed tech, campaign mastery, par times, and secrets.</p>
                         </div>
                     </div>
                     <button id="btn-close-achievements" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition cursor-pointer">
@@ -1570,6 +1614,6 @@
     <!-- Steamworks & Desktop Bridge -->
     <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=5.1"></script>
+    <script src="game.js?v=5.2"></script>
 </body>
 </html>
