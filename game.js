@@ -1696,7 +1696,7 @@ const lockerSystem = {
         else if (id === 'void_shadow' && (metrics.clearedStages >= 15 || metrics.stage20Cleared)) unlocked = true;
         else if (id === 'plasma_white' && (metrics.topSpeed >= 450 || metrics.clearedStages >= 12)) unlocked = true;
         else if (id === 'quantum_gold' && (metrics.goldMedals >= 15 || metrics.diamondMedals >= 5)) unlocked = true;
-        else if (id === 'toxic_acid' && (metrics.clearedStages >= 14 || (typeof game !== 'undefined' && game.endlessBestDistance >= 1000))) unlocked = true;
+        else if (id === 'toxic_acid' && (metrics.clearedStages >= 14 || metrics.endlessBest >= 1000)) unlocked = true;
         else if (id === 'cyber_chrome' && (typeof achievementSystem !== 'undefined' && achievementSystem.unlocked && achievementSystem.unlocked.size >= 20)) unlocked = true;
 
         if (unlocked) {
@@ -1753,6 +1753,12 @@ const lockerSystem = {
             if (sp) topSpeed = parseInt(sp, 10) || 0;
         } catch(e) {}
 
+        let endlessBest = 0;
+        try {
+            const eb = localStorage.getItem('neon_pulse_endless_best');
+            if (eb) endlessBest = parseInt(eb, 10) || 0;
+        } catch(e) {}
+
         let dailyCleared = false;
         try {
             const todayKey = (typeof getTodayDateStr === 'function') ? getTodayDateStr() : '';
@@ -1764,7 +1770,7 @@ const lockerSystem = {
         let streak = (dailySystem && dailySystem.streak) ? dailySystem.streak : 1;
         let maxSlideHops = (typeof window !== 'undefined' && window.game && window.game.maxSlideHops) ? window.game.maxSlideHops : 0;
 
-        return { clearedStages, totalShards, goldMedals, diamondMedals, topSpeed, dailyCleared, streak, maxSlideHops, stage20Cleared };
+        return { clearedStages, totalShards, goldMedals, diamondMedals, topSpeed, dailyCleared, streak, maxSlideHops, stage20Cleared, endlessBest };
     },
 
     checkUnlocks() {
@@ -3210,7 +3216,7 @@ const GRAVITY = 1900;
 const JUMP_IMPULSE = -580;
 const AIR_DIVE_IMPULSE = 750;
 
-const game = {
+var game = {
     currentLevelIdx: 0,
     level: null,
     attempts: 1,
