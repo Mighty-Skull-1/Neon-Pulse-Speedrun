@@ -564,7 +564,7 @@
             <div class="w-full max-w-3xl bg-neutral-900 border border-amber-500/80 rounded-xl p-4 sm:p-6 shadow-[0_0_50px_rgba(245,158,11,0.25)] flex flex-col gap-3.5 max-h-[92vh] overflow-hidden">
                 <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-400/80 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.4)]">
+                        <div id="btn-daily-admin-trigger" title="Daily Matrix" class="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-400/80 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.4)] cursor-pointer select-none transition active:scale-95">
                             🎁
                         </div>
                         <div class="text-left">
@@ -661,7 +661,11 @@
                         </select>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button id="btn-instant-streak-test" title="Simulate 24hr passage to test next day supply drop and bounties immediately" class="py-1 px-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-cyan-300 font-mono text-[10px] rounded border border-neutral-700 transition cursor-pointer">
+                        <span id="admin-badge-daily" class="hidden text-[10px] font-cyber text-amber-400 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/50 items-center gap-1.5" style="display:none">
+                            <span>👑 ADMIN</span>
+                            <button id="btn-admin-lock-daily" title="Lock Admin Mode" class="text-neutral-400 hover:text-rose-400 cursor-pointer text-xs">🔒</button>
+                        </span>
+                        <button id="btn-instant-streak-test" title="Simulate 24hr passage to test next day supply drop and bounties immediately" class="hidden py-1 px-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-cyan-300 font-mono text-[10px] rounded border border-neutral-700 transition cursor-pointer" style="display:none">
                             +24H NEXT DAY SIMULATION
                         </button>
                     </div>
@@ -1011,9 +1015,14 @@
                     <button id="btn-pause-main-menu" onclick="const m=document.getElementById('modal-pause');if(m){m.classList.add('hidden');m.style.display='none';}if(typeof MP!=='undefined'&&MP.connected)MP.expireSession('ABANDONED BY PLAYER');if(window.returnToMainMenu)window.returnToMainMenu();" class="cursor-pointer pointer-events-auto py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 font-cyber text-xs tracking-wider rounded border border-neutral-800 transition">
                         🏠 MAIN MENU
                     </button>
-                    <button id="btn-pause-reset-all" onclick="if(confirm('RESET ALL PROGRESS: Clear all personal bests, ghost runs, medals, and start completely fresh?')){ if(window.resetAllProgress)window.resetAllProgress(); }" class="cursor-pointer pointer-events-auto py-1.5 px-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 hover:text-rose-300 font-cyber text-[10px] tracking-wider rounded border border-rose-900/50 hover:border-rose-500 transition flex items-center justify-center gap-1">
-                        <span>⚠️</span> RESET ALL GAME PROGRESS
-                    </button>
+                    <div id="admin-pause-container" class="hidden flex items-center justify-between gap-2 w-full" style="display:none">
+                        <button id="btn-pause-reset-all" onclick="if(confirm('RESET ALL PROGRESS: Clear all personal bests, ghost runs, medals, and start completely fresh?')){ if(window.resetAllProgress)window.resetAllProgress(); }" class="flex-1 cursor-pointer pointer-events-auto py-1.5 px-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 hover:text-rose-300 font-cyber text-[10px] tracking-wider rounded border border-rose-900/50 hover:border-rose-500 transition flex items-center justify-center gap-1">
+                            <span>⚠️</span> RESET ALL GAME PROGRESS
+                        </button>
+                        <button id="btn-admin-lock-pause" title="Lock Admin Mode" class="cursor-pointer py-1.5 px-2.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-rose-400 font-cyber text-[10px] rounded border border-neutral-700 transition">
+                            🔒 LOCK
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Audio Volume Controls in Pause Menu -->
@@ -1563,6 +1572,44 @@
             </div>
         </div>
 
+        <!-- MODAL: Admin Security Gateway / Developer Tools Unlock -->
+        <div id="modal-admin-auth" class="hidden modal-backdrop absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4" style="display:none">
+            <div class="w-full max-w-md bg-neutral-900 border border-cyan-500/80 rounded-xl p-5 sm:p-6 shadow-[0_0_50px_rgba(6,182,212,0.3)] flex flex-col gap-4">
+                <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-lg bg-cyan-950 border border-cyan-400 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                            👑
+                        </div>
+                        <div>
+                            <h2 class="text-base font-cyber font-bold tracking-wider text-cyan-400">ADMIN GATEWAY</h2>
+                            <p class="text-[10px] text-neutral-400 font-mono">Restricted Developer Diagnostics & Reset Controls</p>
+                        </div>
+                    </div>
+                    <button id="btn-close-admin-auth" class="w-7 h-7 flex items-center justify-center rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-neutral-200 font-mono text-sm transition cursor-pointer">✕</button>
+                </div>
+
+                <div class="space-y-3">
+                    <p class="text-xs text-neutral-300 font-mono leading-relaxed">
+                        Enter cryptographic authorization key to unlock developer simulation and progress reset tools.
+                    </p>
+                    <div>
+                        <label class="block text-[10px] font-cyber text-cyan-300 uppercase tracking-wider mb-1">AUTHORIZATION KEY</label>
+                        <input id="admin-key-input" type="password" autocomplete="off" placeholder="••••••••••••" class="w-full bg-neutral-950 border border-neutral-700 focus:border-cyan-400 text-neutral-100 font-mono text-sm px-3 py-2 rounded-lg outline-none transition shadow-inner">
+                    </div>
+                    <div id="admin-auth-msg" class="text-xs font-mono min-h-[1.25rem] text-rose-400 font-semibold hidden"></div>
+                </div>
+
+                <div class="flex items-center justify-between gap-3 pt-2 border-t border-neutral-800">
+                    <button id="btn-admin-cancel" class="flex-1 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-cyber text-xs rounded border border-neutral-700 transition cursor-pointer">
+                        CANCEL
+                    </button>
+                    <button id="btn-admin-authenticate" class="flex-1 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-cyber font-bold text-xs rounded transition shadow-[0_0_15px_rgba(6,182,212,0.4)] cursor-pointer">
+                        AUTHORIZE
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL: Custom Track Builder / Level Editor -->
         <div id="modal-editor" class="hidden modal-backdrop absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col p-3 sm:p-4 overflow-hidden">
             <!-- Editor Top Toolbar -->
@@ -1666,6 +1713,6 @@
     <!-- Steamworks & Desktop Bridge -->
     <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=5.3"></script>
+    <script src="game.js?v=5.4"></script>
 </body>
 </html>

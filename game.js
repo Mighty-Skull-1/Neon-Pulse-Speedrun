@@ -4,10 +4,377 @@
  */
 
 // ============================================================================
-// 0. GLOBAL PROGRESS RESET & SAVE VERSIONING
+// 0. ADMIN SECURITY & CRYPTOGRAPHIC ACCESS CONTROL (SALTED SHA-256)
+// Note: Plaintext passwords are NEVER stored in this repository.
+// Authentication is strictly verified against an irreversible cryptographic hash.
+// ============================================================================
+const ADMIN_HASH_SALT = 'NeonPulse_AdminSalt_v1';
+const ADMIN_TARGET_HASH = '9c52122c87bba11fa64924155ed101ab6d8c01219c1d3ac136aee105c8632c2c';
+const ADMIN_STORAGE_KEY = 'neon_pulse_admin_token';
+
+function sha256PureSync(ascii) {
+    function rightRotate(value, amount) {
+        return (value >>> amount) | (value << (32 - amount));
+    }
+    const words = [];
+    const asciiBitLength = ascii.length * 8;
+    const hash = [
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    ];
+    const k = [
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+        0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+        0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+    ];
+    let i, j;
+    for (i = 0; i < ascii.length; i++) {
+        const code = ascii.charCodeAt(i);
+        words[i >> 2] |= (code & 0xff) << (24 - 8 * (i % 4));
+    }
+    words[asciiBitLength >> 5] |= 0x80 << (24 - (asciiBitLength % 32));
+    words[(((asciiBitLength + 64) >> 9) << 4) + 15] = asciiBitLength;
+
+    const w = new Array(64);
+    for (i = 0; i < words.length; i += 16) {
+        let [a, b, c, d, e, f, g, h] = hash;
+        for (j = 0; j < 64; j++) {
+            if (j < 16) {
+                w[j] = words[i + j] | 0;
+            } else {
+                const s0 = rightRotate(w[j - 15], 7) ^ rightRotate(w[j - 15], 18) ^ (w[j - 15] >>> 3);
+                const s1 = rightRotate(w[j - 2], 17) ^ rightRotate(w[j - 2], 19) ^ (w[j - 2] >>> 10);
+                w[j] = (w[j - 16] + s0 + w[j - 7] + s1) | 0;
+            }
+            const s1 = rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25);
+            const ch = (e & f) ^ ((~e) & g);
+            const temp1 = (h + s1 + ch + k[j] + w[j]) | 0;
+            const s0 = rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22);
+            const maj = (a & b) ^ (a & c) ^ (b & c);
+            const temp2 = (s0 + maj) | 0;
+
+            h = g;
+            g = f;
+            f = e;
+            e = (d + temp1) | 0;
+            d = c;
+            c = b;
+            b = a;
+            a = (temp1 + temp2) | 0;
+        }
+        hash[0] = (hash[0] + a) | 0;
+        hash[1] = (hash[1] + b) | 0;
+        hash[2] = (hash[2] + c) | 0;
+        hash[3] = (hash[3] + d) | 0;
+        hash[4] = (hash[4] + e) | 0;
+        hash[5] = (hash[5] + f) | 0;
+        hash[6] = (hash[6] + g) | 0;
+        hash[7] = (hash[7] + h) | 0;
+    }
+    let result = '';
+    for (i = 0; i < 8; i++) {
+        for (j = 3; j >= 0; j--) {
+            const byte = (hash[i] >> (j * 8)) & 0xff;
+            result += byte.toString(16).padStart(2, '0');
+        }
+    }
+    return result;
+}
+
+class AdminSecuritySystem {
+    constructor() {
+        this.authenticated = false;
+        this.triggerClickCount = 0;
+        this.triggerClickTimer = null;
+        this.listenersAttached = false;
+    }
+
+    async hashInput(input) {
+        if (!input || typeof input !== 'string') return '';
+        try {
+            if (typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest) {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(`${ADMIN_HASH_SALT}:${input}`);
+                const buffer = await crypto.subtle.digest('SHA-256', data);
+                return Array.from(new Uint8Array(buffer))
+                    .map(b => b.toString(16).padStart(2, '0'))
+                    .join('');
+            }
+        } catch (e) {
+            console.warn('[AdminSystem] WebCrypto error, falling back to pure SHA-256:', e);
+        }
+        return sha256PureSync(`${ADMIN_HASH_SALT}:${input}`);
+    }
+
+    init() {
+        try {
+            const storedToken = localStorage.getItem(ADMIN_STORAGE_KEY);
+            if (storedToken && storedToken === ADMIN_TARGET_HASH) {
+                this.authenticated = true;
+            }
+        } catch(e) {}
+
+        this.updateUI();
+        this.setupEventListeners();
+
+        // Check URL parameter (?admin or #admin)
+        if (typeof window !== 'undefined' && window.location) {
+            const hasParam = window.location.search.includes('admin') || window.location.hash.includes('admin');
+            if (hasParam) {
+                setTimeout(() => {
+                    if (!this.authenticated) this.openAuthModal();
+                }, 400);
+            }
+        }
+    }
+
+    setupEventListeners() {
+        if (this.listenersAttached) return;
+        this.listenersAttached = true;
+
+        // Daily icon click trigger (5 clicks within 3 seconds)
+        const dailyTrigger = document.getElementById('btn-daily-admin-trigger');
+        if (dailyTrigger) {
+            dailyTrigger.addEventListener('click', () => {
+                this.registerTriggerClick();
+            });
+        }
+
+        // Keyboard shortcut: Ctrl+Shift+A / Cmd+Shift+A
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+                e.preventDefault();
+                if (this.authenticated) {
+                    if (typeof showNotification === 'function') {
+                        showNotification("👑 ADMIN MODE IS ALREADY ACTIVE");
+                    }
+                } else {
+                    this.openAuthModal();
+                }
+            }
+        });
+
+        // Modal buttons
+        const btnAuth = document.getElementById('btn-admin-authenticate');
+        const btnCancel = document.getElementById('btn-admin-cancel');
+        const btnClose = document.getElementById('btn-close-admin-auth');
+        const inputKey = document.getElementById('admin-key-input');
+
+        if (btnAuth && inputKey) {
+            btnAuth.addEventListener('click', () => {
+                this.authenticate(inputKey.value);
+            });
+        }
+        if (inputKey) {
+            inputKey.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.authenticate(inputKey.value);
+                }
+            });
+        }
+        if (btnCancel) {
+            btnCancel.addEventListener('click', () => {
+                this.closeAuthModal();
+            });
+        }
+        if (btnClose) {
+            btnClose.addEventListener('click', () => {
+                this.closeAuthModal();
+            });
+        }
+
+        // Lock buttons
+        const lockDaily = document.getElementById('btn-admin-lock-daily');
+        if (lockDaily) {
+            lockDaily.addEventListener('click', () => {
+                this.logout();
+            });
+        }
+        const lockPause = document.getElementById('btn-admin-lock-pause');
+        if (lockPause) {
+            lockPause.addEventListener('click', () => {
+                this.logout();
+            });
+        }
+    }
+
+    registerTriggerClick() {
+        this.triggerClickCount++;
+        if (this.triggerClickTimer) clearTimeout(this.triggerClickTimer);
+        this.triggerClickTimer = setTimeout(() => {
+            this.triggerClickCount = 0;
+        }, 3000);
+
+        if (this.triggerClickCount >= 5) {
+            this.triggerClickCount = 0;
+            if (this.authenticated) {
+                if (typeof showNotification === 'function') {
+                    showNotification("👑 ADMIN MODE ACTIVE: Developer controls are already unlocked.");
+                }
+            } else {
+                this.openAuthModal();
+            }
+        }
+    }
+
+    openAuthModal() {
+        const modal = document.getElementById('modal-admin-auth');
+        const input = document.getElementById('admin-key-input');
+        const msg = document.getElementById('admin-auth-msg');
+        if (!modal) return;
+
+        if (msg) {
+            msg.textContent = '';
+            msg.className = 'text-xs font-mono min-h-[1.25rem] text-rose-400 font-semibold hidden';
+        }
+        if (input) {
+            input.value = '';
+        }
+
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            if (input && typeof input.focus === 'function') input.focus();
+        }, 80);
+    }
+
+    closeAuthModal() {
+        const modal = document.getElementById('modal-admin-auth');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    }
+
+    async authenticate(inputPassword) {
+        const computedHash = await this.hashInput(inputPassword);
+        const msg = document.getElementById('admin-auth-msg');
+
+        if (computedHash === ADMIN_TARGET_HASH) {
+            this.authenticated = true;
+            try {
+                localStorage.setItem(ADMIN_STORAGE_KEY, ADMIN_TARGET_HASH);
+            } catch(e) {}
+
+            if (msg) {
+                msg.textContent = "✓ ACCESS GRANTED // WELCOME ADMIN";
+                msg.className = "text-xs font-mono text-cyan-400 font-bold block";
+            }
+
+            if (typeof audio !== 'undefined' && audio.playEquip) {
+                audio.playEquip();
+            }
+
+            setTimeout(() => {
+                this.closeAuthModal();
+                this.updateUI();
+                if (typeof showNotification === 'function') {
+                    showNotification("👑 ADMIN ACCESS GRANTED: Developer controls unlocked.");
+                }
+            }, 600);
+            return true;
+        } else {
+            if (msg) {
+                msg.textContent = "✕ INVALID AUTHORIZATION KEY";
+                msg.className = "text-xs font-mono text-rose-400 font-bold block animate-pulse";
+            }
+            const input = document.getElementById('admin-key-input');
+            if (input) {
+                input.value = '';
+                if (typeof input.focus === 'function') input.focus();
+            }
+            if (typeof audio !== 'undefined' && audio.playLaser) {
+                audio.playLaser();
+            }
+            return false;
+        }
+    }
+
+    logout() {
+        this.authenticated = false;
+        try {
+            localStorage.removeItem(ADMIN_STORAGE_KEY);
+        } catch(e) {}
+        this.updateUI();
+        if (typeof showNotification === 'function') {
+            showNotification("🔒 ADMIN MODE LOCKED: Developer controls hidden.");
+        }
+    }
+
+    isAdmin() {
+        return this.authenticated;
+    }
+
+    updateUI() {
+        // Daily Simulation Button & Badge
+        const simBtn = document.getElementById('btn-instant-streak-test');
+        const dailyBadge = document.getElementById('admin-badge-daily');
+        if (simBtn) {
+            if (this.authenticated) {
+                simBtn.classList.remove('hidden');
+                simBtn.style.display = 'inline-block';
+            } else {
+                simBtn.classList.add('hidden');
+                simBtn.style.display = 'none';
+            }
+        }
+        if (dailyBadge) {
+            if (this.authenticated) {
+                dailyBadge.classList.remove('hidden');
+                dailyBadge.style.display = 'inline-flex';
+            } else {
+                dailyBadge.classList.add('hidden');
+                dailyBadge.style.display = 'none';
+            }
+        }
+
+        // Pause Menu Reset Button & Container
+        const pauseContainer = document.getElementById('admin-pause-container');
+        const pauseResetBtn = document.getElementById('btn-pause-reset-all');
+        if (pauseContainer) {
+            if (this.authenticated) {
+                pauseContainer.classList.remove('hidden');
+                pauseContainer.style.display = 'flex';
+            } else {
+                pauseContainer.classList.add('hidden');
+                pauseContainer.style.display = 'none';
+            }
+        } else if (pauseResetBtn) {
+            if (this.authenticated) {
+                pauseResetBtn.classList.remove('hidden');
+                pauseResetBtn.style.display = 'flex';
+            } else {
+                pauseResetBtn.classList.add('hidden');
+                pauseResetBtn.style.display = 'none';
+            }
+        }
+    }
+}
+
+const adminSystem = new AdminSecuritySystem();
+window.adminSystem = adminSystem;
+window.adminLogin = () => adminSystem.openAuthModal();
+window.adminLogout = () => adminSystem.logout();
+
+// ============================================================================
+// 0.5. GLOBAL PROGRESS RESET & SAVE VERSIONING
 // ============================================================================
 const CURRENT_SAVE_VERSION = "2026_09_FRESH_START_V2";
 function executeGlobalProgressReset(force = false) {
+    if (force && typeof adminSystem !== 'undefined' && !adminSystem.isAdmin()) {
+        console.warn('[NeonPulse] Global progress reset blocked: Admin authorization required.');
+        if (typeof showNotification === 'function') {
+            showNotification("🔒 ACCESS DENIED: Requires Admin Authorization.");
+        }
+        if (typeof adminSystem !== 'undefined') adminSystem.openAuthModal();
+        return false;
+    }
     try {
         if (typeof localStorage === 'undefined') return false;
         const storedVersion = localStorage.getItem('neon_pulse_save_version');
@@ -17,8 +384,8 @@ function executeGlobalProgressReset(force = false) {
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key && (key.startsWith('neon_pulse_') || key.startsWith('neon_runner_'))) {
-                    // Retain audio preferences and ghost setting, but wipe all gameplay progress, PBs, shards, medals, ghosts, skins
-                    if (key !== 'neon_pulse_vol_music' && key !== 'neon_pulse_vol_sfx' && key !== 'neon_pulse_setting_ghost') {
+                    // Retain audio preferences, ghost setting, and admin authorization token
+                    if (key !== 'neon_pulse_vol_music' && key !== 'neon_pulse_vol_sfx' && key !== 'neon_pulse_setting_ghost' && key !== 'neon_pulse_admin_token') {
                         keysToRemove.push(key);
                     }
                 }
@@ -67,6 +434,13 @@ function executeGlobalProgressReset(force = false) {
 const wasResetOnLoad = executeGlobalProgressReset(false);
 window.executeGlobalProgressReset = executeGlobalProgressReset;
 window.resetAllProgress = () => {
+    if (typeof adminSystem !== 'undefined' && !adminSystem.isAdmin()) {
+        if (typeof showNotification === 'function') {
+            showNotification("🔒 ACCESS DENIED: Requires Admin Authorization.");
+        }
+        if (typeof adminSystem !== 'undefined') adminSystem.openAuthModal();
+        return;
+    }
     executeGlobalProgressReset(true);
     if (typeof location !== 'undefined' && location.reload) {
         location.reload();
@@ -1957,6 +2331,13 @@ const dailySystem = {
     },
 
     forceSimulatePassage() {
+        if (typeof adminSystem !== 'undefined' && !adminSystem.isAdmin()) {
+            if (typeof showNotification === 'function') {
+                showNotification("🔒 ACCESS DENIED: Requires Admin Authorization.");
+            }
+            if (typeof adminSystem !== 'undefined') adminSystem.openAuthModal();
+            return;
+        }
         this.lastClaimDateStr = 'simulated_past';
         this.lastClaimTimestamp = Date.now() - (25 * 60 * 60 * 1000);
         this.save();
@@ -2070,6 +2451,9 @@ const dailySystem = {
                     skinDropdown.value = lockerSystem.activeSkin;
                 }
             };
+        }
+        if (typeof adminSystem !== 'undefined') {
+            adminSystem.updateUI();
         }
     },
 
@@ -11426,8 +11810,9 @@ function returnToMainMenu() {
 
     const modalSettings = document.getElementById('modal-settings');
     const modalEditor = document.getElementById('modal-editor');
+    const modalAdmin = document.getElementById('modal-admin-auth');
 
-    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalLocker, modalAch, modalVictory, modalHow, modalMp, modalRaceResult, modalSettings, modalEditor];
+    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalLocker, modalAch, modalVictory, modalHow, modalMp, modalRaceResult, modalSettings, modalEditor, modalAdmin];
     allModals.forEach(m => {
         if (m) {
             m.classList.add('hidden');
@@ -11484,6 +11869,7 @@ function setPause(paused, showModal = true) {
                     const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
                     pauseFsBtn.innerHTML = isFS ? '<span>⛶</span> EXIT FULLSCREEN [G]' : '<span>⛶</span> FULLSCREEN [G]';
                 }
+                if (typeof adminSystem !== 'undefined') adminSystem.updateUI();
             } else {
                 pauseModal.classList.add('hidden');
                 pauseModal.style.display = 'none';
@@ -11885,6 +12271,7 @@ window.addEventListener('keydown', (e) => {
         const lockerModal = document.getElementById('modal-locker');
         const settingsModal = document.getElementById('modal-settings');
         const editorModal = document.getElementById('modal-editor');
+        const adminModal = document.getElementById('modal-admin-auth');
 
         const anyOpen = (menuModal && !menuModal.classList.contains('hidden')) ||
                         (lbModal && !lbModal.classList.contains('hidden')) ||
@@ -11894,7 +12281,8 @@ window.addEventListener('keydown', (e) => {
                         (mpModal && !mpModal.classList.contains('hidden')) ||
                         (lockerModal && !lockerModal.classList.contains('hidden')) ||
                         (settingsModal && !settingsModal.classList.contains('hidden')) ||
-                        (editorModal && !editorModal.classList.contains('hidden'));
+                        (editorModal && !editorModal.classList.contains('hidden')) ||
+                        (adminModal && !adminModal.classList.contains('hidden'));
 
         if (anyOpen) {
             if (menuModal) { menuModal.classList.add('hidden'); menuModal.style.display = 'none'; }
@@ -11906,6 +12294,7 @@ window.addEventListener('keydown', (e) => {
             if (lockerModal) { lockerModal.classList.add('hidden'); }
             if (settingsModal) { settingsModal.classList.add('hidden'); }
             if (editorModal) { editorModal.classList.add('hidden'); }
+            if (adminModal) { adminModal.classList.add('hidden'); adminModal.style.display = 'none'; }
             if (!game.inMainMenu && !game.victory) setPause(false);
             return;
         }
@@ -12691,6 +13080,13 @@ bindClick('btn-claim-daily', () => {
 });
 
 bindClick('btn-instant-streak-test', () => {
+    if (typeof adminSystem !== 'undefined' && !adminSystem.isAdmin()) {
+        if (typeof showNotification === 'function') {
+            showNotification("🔒 ACCESS DENIED: Requires Admin Authorization.");
+        }
+        if (typeof adminSystem !== 'undefined') adminSystem.openAuthModal();
+        return;
+    }
     dailySystem.forceSimulatePassage();
     populateDailyModal();
     showNotification("⏱️ +24H SIMULATED: REWARD IS NOW READY TO CLAIM!");
@@ -13027,6 +13423,7 @@ window.onload = function() {
     if (typeof achievementSystem !== 'undefined') achievementSystem.load();
     if (typeof dailySystem !== 'undefined') dailySystem.load();
     if (typeof gamepadSystem !== 'undefined') gamepadSystem.init();
+    if (typeof adminSystem !== 'undefined') adminSystem.init();
     if (typeof settingsSystem !== 'undefined') {
         settingsSystem.load();
         const shakeSlider = document.getElementById('slider-screenshake');
