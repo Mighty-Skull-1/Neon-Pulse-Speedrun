@@ -89,9 +89,9 @@ Personalize your runner with unlocks earned through medals, shard collection, da
 ---
 
 ### 🏃 Endless Cyber Marathon Mode
-- Fully procedural infinite runner: every piece is randomly assembled (spike carpets, low lasers, slide-only laser tunnels, void gaps, floating islands, high-roads over spike carpets, double-jump spike fields, boost lanes, **disappearing floors** that flash then drop away, mixed gauntlets) so runs never repeat. No shards in this mode. Starts fast (460 px/s) and ramps to full difficulty by ~2,200m.
+- Fully procedural infinite runner: every piece is randomly assembled (spike carpets, low lasers, slide-only laser tunnels, void gaps, floating islands, high-roads over spike carpets, double-jump spike fields, boost lanes, **disappearing floors** that flash then drop away, mixed gauntlets) so runs never repeat. No shards in this mode. Starts hyper-fast (500 px/s) with dense, compact back-to-back obstacle cadence (slide-hop combos, rapid hurdles, crumbling pit bridges) ramping to maximum intensity by ~1,400m.
 - **Flat-Memory Entity Recycling**: Automatically prunes distant off-screen platforms and hazards to maintain 60+ FPS performance.
-- **Always Accelerating**: Base speed climbs steadily (460 -> 880 px/s) and never drops. All pieces are built in time-units of the current speed and verified with a bot, so every combination stays clearable at any pace.
+- **Always Accelerating**: Base speed climbs steadily (500 -> 920 px/s) and never drops. All pieces are built in time-units of the current speed and verified with a bot, so every combination stays clearable at any pace.
 - **Dimension Shifts**: Chromatic warps trigger dynamically every 1,000 meters, increasing tempo and shifting hazard patterns.
 
 ---
