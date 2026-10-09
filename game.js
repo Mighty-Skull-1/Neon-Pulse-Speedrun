@@ -2620,6 +2620,15 @@ const settingsSystem = {
         const edSensVal = document.getElementById('editor-sens-val');
         if (edSensVal) edSensVal.innerText = `${this.controllerSensitivity.toFixed(1)}x`;
 
+        document.querySelectorAll('.btn-sens-preset').forEach(b => {
+            const val = parseFloat(b.getAttribute('data-sens'));
+            if (Math.abs(val - this.controllerSensitivity) < 0.05) {
+                b.className = 'btn-sens-preset flex-1 py-1 rounded bg-cyan-950/80 border border-cyan-400 text-cyan-300 font-bold cursor-pointer text-center';
+            } else {
+                b.className = 'btn-sens-preset flex-1 py-1 rounded bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 cursor-pointer text-center';
+            }
+        });
+
         const updateToggle = (id, val) => {
             const el = document.getElementById(id);
             if (!el) return;
@@ -2651,11 +2660,11 @@ const settingsSystem = {
         this.updateGamepadStatus();
     },
 
-    setControllerSensitivity(val) {
+    setControllerSensitivity(val, notify = true) {
         this.controllerSensitivity = Math.max(0.3, Math.min(3.0, Math.round(val * 10) / 10));
         this.save();
         this.updateUI();
-        if (typeof showNotification === 'function') {
+        if (notify && typeof showNotification === 'function') {
             showNotification(`🎮 SENSITIVITY: ${this.controllerSensitivity.toFixed(1)}x`);
         }
     },
@@ -15350,6 +15359,39 @@ window.onload = function() {
                 if (lbl) lbl.innerText = `${settingsSystem.vibrationIntensity}%`;
             });
         }
+
+        const sensSlider = document.getElementById('slider-controller-sensitivity');
+        if (sensSlider) {
+            sensSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                const s = isNaN(val) ? 1.0 : Math.round((val / 100) * 10) / 10;
+                settingsSystem.setControllerSensitivity(s, false);
+            });
+            sensSlider.addEventListener('change', (e) => {
+                const val = parseFloat(e.target.value);
+                const s = isNaN(val) ? 1.0 : Math.round((val / 100) * 10) / 10;
+                settingsSystem.setControllerSensitivity(s, true);
+            });
+        }
+
+        bindClick('btn-sens-preset-dec', () => {
+            if (typeof settingsSystem !== 'undefined') {
+                settingsSystem.setControllerSensitivity(settingsSystem.controllerSensitivity - 0.1, true);
+            }
+        });
+        bindClick('btn-sens-preset-inc', () => {
+            if (typeof settingsSystem !== 'undefined') {
+                settingsSystem.setControllerSensitivity(settingsSystem.controllerSensitivity + 0.1, true);
+            }
+        });
+        document.querySelectorAll('.btn-sens-preset').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const s = parseFloat(btn.getAttribute('data-sens'));
+                if (!isNaN(s) && typeof settingsSystem !== 'undefined') {
+                    settingsSystem.setControllerSensitivity(s, true);
+                }
+            });
+        });
     }
 
     setupPilotTagInputs();
