@@ -9585,9 +9585,9 @@ const MP = {
                 this.lastRivalSeen = Date.now();
                 return;
             }
-            if (Date.now() - this.lastRivalSeen > 30000) {
-                console.warn("[MP] Heartbeat timeout (30s) — rival connection lost or cancelled");
-                this.expireSession('RIVAL DISCONNECTED / TIMED OUT');
+            if (Date.now() - this.lastRivalSeen > 15000) {
+                console.warn("[MP] Heartbeat timeout (15s) — rival connection lost or cancelled");
+                this.rivalGone('RIVAL DISCONNECTED / TIMED OUT');
                 return;
             }
             this.sendMsg({ type: 'HEARTBEAT', time: Date.now() });
@@ -9704,6 +9704,28 @@ const MP = {
         this.resetMatch();
         this.updateHUDSeriesBadge();
         showNotification(`⚠️ SESSION EXPIRED: ${reason}`);
+    },
+
+    // Called when the OTHER player drops. Ends the session and, if we were mid-match
+    // (pick screen, race, results), kicks us back to the main menu too.
+    rivalGone(reason = 'RIVAL DISCONNECTED') {
+        if (this.sessionExpired || this._kicking) return;
+        const pickModal = document.getElementById('modal-mp-pick');
+        const resultModal = document.getElementById('modal-race-result');
+        const pickOpen = !!(pickModal && !pickModal.classList.contains('hidden') && pickModal.style.display !== 'none');
+        const resultOpen = !!(resultModal && !resultModal.classList.contains('hidden') && resultModal.style.display !== 'none');
+        const inMatch = !!(game.isMultiplayer && !game.inMainMenu) || pickOpen || resultOpen;
+        this.expireSession(reason);
+        if (inMatch && typeof returnToMainMenu === 'function') {
+            this._kicking = true;
+            try {
+                if (resultModal) { resultModal.classList.add('hidden'); resultModal.style.display = 'none'; }
+                returnToMainMenu();
+            } finally {
+                this._kicking = false;
+            }
+            showNotification('⚠️ ' + reason + ' — RETURNED TO MENU');
+        }
     },
 
     disconnectSession(notify = true) {
@@ -10378,13 +10400,13 @@ const MP = {
         this.conn.on('close', () => {
             // Only expire if the connection was actually established
             if (this.connected && !this.sessionExpired) {
-                this.expireSession('RIVAL DISCONNECTED');
+                this.rivalGone('RIVAL DISCONNECTED');
             }
         });
     },
 
     handleRivalDisconnected() {
-        this.expireSession('RIVAL DISCONNECTED');
+        this.rivalGone('RIVAL DISCONNECTED');
     },
 
     copyInviteLink() {
@@ -10504,6 +10526,8 @@ const MP = {
         sel.value = (lobbySel && lobbySel.value) || 'RANDOM_ALL';
         if (!sel.value) sel.value = 'RANDOM_ALL';
         sel.disabled = false;
+        this.pick.rivalHover = null;
+        this.buildPickGrid();
         const rd = document.getElementById('mp-pick-round');
         if (rd) rd.innerText = `ROUND ${this.series.currentRound} OF 3`;
         const me = document.getElementById('mp-pick-status-me');
@@ -10542,6 +10566,111 @@ const MP = {
         }
     },
 
+    buildPickGrid() {
+        const grid = document.getElementById('mp-pick-grid');
+        const sel = document.getElementById('mp-pick-select');
+        if (!grid || !sel) return;
+        grid.innerHTML = '';
+        Array.from(sel.options).forEach(opt => {
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.dataset.value = opt.value;
+            tile.className = 'mp-pick-tile relative text-[10px] sm:text-[11px] font-cyber font-bold text-neutral-200 bg-neutral-950 border-2 border-neutral-700 rounded px-1.5 py-2 min-h-[44px] flex items-center justify-center text-center leading-tight transition cursor-pointer hover:border-cyan-400';
+            tile.innerHTML = `<span class="pointer-events-none">${opt.textContent}</span><span class="mp-tag-me hidden absolute -top-1.5 left-0.5 bg-cyan-500 text-black text-[8px] px-1 rounded">P1</span><span class="mp-tag-rival hidden absolute -top-1.5 right-0.5 bg-rose-500 text-black text-[8px] px-1 rounded">P2</span>`;
+            const hover = () => this.setPickHover(opt.value, true);
+            tile.addEventListener('mouseenter', hover);
+            tile.addEventListener('focus', hover);
+            tile.addEventListener('click', () => {
+                if (!this.pick || this.pick.mine !== null) return;
+                this.setPickHover(opt.value, true);
+                this.lockPick();
+            });
+            grid.appendChild(tile);
+        });
+        this.refreshPickGrid();
+        const cur = grid.querySelector(`[data-value="${sel.value}"]`);
+        if (cur && typeof gamepadSystem !== 'undefined' && gamepadSystem.connected !== false) {
+            try { if (gamepadSystem.setFocus) gamepadSystem.setFocus(cur); } catch (e) {}
+        }
+    },
+
+    setPickHover(value, broadcast) {
+        const sel = document.getElementById('mp-pick-select');
+        if (!this.pick || this.pick.mine !== null || !sel) return;
+        if (sel.value === value) return;
+        sel.value = value;
+        this.refreshPickGrid();
+        if (broadcast) this.sendMsg({ type: 'PICK_HOVER', choice: value });
+    },
+
+    refreshPickGrid() {
+        const grid = document.getElementById('mp-pick-grid');
+        const sel = document.getElementById('mp-pick-select');
+        if (!grid || !sel) return;
+        const mine = sel.value;
+        const rival = this.pick ? this.pick.rivalHover : null;
+        const locked = !!(this.pick && this.pick.mine !== null);
+        grid.querySelectorAll('.mp-pick-tile').forEach(t => {
+            const isMe = t.dataset.value === mine;
+            const isRv = rival !== null && rival !== undefined && t.dataset.value === String(rival);
+            t.classList.toggle('border-cyan-400', isMe);
+            t.classList.toggle('shadow-[0_0_14px_rgba(34,211,238,0.7)]', isMe);
+            t.classList.toggle('bg-cyan-950', isMe);
+            t.classList.toggle('border-rose-500', isRv && !isMe);
+            t.classList.toggle('shadow-[0_0_14px_rgba(244,63,94,0.7)]', isRv && !isMe);
+            if (isMe && isRv) t.classList.add('border-amber-400');
+            else t.classList.remove('border-amber-400');
+            const tm = t.querySelector('.mp-tag-me');
+            const tr = t.querySelector('.mp-tag-rival');
+            if (tm) tm.classList.toggle('hidden', !isMe);
+            if (tr) tr.classList.toggle('hidden', !isRv);
+            if (isMe && locked) t.classList.add('animate-pulse'); else t.classList.remove('animate-pulse');
+        });
+        const lbl = document.getElementById('mp-pick-hover-label');
+        const cur = sel.options[sel.selectedIndex];
+        if (lbl) lbl.innerText = cur ? `${locked ? '🔒' : '▶'} ${cur.textContent}` : '';
+    },
+
+    // Mortal Kombat style reveal: flicker between both picks, land on the winner
+    playPickReveal(hostTrack, guestTrack, chosenTrack, done) {
+        const grid = document.getElementById('mp-pick-grid');
+        const modal = document.getElementById('modal-mp-pick');
+        const visible = grid && modal && !modal.classList.contains('hidden') && modal.style.display !== 'none';
+        if (!visible || !this.pick) { done(); return; }
+        if (this.pick.timer) { clearInterval(this.pick.timer); this.pick.timer = null; }
+        const pick = this.pick;
+        const tiles = [hostTrack, guestTrack]
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .map(v => grid.querySelector(`[data-value="${v}"]`))
+            .filter(Boolean);
+        const chosen = grid.querySelector(`[data-value="${chosenTrack}"]`);
+        const clear = () => grid.querySelectorAll('.mp-pick-tile').forEach(t => t.classList.remove('border-amber-300', 'bg-amber-900', 'scale-105'));
+        const lbl = document.getElementById('mp-pick-hover-label');
+        if (chosen && chosen.scrollIntoView) { try { chosen.scrollIntoView({ block: 'nearest' }); } catch (e) {} }
+        let n = 0;
+        const flickers = tiles.length > 1 ? 14 : 0;
+        const step = () => {
+            if (this.pick !== pick || this.sessionExpired) return;
+            clear();
+            if (n < flickers) {
+                tiles[n % tiles.length].classList.add('border-amber-300', 'bg-amber-900', 'scale-105');
+                if (lbl) lbl.innerText = '🎲 DECIDING...';
+                if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
+                n++;
+                pick.revealTimer = setTimeout(step, 70 + n * 12);
+            } else {
+                if (chosen) chosen.classList.add('border-amber-300', 'bg-amber-900', 'scale-105');
+                if (lbl) lbl.innerText = '✅ ' + (chosen ? chosen.textContent : 'STAGE SELECTED');
+                pick.revealTimer = setTimeout(() => {
+                    if (this.pick !== pick || this.sessionExpired) return;
+                    clear();
+                    done();
+                }, 900);
+            }
+        };
+        step();
+    },
+
     lockPick(auto = false) {
         if (!this.pick || this.pick.mine !== null) return;
         const sel = document.getElementById('mp-pick-select');
@@ -10550,6 +10679,7 @@ const MP = {
         const btn = document.getElementById('btn-mp-pick-lock');
         if (btn) { btn.disabled = true; btn.innerText = '✓ LOCKED — WAITING FOR RIVAL...'; btn.classList.add('opacity-50'); }
         this.sendMsg({ type: 'PICK_LOCK', choice: this.pick.mine });
+        this.refreshPickGrid();
         this.updatePickStatus();
         this.maybeResolvePick();
     },
@@ -10574,6 +10704,7 @@ const MP = {
 
     hideChoiceModal() {
         if (this.pick && this.pick.timer) { clearInterval(this.pick.timer); this.pick.timer = null; }
+        if (this.pick && this.pick.revealTimer) { clearTimeout(this.pick.revealTimer); this.pick.revealTimer = null; }
         const modal = document.getElementById('modal-mp-pick');
         if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
     },
@@ -10620,7 +10751,7 @@ const MP = {
             chosenBy: chosenBy
         });
 
-        this.playVisualCountdown(chosenTrack, chosenBy);
+        this.playPickReveal(hostActualTrack, guestActualTrack, chosenTrack, () => this.playVisualCountdown(chosenTrack, chosenBy));
     },
 
     handleMessage(data) {
@@ -10634,10 +10765,10 @@ const MP = {
         } else if (data.type === 'HEARTBEAT_ACK') {
             return;
         } else if (data.type === 'SESSION_EXPIRED') {
-            this.expireSession(data.reason || 'RIVAL LEFT / CANCELLED');
+            this.rivalGone(data.reason || 'RIVAL LEFT / CANCELLED');
             return;
         } else if (data.type === 'PLAYER_LEFT') {
-            this.expireSession(data.reason || 'RIVAL CANCELLED MATCH');
+            this.rivalGone(data.reason || 'RIVAL CANCELLED MATCH');
             return;
         } else if (data.type === 'HANDSHAKE') {
             this.rivalData = {
@@ -10677,9 +10808,16 @@ const MP = {
             const modalEl = document.getElementById('modal-mp-pick');
             const alreadyOpen = modalEl && modalEl.style.display === 'flex' && this.pick && !this.pick.resolved;
             if (!alreadyOpen) this.beginPickPhase();
+        } else if (data.type === 'PICK_HOVER') {
+            if (this.pick && this.pick.rival === null) {
+                this.pick.rivalHover = data.choice;
+                this.refreshPickGrid();
+            }
         } else if (data.type === 'PICK_LOCK') {
             if (!this.pick) this.beginPickPhase();
             this.pick.rival = data.choice || 'RANDOM_ALL';
+            this.pick.rivalHover = this.pick.rival;
+            this.refreshPickGrid();
             this.updatePickStatus();
             this.maybeResolvePick();
         } else if (data.type === 'START_ROUND_COUNTDOWN') {
@@ -10692,7 +10830,7 @@ const MP = {
                 this.series.rivalScore = data.hostScore;
             }
             this.series.activeTrackIdx = data.chosenTrack;
-            this.playVisualCountdown(data.chosenTrack, data.chosenBy);
+            this.playPickReveal(data.hostTrack, data.guestTrack, data.chosenTrack, () => this.playVisualCountdown(data.chosenTrack, data.chosenBy));
         } else if (data.type === 'READY_NEXT_ROUND') {
             if (this.isHost) {
                 this.hostTriggerStartRound();
@@ -10705,7 +10843,7 @@ const MP = {
         } else if (data.type === 'REMATCH_VOTE') {
             this.handleRivalRematchVote(data.vote);
             if (data.vote === false) {
-                this.expireSession('RIVAL DECLINED REMATCH');
+                this.rivalGone('RIVAL DECLINED REMATCH');
             }
         } else if (data.type === 'PILOT_UPDATE') {
             if (data.tag) {
@@ -13501,6 +13639,7 @@ window.addEventListener('beforeunload', () => {
         try {
             MP.sendMsg({ type: 'SESSION_EXPIRED', reason: 'PLAYER CLOSED TAB', tag: game.pilotTag });
             MP.sendMsg({ type: 'PLAYER_LEFT', reason: 'PLAYER CLOSED TAB', tag: game.pilotTag });
+            if (MP.conn) MP.conn.close();
         } catch(e) {}
     }
 });
@@ -13510,6 +13649,7 @@ window.addEventListener('pagehide', () => {
         try {
             MP.sendMsg({ type: 'SESSION_EXPIRED', reason: 'PLAYER NAVIGATED AWAY', tag: game.pilotTag });
             MP.sendMsg({ type: 'PLAYER_LEFT', reason: 'PLAYER NAVIGATED AWAY', tag: game.pilotTag });
+            if (MP.conn) MP.conn.close();
         } catch(e) {}
     }
 });

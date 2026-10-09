@@ -1321,13 +1321,15 @@
 
         <!-- MODAL: Per-Round Stage Pick (Online Race) -->
         <div id="modal-mp-pick" class="hidden modal-backdrop absolute inset-0 z-[60] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
-            <div class="w-full max-w-md bg-neutral-900 border border-cyan-500/60 rounded-xl p-5 shadow-2xl flex flex-col gap-3">
+            <div class="w-full max-w-3xl max-h-full overflow-y-auto bg-neutral-900 border border-cyan-500/60 rounded-xl p-4 shadow-2xl flex flex-col gap-3">
                 <div class="text-center">
                     <div id="mp-pick-round" class="text-[10px] font-mono text-amber-400 tracking-widest">ROUND 1 OF 3</div>
                     <h2 class="text-lg font-cyber font-bold text-cyan-400 tracking-wider">🗺️ PICK YOUR STAGE</h2>
-                    <p class="text-[10px] text-neutral-400 font-mono mt-1">Same pick = that map. Different picks = fair 50/50 flip.</p>
+                    <p class="text-[10px] text-neutral-400 font-mono mt-1">Move your cursor and lock in. Same pick = that map. Different picks = fair 50/50 flip.</p>
                 </div>
-                <select id="mp-pick-select" class="bg-neutral-950 border border-neutral-700 text-cyan-300 text-xs font-cyber rounded px-2 py-2 focus:outline-none focus:border-cyan-400 w-full"></select>
+                <select id="mp-pick-select" class="hidden" tabindex="-1"></select>
+                <div id="mp-pick-grid" class="grid grid-cols-3 sm:grid-cols-4 gap-1.5 max-h-[48vh] overflow-y-auto p-1"></div>
+                <div id="mp-pick-hover-label" class="text-center text-xs font-cyber text-cyan-300 min-h-[1.25rem]"></div>
                 <div class="flex items-center justify-between text-[10px] font-mono">
                     <span id="mp-pick-status-me" class="text-neutral-400">YOU: CHOOSING...</span>
                     <span id="mp-pick-timer" class="text-amber-400 font-bold">20s</span>
@@ -1731,6 +1733,6 @@
     <!-- Steamworks & Desktop Bridge -->
     <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=5.4"></script>
+    <script src="game.js?v=5.5"></script>
 </body>
 </html>
