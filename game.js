@@ -2519,6 +2519,7 @@ const DEFAULT_KEYBINDS = {
 const settingsSystem = {
     screenShake: 100,
     vibrationIntensity: 100,
+    controllerSensitivity: 1.0,
     flashesEnabled: true,
     streamerInputDisplay: true,
     liveSplitDelta: true,
@@ -2543,6 +2544,9 @@ const settingsSystem = {
 
             const vi = localStorage.getItem('neon_pulse_setting_vibration');
             if (vi !== null) this.vibrationIntensity = parseInt(vi, 10) || 100;
+
+            const cs = localStorage.getItem('neon_pulse_setting_ctrl_sens');
+            if (cs !== null) this.controllerSensitivity = parseFloat(cs) || 1.0;
 
             const fl = localStorage.getItem('neon_pulse_setting_flashes');
             if (fl !== null) this.flashesEnabled = fl !== 'false';
@@ -2587,6 +2591,7 @@ const settingsSystem = {
         try {
             localStorage.setItem('neon_pulse_setting_screenshake', this.screenShake.toString());
             localStorage.setItem('neon_pulse_setting_vibration', this.vibrationIntensity.toString());
+            localStorage.setItem('neon_pulse_setting_ctrl_sens', this.controllerSensitivity.toString());
             localStorage.setItem('neon_pulse_setting_flashes', this.flashesEnabled.toString());
             localStorage.setItem('neon_pulse_setting_streamer_hud', this.streamerInputDisplay.toString());
             localStorage.setItem('neon_pulse_setting_livesplit', this.liveSplitDelta.toString());
@@ -2606,6 +2611,14 @@ const settingsSystem = {
         const vibeLabel = document.getElementById('label-controller-vibration');
         if (vibeSlider) vibeSlider.value = this.vibrationIntensity;
         if (vibeLabel) vibeLabel.innerText = `${this.vibrationIntensity}%`;
+
+        const sensSlider = document.getElementById('slider-controller-sensitivity');
+        const sensLabel = document.getElementById('label-controller-sensitivity');
+        if (sensSlider) sensSlider.value = Math.round(this.controllerSensitivity * 100);
+        if (sensLabel) sensLabel.innerText = `${this.controllerSensitivity.toFixed(1)}x`;
+
+        const edSensVal = document.getElementById('editor-sens-val');
+        if (edSensVal) edSensVal.innerText = `${this.controllerSensitivity.toFixed(1)}x`;
 
         const updateToggle = (id, val) => {
             const el = document.getElementById(id);
@@ -2636,6 +2649,15 @@ const settingsSystem = {
         }
 
         this.updateGamepadStatus();
+    },
+
+    setControllerSensitivity(val) {
+        this.controllerSensitivity = Math.max(0.3, Math.min(3.0, Math.round(val * 10) / 10));
+        this.save();
+        this.updateUI();
+        if (typeof showNotification === 'function') {
+            showNotification(`🎮 SENSITIVITY: ${this.controllerSensitivity.toFixed(1)}x`);
+        }
     },
 
     updateGamepadStatus(name, connected) {
@@ -2982,12 +3004,19 @@ const editorSystem = {
     hoverWorldX: -100,
     hoverWorldY: -100,
 
-    // Dedicated Controller Builder Mode State
+    // Buttery Smooth Controller Builder Physics State
     cursorWorldX: 200,
     cursorWorldY: 360,
+    cursorVx: 0,
+    cursorVy: 0,
+    panVx: 0,
+    lastGpTime: 0,
     controllerActive: false,
     navRepeatTimer: 0,
     navActiveDir: null,
+
+    // Placement Visual Feedback Shockwaves
+    placementParticles: [],
 
     customLevel: {
         id: -1,
@@ -3093,6 +3122,10 @@ const editorSystem = {
         modal.style.display = 'flex';
         this.isOpen = true;
         this.scrollX = 0;
+        this.cursorVx = 0;
+        this.cursorVy = 0;
+        this.panVx = 0;
+        this.lastGpTime = 0;
         this.deselect();
         if (!this.canvas) this.init();
         this.resizeCanvas();
@@ -3253,6 +3286,11 @@ const editorSystem = {
             } else {
                 selActions.classList.add('hidden');
             }
+        }
+
+        const edSensVal = document.getElementById('editor-sens-val');
+        if (edSensVal && typeof settingsSystem !== 'undefined') {
+            edSensVal.innerText = `${settingsSystem.controllerSensitivity.toFixed(1)}x`;
         }
     },
 
@@ -3436,57 +3474,54 @@ const editorSystem = {
 
         if (tool === 'platform') {
             if (!lvl.platforms) lvl.platforms = [];
-            const p = { x: gridX, y: gridY, w: this.brushWidth, h: this.brushHeight, phase: 'NEUTRAL', rotation: this.brushRotation };
-            lvl.platforms.push(p);
-            this.selectEntity('platform', p, lvl.platforms.length - 1);
+            lvl.platforms.push({ x: gridX, y: gridY, w: this.brushWidth, h: this.brushHeight, phase: 'NEUTRAL', rotation: this.brushRotation });
         } else if (tool === 'pad') {
             if (!lvl.jumpPads) lvl.jumpPads = [];
             if (!lvl.trampolines) lvl.trampolines = [];
-            const pad = { x: gridX, y: gridY, w: this.brushWidth, h: this.brushHeight, impulseY: -720, impulseX: 420, rotation: this.brushRotation };
-            lvl.jumpPads.push(pad);
+            lvl.jumpPads.push({ x: gridX, y: gridY, w: this.brushWidth, h: this.brushHeight, impulseY: -720, impulseX: 420, rotation: this.brushRotation });
             lvl.trampolines.push({ x: gridX, y: gridY, w: this.brushWidth, h: this.brushHeight, launchVy: -720, launchVx: 420, rotation: this.brushRotation });
-            this.selectEntity('pad', pad, lvl.jumpPads.length - 1);
         } else if (tool === 'ring') {
             if (!lvl.rings) lvl.rings = [];
-            const r = { x: gridX, y: gridY, r: Math.round(this.brushWidth / 2) || 24, type: 'BOOST', color: '#f59e0b', boostVx: 580, rotation: this.brushRotation };
-            lvl.rings.push(r);
-            this.selectEntity('ring', r, lvl.rings.length - 1);
+            lvl.rings.push({ x: gridX, y: gridY, r: Math.round(this.brushWidth / 2) || 24, type: 'BOOST', color: '#f59e0b', boostVx: 580, rotation: this.brushRotation });
         } else if (tool === 'spike') {
             if (!lvl.spikes) lvl.spikes = [];
-            const spk = {
+            lvl.spikes.push({
                 x: gridX,
                 y: gridY,
                 w: this.brushWidth,
                 h: this.brushHeight,
                 rotation: this.brushRotation,
                 inverted: (this.brushRotation === 180)
-            };
-            lvl.spikes.push(spk);
-            this.selectEntity('spike', spk, lvl.spikes.length - 1);
+            });
         } else if (tool === 'laser') {
             if (!lvl.lasers) lvl.lasers = [];
-            const lsr = { x: gridX, y: gridY, w: this.brushWidth, h: this.brushHeight, interval: 2.0, offset: 0, rotation: this.brushRotation };
-            lvl.lasers.push(lsr);
-            this.selectEntity('laser', lsr, lvl.lasers.length - 1);
+            lvl.lasers.push({ x: gridX, y: gridY, w: this.brushWidth, h: this.brushHeight, interval: 2.0, offset: 0, rotation: this.brushRotation });
         } else if (tool === 'portal') {
             if (!lvl.portals) lvl.portals = [];
-            const prt = { x: gridX, y: gridY, w: this.brushWidth, h: this.brushHeight, targetGravity: (this.brushRotation === 180 ? 1 : -1), rotation: this.brushRotation };
-            lvl.portals.push(prt);
-            this.selectEntity('portal', prt, lvl.portals.length - 1);
+            lvl.portals.push({ x: gridX, y: gridY, w: this.brushWidth, h: this.brushHeight, targetGravity: (this.brushRotation === 180 ? 1 : -1), rotation: this.brushRotation });
         } else if (tool === 'shard') {
             if (!lvl.shards) lvl.shards = [];
             const nextId = (lvl.shards.length % 3) + 1;
-            const sh = { id: nextId, x: gridX, y: gridY, taken: false };
-            lvl.shards.push(sh);
-            this.selectEntity('shard', sh, lvl.shards.length - 1);
+            lvl.shards.push({ id: nextId, x: gridX, y: gridY, taken: false });
         } else if (tool === 'finish') {
             lvl.finishGate = { x: gridX, y: gridY, w: this.brushWidth, h: this.brushHeight };
             lvl.length = Math.max(lvl.length, gridX + 200);
             const lenEl = document.getElementById('editor-stage-len');
             if (lenEl) lenEl.innerText = `${lvl.length}m`;
-            this.selectEntity('finish', lvl.finishGate, 0);
         }
 
+        // Visual placement burst ripple
+        this.placementParticles.push({
+            x: gridX + (this.brushWidth ? this.brushWidth / 2 : 0),
+            y: gridY + (this.brushHeight ? this.brushHeight / 2 : 0),
+            radius: 4,
+            maxRadius: 36,
+            life: 0.35,
+            maxLife: 0.35,
+            color: tool === 'spike' ? '#f43f5e' : (tool === 'laser' ? '#ec4899' : '#06b6d4')
+        });
+
+        if (typeof audio !== 'undefined' && audio.playConfirm) audio.playConfirm();
         this.renderCanvas();
     },
 
@@ -3524,11 +3559,9 @@ const editorSystem = {
             }
         }
 
-        // 2. Check if clicked an existing entity
-        const hit = this.getEntityAt(clickX, clickY);
-
-        // Eraser Tool
+        // 2. Eraser Tool
         if (this.activeTool === 'eraser') {
+            const hit = this.getEntityAt(clickX, clickY);
             if (hit) {
                 this.selectedEntity = hit.entity;
                 this.selectedEntityType = hit.type;
@@ -3537,24 +3570,27 @@ const editorSystem = {
             return;
         }
 
-        if (hit) {
-            this.selectEntity(hit.type, hit.entity, hit.index);
-            this.dragMode = 'move';
-            this.dragStartX = clickX;
-            this.dragStartY = clickY;
-            this.dragInitialX = hit.entity.x;
-            this.dragInitialY = hit.entity.y;
+        // 3. Select / Move Tool
+        if (this.activeTool === 'select') {
+            const hit = this.getEntityAt(clickX, clickY);
+            if (hit) {
+                this.selectEntity(hit.type, hit.entity, hit.index);
+                this.dragMode = 'move';
+                this.dragStartX = clickX;
+                this.dragStartY = clickY;
+                this.dragInitialX = hit.entity.x;
+                this.dragInitialY = hit.entity.y;
+            } else {
+                this.deselect();
+            }
             return;
         }
 
-        // 3. Clicked empty space
-        if (this.selectedEntity) {
-            this.deselect();
-        } else {
-            const gridX = Math.round(clickX / 20) * 20;
-            const gridY = Math.round(clickY / 20) * 20;
-            this.placeEntityAt(gridX, gridY);
-        }
+        // 4. Placement Tools: Place directly at grid position without blocking or deselect hiccups
+        this.deselect();
+        const gridX = Math.round(clickX / 20) * 20;
+        const gridY = Math.round(clickY / 20) * 20;
+        this.placeEntityAt(gridX, gridY);
     },
 
     handleMouseMove(e) {
@@ -3591,7 +3627,7 @@ const editorSystem = {
             this.updateTransformUI();
             this.renderCanvas();
         } else {
-            // Update hover preview
+            // Live ghost update
             this.renderCanvas();
         }
     },
@@ -3615,19 +3651,32 @@ const editorSystem = {
     handleGamepadInput(gp, justPressed, isPressed) {
         this.controllerActive = true;
         const now = performance.now();
+        if (!this.lastGpTime) this.lastGpTime = now;
+        const dt = Math.min(0.05, Math.max(0.001, (now - this.lastGpTime) / 1000));
+        this.lastGpTime = now;
 
-        // 1. Analog Stick Navigation
-        const deadzone = 0.25;
-        const axisX = (gp.axes && Math.abs(gp.axes[0]) > deadzone) ? gp.axes[0] : 0;
-        const axisY = (gp.axes && Math.abs(gp.axes[1]) > deadzone) ? gp.axes[1] : 0;
-        const axisPan = (gp.axes && gp.axes[2] && Math.abs(gp.axes[2]) > deadzone) ? gp.axes[2] : 0;
+        const sens = (typeof settingsSystem !== 'undefined' && settingsSystem.controllerSensitivity)
+            ? settingsSystem.controllerSensitivity
+            : 1.0;
 
-        if (Math.abs(axisX) > 0.01) {
-            this.cursorWorldX = Math.max(0, Math.min(this.customLevel.length + 300, this.cursorWorldX + axisX * 12));
-        }
-        if (Math.abs(axisY) > 0.01) {
-            this.cursorWorldY = Math.max(40, Math.min(480, this.cursorWorldY + axisY * 12));
-        }
+        // 1. Exponential Stick Acceleration for Micro-Precision & Swift Speed
+        const deadzone = 0.16;
+        const rawAxisX = (gp.axes && Math.abs(gp.axes[0]) > deadzone) ? gp.axes[0] : 0;
+        const rawAxisY = (gp.axes && Math.abs(gp.axes[1]) > deadzone) ? gp.axes[1] : 0;
+        const curvedX = Math.sign(rawAxisX) * Math.pow(Math.abs(rawAxisX), 1.4);
+        const curvedY = Math.sign(rawAxisY) * Math.pow(Math.abs(rawAxisY), 1.4);
+
+        const maxSpeed = 540 * sens;
+        const targetVx = curvedX * maxSpeed;
+        const targetVy = curvedY * maxSpeed;
+
+        // Inertial damping lerp for buttery smooth glide
+        const accelRate = 22;
+        this.cursorVx = (this.cursorVx || 0) + (targetVx - (this.cursorVx || 0)) * Math.min(1, accelRate * dt);
+        this.cursorVy = (this.cursorVy || 0) + (targetVy - (this.cursorVy || 0)) * Math.min(1, accelRate * dt);
+
+        this.cursorWorldX = Math.max(20, Math.min(this.customLevel.length + 300, this.cursorWorldX + this.cursorVx * dt));
+        this.cursorWorldY = Math.max(40, Math.min(500, this.cursorWorldY + this.cursorVy * dt));
 
         // 2. D-pad Discrete Step Navigation (with repeat timer)
         let dpadDir = null;
@@ -3640,10 +3689,10 @@ const editorSystem = {
             let trigger = false;
             if (this.navActiveDir !== dpadDir) {
                 this.navActiveDir = dpadDir;
-                this.navRepeatTimer = now + 240;
+                this.navRepeatTimer = now + 200;
                 trigger = true;
             } else if (now >= this.navRepeatTimer) {
-                this.navRepeatTimer = now + 110;
+                this.navRepeatTimer = now + 90;
                 trigger = true;
             }
 
@@ -3664,41 +3713,67 @@ const editorSystem = {
             this.navRepeatTimer = 0;
         }
 
-        // 3. Right Stick / Triggers Viewport Panning
-        if (Math.abs(axisPan) > 0.01) {
-            this.pan(axisPan * 16);
-        }
-        if (justPressed(6) && !dpadDir) this.pan(-160);
-        if (justPressed(7)) this.pan(160);
+        // 3. Smooth Right Stick & Auto-Panning
+        const rawPan = (gp.axes && gp.axes[2] && Math.abs(gp.axes[2]) > deadzone) ? gp.axes[2] : 0;
+        const curvedPan = Math.sign(rawPan) * Math.pow(Math.abs(rawPan), 1.4);
+        const targetPanVx = curvedPan * 680 * sens;
 
-        // Auto-pan viewport if reticle approaches viewport boundaries
+        // Auto-pan smoothly when reticle nears viewport boundaries
         const canvasW = this.canvas ? this.canvas.width : 800;
-        if (this.cursorWorldX > this.scrollX + canvasW - 80) {
-            this.pan(14);
-        } else if (this.cursorWorldX < this.scrollX + 80 && this.scrollX > 0) {
-            this.pan(-14);
+        const rightEdgeDist = (this.scrollX + canvasW - 90) - this.cursorWorldX;
+        const leftEdgeDist = this.cursorWorldX - (this.scrollX + 90);
+        let autoPanVx = 0;
+        if (rightEdgeDist < 0) {
+            autoPanVx = Math.min(500, (-rightEdgeDist) * 4) * sens;
+        } else if (leftEdgeDist < 0 && this.scrollX > 0) {
+            autoPanVx = -Math.min(500, (-leftEdgeDist) * 4) * sens;
         }
 
-        // 4. (A) [Button 0] -> Place or Select
+        const totalPanTarget = targetPanVx + autoPanVx;
+        this.panVx = (this.panVx || 0) + (totalPanTarget - (this.panVx || 0)) * Math.min(1, 16 * dt);
+        if (Math.abs(this.panVx) > 0.5) {
+            this.pan(this.panVx * dt);
+        }
+
+        // 4. Sensitivity Quick Adjustment with Controller: LT + LB / LT + RB
+        if (isPressed(6)) {
+            if (justPressed(4) && typeof settingsSystem !== 'undefined') {
+                settingsSystem.setControllerSensitivity(settingsSystem.controllerSensitivity - 0.2);
+            }
+            if (justPressed(5) && typeof settingsSystem !== 'undefined') {
+                settingsSystem.setControllerSensitivity(settingsSystem.controllerSensitivity + 0.2);
+            }
+        } else {
+            // Bumpers LB / RB resize Width
+            if (justPressed(4)) this.adjustSize(-20, 0);
+            if (justPressed(5)) this.adjustSize(20, 0);
+        }
+
+        // 5. (A) [Button 0] -> Place or Select
         if (justPressed(0)) {
-            const hit = this.getEntityAt(this.cursorWorldX, this.cursorWorldY);
             if (this.activeTool === 'eraser') {
+                const hit = this.getEntityAt(this.cursorWorldX, this.cursorWorldY);
                 if (hit) {
                     this.selectedEntity = hit.entity;
                     this.selectedEntityType = hit.type;
                     this.deleteSelected();
                 }
-            } else if (hit) {
-                this.selectEntity(hit.type, hit.entity, hit.index);
+            } else if (this.activeTool === 'select') {
+                const hit = this.getEntityAt(this.cursorWorldX, this.cursorWorldY);
+                if (hit) {
+                    this.selectEntity(hit.type, hit.entity, hit.index);
+                } else {
+                    this.deselect();
+                }
             } else {
+                // Brush placement: place at snapped reticle coordinate immediately!
                 const gridX = Math.round(this.cursorWorldX / 20) * 20;
                 const gridY = Math.round(this.cursorWorldY / 20) * 20;
                 this.placeEntityAt(gridX, gridY);
             }
-            if (typeof audio !== 'undefined' && audio.playConfirm) audio.playConfirm();
         }
 
-        // 5. (B) [Button 1] -> Deselect or Delete
+        // 6. (B) [Button 1] -> Deselect or Delete
         if (justPressed(1)) {
             if (this.selectedEntity) {
                 this.deleteSelected();
@@ -3707,26 +3782,18 @@ const editorSystem = {
             }
         }
 
-        // 6. (X) [Button 2] -> Rotate 90°
+        // 7. (X) [Button 2] -> Rotate 90°
         if (justPressed(2)) {
             this.rotate(90);
         }
 
-        // 7. (Y) [Button 3] -> Cycle Active Tool
+        // 8. (Y) [Button 3] -> Cycle Active Tool
         if (justPressed(3)) {
-            const tools = ['platform', 'pad', 'ring', 'spike', 'laser', 'portal', 'shard', 'finish', 'eraser'];
+            const tools = ['select', 'platform', 'pad', 'ring', 'spike', 'laser', 'portal', 'shard', 'finish', 'eraser'];
             const idx = tools.indexOf(this.activeTool);
             const nextTool = tools[(idx + 1) % tools.length];
             this.setTool(nextTool);
             if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
-        }
-
-        // 8. (LB / RB) [Buttons 4 & 5] -> Resize Width
-        if (justPressed(4)) {
-            this.adjustSize(-20, 0);
-        }
-        if (justPressed(5)) {
-            this.adjustSize(20, 0);
         }
 
         // 9. (Start) [Button 9] -> Playtest Level
@@ -3837,7 +3904,7 @@ const editorSystem = {
             ctx.shadowBlur = 0;
         });
 
-        // 4. Spikes (4-way rotation)
+        // 4. Spikes (Vibrant 4-way rotation)
         this.customLevel.spikes.forEach(s => {
             drawSpike(s.x, s.y, s.w, s.h, s.inverted, s.rotation);
         });
@@ -3847,11 +3914,9 @@ const editorSystem = {
             ctx.save();
             ctx.fillStyle = '#475569';
             if (l.w <= l.h) {
-                // Vertical laser
                 ctx.fillRect(l.x - 3, l.y - 6, l.w + 6, 6);
                 ctx.fillRect(l.x - 3, l.y + l.h, l.w + 6, 6);
             } else {
-                // Horizontal laser
                 ctx.fillRect(l.x - 6, l.y - 3, 6, l.h + 6);
                 ctx.fillRect(l.x + l.w, l.y - 3, 6, l.h + 6);
             }
@@ -3909,46 +3974,159 @@ const editorSystem = {
         ctx.strokeStyle = '#ffffff';
         ctx.strokeRect(80, 356, 22, 44);
 
-        // 9. Active Tool Ghost Preview (Mouse hover or Reticle preview)
+        // 9. Placement Pulse Particles
+        if (this.placementParticles && this.placementParticles.length > 0) {
+            for (let i = this.placementParticles.length - 1; i >= 0; i--) {
+                const pt = this.placementParticles[i];
+                pt.life -= 0.016;
+                if (pt.life <= 0) {
+                    this.placementParticles.splice(i, 1);
+                    continue;
+                }
+                const progress = 1 - (pt.life / pt.maxLife);
+                const r = pt.radius + (pt.maxRadius - pt.radius) * progress;
+                const alpha = Math.max(0, 1 - progress);
+                ctx.save();
+                ctx.strokeStyle = pt.color || '#38bdf8';
+                ctx.lineWidth = 2.5 * alpha;
+                ctx.shadowColor = pt.color || '#38bdf8';
+                ctx.shadowBlur = 8;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // 10. High-Visibility Persistent Placement Ghost
         const previewX = this.controllerActive ? this.cursorWorldX : this.hoverWorldX;
         const previewY = this.controllerActive ? this.cursorWorldY : this.hoverWorldY;
-        if (!this.selectedEntity && this.dragMode === null && previewX > 0 && previewY > 0) {
+        const isPlacingTool = this.activeTool !== 'select' && this.activeTool !== 'eraser';
+
+        if (isPlacingTool && this.dragMode === null && previewX > 0 && previewY > 0) {
             const snapX = Math.round(previewX / 20) * 20;
             const snapY = Math.round(previewY / 20) * 20;
-            ctx.save();
-            ctx.fillStyle = 'rgba(6, 182, 212, 0.25)';
-            ctx.strokeStyle = '#06b6d4';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 4]);
+            const bw = this.brushWidth;
+            const bh = this.brushHeight;
+            const rot = this.brushRotation;
 
-            if (this.activeTool === 'platform') {
-                ctx.fillRect(snapX, snapY, this.brushWidth, this.brushHeight);
-                ctx.strokeRect(snapX, snapY, this.brushWidth, this.brushHeight);
+            ctx.save();
+
+            // Snapped 20px grid box guide
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.35)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(snapX, snapY, 20, 20);
+
+            if (this.activeTool === 'spike') {
+                // High-visibility glowing spike hologram
+                ctx.fillStyle = 'rgba(244, 63, 94, 0.45)';
+                ctx.strokeStyle = '#ffe4e6';
+                ctx.lineWidth = 2.5;
+                ctx.shadowColor = '#f43f5e';
+                ctx.shadowBlur = 12;
+                ctx.setLineDash([4, 3]);
+
+                ctx.beginPath();
+                let tipX = snapX + bw / 2, tipY = snapY - bh;
+                if (rot === 180) {
+                    ctx.moveTo(snapX, snapY);
+                    ctx.lineTo(snapX + bw, snapY);
+                    ctx.lineTo(snapX + bw / 2, snapY + bh);
+                    tipX = snapX + bw / 2; tipY = snapY + bh;
+                } else if (rot === 90) {
+                    ctx.moveTo(snapX, snapY);
+                    ctx.lineTo(snapX, snapY + bh);
+                    ctx.lineTo(snapX + bw, snapY + bh / 2);
+                    tipX = snapX + bw; tipY = snapY + bh / 2;
+                } else if (rot === 270) {
+                    ctx.moveTo(snapX + bw, snapY);
+                    ctx.lineTo(snapX + bw, snapY + bh);
+                    ctx.lineTo(snapX, snapY + bh / 2);
+                    tipX = snapX; tipY = snapY + bh / 2;
+                } else {
+                    ctx.moveTo(snapX, snapY);
+                    ctx.lineTo(snapX + bw, snapY);
+                    ctx.lineTo(snapX + bw / 2, snapY - bh);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Luminous Tip Diamond
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 8;
+                ctx.fillRect(tipX - 2.5, tipY - 2.5, 5, 5);
+
+                // Baseplate
+                ctx.strokeStyle = '#f43f5e';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                if (rot === 180 || rot === 0) {
+                    ctx.moveTo(snapX, snapY); ctx.lineTo(snapX + bw, snapY);
+                } else if (rot === 90) {
+                    ctx.moveTo(snapX, snapY); ctx.lineTo(snapX, snapY + bh);
+                } else if (rot === 270) {
+                    ctx.moveTo(snapX + bw, snapY); ctx.lineTo(snapX + bw, snapY + bh);
+                }
+                ctx.stroke();
+
+                // Live Floating Placement Label
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(snapX, (rot === 180 ? snapY + bh + 4 : snapY - bh - 16), Math.max(90, bw), 14);
+                ctx.fillStyle = '#fda4af';
+                ctx.font = 'bold 9px monospace';
+                ctx.fillText(`🔺 SPIKE ${bw}x${bh} [${rot}°]`, snapX + 2, (rot === 180 ? snapY + bh + 14 : snapY - bh - 6));
+
+            } else if (this.activeTool === 'platform') {
+                ctx.fillStyle = 'rgba(168, 85, 247, 0.35)';
+                ctx.strokeStyle = '#c084fc';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.fillRect(snapX, snapY, bw, bh);
+                ctx.strokeRect(snapX, snapY, bw, bh);
             } else if (this.activeTool === 'pad') {
-                ctx.fillRect(snapX, snapY, this.brushWidth, this.brushHeight);
-                ctx.strokeRect(snapX, snapY, this.brushWidth, this.brushHeight);
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.4)';
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.fillRect(snapX, snapY, bw, bh);
+                ctx.strokeRect(snapX, snapY, bw, bh);
             } else if (this.activeTool === 'ring') {
-                const r = Math.round(this.brushWidth / 2) || 24;
+                const r = Math.round(bw / 2) || 24;
+                ctx.strokeStyle = '#06b6d4';
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([4, 4]);
                 ctx.beginPath();
                 ctx.arc(snapX, snapY, r, 0, Math.PI * 2);
                 ctx.stroke();
-            } else if (this.activeTool === 'spike') {
-                drawSpike(snapX, snapY, this.brushWidth, this.brushHeight, this.brushRotation === 180, this.brushRotation);
             } else if (this.activeTool === 'laser') {
-                ctx.fillRect(snapX, snapY, this.brushWidth, this.brushHeight);
-                ctx.strokeRect(snapX, snapY, this.brushWidth, this.brushHeight);
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.4)';
+                ctx.strokeStyle = '#f472b6';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.fillRect(snapX, snapY, bw, bh);
+                ctx.strokeRect(snapX, snapY, bw, bh);
             } else if (this.activeTool === 'portal') {
-                ctx.fillRect(snapX, snapY, this.brushWidth, this.brushHeight);
-                ctx.strokeRect(snapX, snapY, this.brushWidth, this.brushHeight);
+                ctx.fillStyle = 'rgba(168, 85, 247, 0.35)';
+                ctx.strokeStyle = '#a855f7';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.fillRect(snapX, snapY, bw, bh);
+                ctx.strokeRect(snapX, snapY, bw, bh);
             } else if (this.activeTool === 'shard') {
+                ctx.fillStyle = 'rgba(6, 182, 212, 0.5)';
                 ctx.beginPath();
                 ctx.arc(snapX, snapY, 8, 0, Math.PI * 2);
                 ctx.fill();
             }
+
             ctx.restore();
         }
 
-        // 10. Selected Object Overlay with Resize Handles
+        // 11. Selected Object Overlay with Resize Handles
         if (this.selectedEntity) {
             const bb = this.getEntityBoundingBox(this.selectedEntityType, this.selectedEntity);
             const rot = this.selectedEntity.rotation || (this.selectedEntity.inverted ? 180 : 0);
@@ -3992,7 +4170,7 @@ const editorSystem = {
             ctx.restore();
         }
 
-        // 11. Controller Virtual Reticle
+        // 12. Controller Virtual Reticle (Precision Crosshair)
         if (this.controllerActive) {
             ctx.save();
             ctx.strokeStyle = '#fbbf24';
@@ -4092,7 +4270,7 @@ const editorSystem = {
         this.deselect();
         this.renderCanvas();
     }
-};;
+};
 
 function startCustomLevel(customLvl) {
     game.inMainMenu = false;
@@ -8973,9 +9151,29 @@ function drawCyberBackground(cameraX) {
 function drawSpike(x, y, w, h, inverted, rotation) {
     const rot = (rotation !== undefined) ? rotation : (inverted ? 180 : 0);
     ctx.save();
-    ctx.fillStyle = '#dc2626';
-    ctx.strokeStyle = '#f87171';
+
+    // Vibrant Neon Hazard Styling (Clear & High-Contrast)
+    ctx.shadowColor = '#f43f5e';
+    ctx.shadowBlur = 10;
+
+    let grad;
+    if (rot === 180) {
+        grad = ctx.createLinearGradient(x, y, x, y + h);
+    } else if (rot === 90) {
+        grad = ctx.createLinearGradient(x, y, x + w, y);
+    } else if (rot === 270) {
+        grad = ctx.createLinearGradient(x + w, y, x, y);
+    } else {
+        grad = ctx.createLinearGradient(x, y, x, y - h);
+    }
+    grad.addColorStop(0, '#be123c'); // Deep hazard base
+    grad.addColorStop(0.5, '#f43f5e'); // Glowing neon rose
+    grad.addColorStop(1, '#fda4af'); // Bright hazard point
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = '#ffe4e6';
     ctx.lineWidth = 2;
+    ctx.lineJoin = 'miter';
+
     ctx.beginPath();
     if (rot === 180) {
         // Ceiling spike pointing DOWN
@@ -9001,6 +9199,32 @@ function drawSpike(x, y, w, h, inverted, rotation) {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+
+    // Hazard baseplate line for anchoring visibility on platforms & floor
+    ctx.strokeStyle = '#f43f5e';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    if (rot === 180) {
+        ctx.moveTo(x, y); ctx.lineTo(x + w, y);
+    } else if (rot === 90) {
+        ctx.moveTo(x, y); ctx.lineTo(x, y + h);
+    } else if (rot === 270) {
+        ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h);
+    } else {
+        ctx.moveTo(x, y); ctx.lineTo(x + w, y);
+    }
+    ctx.stroke();
+
+    // Glowing tip diamond point highlight
+    let tipX = x + w / 2, tipY = y - h;
+    if (rot === 180) { tipX = x + w / 2; tipY = y + h; }
+    else if (rot === 90) { tipX = x + w; tipY = y + h / 2; }
+    else if (rot === 270) { tipX = x; tipY = y + h / 2; }
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 6;
+    ctx.fillRect(tipX - 1.5, tipY - 1.5, 3, 3);
+
     ctx.restore();
 }
 
@@ -14318,6 +14542,16 @@ bindClick('btn-editor-h-inc', () => { if (typeof editorSystem !== 'undefined') e
 bindClick('btn-editor-rotate', () => { if (typeof editorSystem !== 'undefined') editorSystem.rotate(90); });
 bindClick('btn-editor-del-sel', () => { if (typeof editorSystem !== 'undefined') editorSystem.deleteSelected(); });
 bindClick('btn-editor-dupe-sel', () => { if (typeof editorSystem !== 'undefined') editorSystem.duplicateSelected(); });
+bindClick('btn-editor-sens-dec', () => {
+    if (typeof settingsSystem !== 'undefined') {
+        settingsSystem.setControllerSensitivity(settingsSystem.controllerSensitivity - 0.2);
+    }
+});
+bindClick('btn-editor-sens-inc', () => {
+    if (typeof settingsSystem !== 'undefined') {
+        settingsSystem.setControllerSensitivity(settingsSystem.controllerSensitivity + 0.2);
+    }
+});
 
 bindClick('btn-close-locker', () => {
     const lockerModal = document.getElementById('modal-locker');
