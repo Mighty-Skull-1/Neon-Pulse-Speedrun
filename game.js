@@ -6065,7 +6065,9 @@ function isCeilingOverhead() {
     const lvl = game.level;
     for (let i = 0; i < lvl.lasers.length; i++) {
         const l = lvl.lasers[i];
-        if (p.x + p.w > l.x && p.x < l.x + l.w) {
+        // Endless: start ducking a hair early so low ceilings are fair at high speed
+        const lookahead = game.isEndless ? Math.max(0, p.vx) * 0.09 : 0;
+        if (p.x + p.w + lookahead > l.x && p.x < l.x + l.w) {
             if (p.y - 24 < l.y + l.h && p.y + p.h > l.y) {
                 return true;
             }
@@ -8777,140 +8779,157 @@ const ENDLESS_CHUNKS = [
 ];
 
 // Endless base speed: rises steadily (never plateaus early, never drops) until a high ceiling.
-const ENDLESS_START_SPEED = 310;
-const ENDLESS_MAX_SPEED = 820;
+const ENDLESS_START_SPEED = 430;
+const ENDLESS_MAX_SPEED = 850;
 function endlessBaseSpeed(meters) {
-    return Math.min(ENDLESS_MAX_SPEED, ENDLESS_START_SPEED + Math.max(0, meters) * 0.11);
+    return Math.min(ENDLESS_MAX_SPEED, ENDLESS_START_SPEED + Math.max(0, meters) * 0.1);
 }
 
-// Stretch a chunk horizontally by speed factor k so gap/platform/hazard TIMING stays the same
-// as at the starting speed (jump distance grows with speed, so everything stays clearable).
-// Hazard widths grow by sqrt(k) so they never get wider (in time) than at start speed.
-function scaleEndlessChunk(chunk, k) {
-    if (k <= 1.001) return chunk;
-    const kh = Math.sqrt(k);
-    const pos = (arr, wk) => (arr || []).map(o => {
-        const n = Object.assign({}, o, { relX: o.relX * k });
-        if (o.w !== undefined) n.w = o.w * wk;
-        return n;
-    });
-    return Object.assign({}, chunk, {
-        width: chunk.width * k,
-        platforms: pos(chunk.platforms, k),
-        spikes: pos(chunk.spikes, kh),
-        lasers: pos(chunk.lasers, kh),
-        speedPads: pos(chunk.speedPads, kh),
-        trampolines: pos(chunk.trampolines, 1),
-        rings: pos(chunk.rings, 1),
-        portals: pos(chunk.portals, 1),
-        shards: pos(chunk.shards, 1)
-    });
+// ---------------------------------------------------------------------------
+// Procedural piece generator. Every distance is built in TIME (seconds of running at the
+// current speed) and then converted to pixels, so reaction windows stay constant as the run
+// speeds up. Piece parameters are checked against the player's jump arc
+// (JUMP_IMPULSE / GRAVITY, double jump, slide) so every combination is clearable.
+// Shards are intentionally never generated in Endless.
+// ---------------------------------------------------------------------------
+let endlessPieceHistory = [];
+
+function endlessAirTime(dyUp) {
+    // Seconds a single held jump spends in the air before descending back through dyUp pixels
+    // above the take-off height (dyUp < 0 means landing lower).
+    const disc = Math.max(0, JUMP_IMPULSE * JUMP_IMPULSE - 2 * GRAVITY * dyUp);
+    return (-JUMP_IMPULSE + Math.sqrt(disc)) / GRAVITY;
 }
 
-let lastEndlessChunkIdx = -1;
 function spawnNextEndlessChunk() {
     if (!game.level) return;
-    let idx = Math.floor(Math.random() * ENDLESS_CHUNKS.length);
-    if (idx === lastEndlessChunkIdx && ENDLESS_CHUNKS.length > 1) {
-        idx = (idx + 1) % ENDLESS_CHUNKS.length;
-    }
-    lastEndlessChunkIdx = idx;
-    const sx = game.endlessLastSpawnX;
-    const chunk = scaleEndlessChunk(ENDLESS_CHUNKS[idx], endlessBaseSpeed(sx / 10) / ENDLESS_START_SPEED);
+    const lvl = game.level;
+    const x0 = game.endlessLastSpawnX;
+    const meters = x0 / 10;
+    const v = endlessBaseSpeed(meters);
+    const diff = Math.min(1, meters / 4000);
+    const T = t => t * v;
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    let x = x0;
 
-    if (chunk.platforms) {
-        chunk.platforms.forEach(p => {
-            game.level.platforms.push({
-                x: sx + p.relX,
-                y: p.y,
-                w: p.w,
-                h: p.h || 20,
-                phase: p.phase || p.isPhase,
-                isPhase: p.isPhase,
-                isOneWay: p.isOneWay
-            });
-        });
-    }
-    if (chunk.spikes) {
-        chunk.spikes.forEach(s => {
-            game.level.spikes.push({
-                x: sx + s.relX,
-                y: s.y,
-                w: s.w,
-                h: s.h,
-                inverted: !!s.inverted
-            });
-        });
-    }
-    if (chunk.lasers) {
-        chunk.lasers.forEach(l => {
-            game.level.lasers.push({
-                x: sx + l.relX,
-                y: l.y,
-                w: l.w,
-                h: l.h
-            });
-        });
-    }
-    if (chunk.speedPads) {
-        chunk.speedPads.forEach(sp => {
-            game.level.speedPads.push({
-                x: sx + sp.relX,
-                y: sp.y,
-                w: sp.w,
-                boostVx: sp.boostVx || 220
-            });
-        });
-    }
-    if (chunk.trampolines) {
-        chunk.trampolines.forEach(tr => {
-            game.level.trampolines.push({
-                x: sx + tr.relX,
-                y: tr.y,
-                w: tr.w,
-                launchVy: tr.launchVy || -640
-            });
-        });
-    }
-    if (chunk.rings) {
-        chunk.rings.forEach(r => {
-            game.level.rings.push({
-                x: sx + r.relX,
-                y: r.y,
-                r: r.r || 24,
-                radius: r.r || 24,
-                type: r.type || (r.targetDir !== undefined && r.targetDir !== 1 ? 'GRAVITY' : (r.targetGravity !== undefined && r.targetGravity !== 1 ? 'GRAVITY' : 'JUMP')),
-                targetGravity: r.targetGravity !== undefined ? r.targetGravity : (r.targetDir !== undefined ? r.targetDir : 1),
-                targetDir: r.targetDir,
-                boostY: r.boostY || -580,
-                flipVy: r.flipVy || 340,
-                lastHitTime: 0
-            });
-        });
-    }
-    if (chunk.portals) {
-        chunk.portals.forEach(pt => {
-            game.level.portals.push({
-                x: sx + pt.relX,
-                y: pt.y,
-                w: pt.w,
-                h: pt.h,
-                targetGravity: pt.targetGravity !== undefined ? pt.targetGravity : 1
-            });
-        });
-    }
-    if (chunk.shards) {
-        chunk.shards.forEach(sh => {
-            game.level.shards.push({
-                x: sx + sh.relX,
-                y: sh.y,
-                taken: false,
-                id: Math.random()
-            });
-        });
-    }
+    const ground = (a, b) => lvl.platforms.push({ x: a, y: 400, w: Math.max(1, b - a), h: 40 });
+    const spike = (a, w, y = 400) => lvl.spikes.push({ x: a, y, w, h: 20, inverted: false });
+    const laser = (a, y, w, h) => lvl.lasers.push({ x: a, y, w, h });
 
-    game.endlessLastSpawnX += chunk.width;
+    // --- Ground obstacles: each is preceded by a runway so there is always time to react ----
+    const placeObstacle = (kind) => {
+        x += T(rnd(0.7, 0.95));
+        if (kind === 'spike') {
+            const groups = 1 + Math.floor(Math.random() * (1 + diff * 2));
+            for (let i = 0; i < groups; i++) {
+                const w = Math.max(40, T(rnd(0.07, 0.15 + 0.12 * diff)));
+                spike(x, w);
+                x += w;
+                if (i < groups - 1) x += T(rnd(0.5, 0.75));
+            }
+        } else if (kind === 'laser') {      // low beam: slide under it or jump over it
+            const w = Math.max(60, T(rnd(0.1, 0.28)));
+            laser(x, 345, w, 20);
+            x += w;
+        } else if (kind === 'tunnel') {     // low ceiling: must slide through
+            const w = Math.max(120, T(rnd(0.3, 0.45 + 0.4 * diff)));
+            laser(x, 300, w, 60);
+            x += w;
+        } else if (kind === 'field') {      // wide spike field: needs a double jump
+            const w = Math.max(80, T(rnd(0.3, 0.34 + 0.18 * diff)));
+            spike(x, w);
+            x += w;
+        }
+    };
+    const groundSeq = (kinds) => {
+        const start = x;
+        kinds.forEach(placeObstacle);
+        x += T(rnd(0.5, 0.8));
+        ground(start, x);
+    };
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    const pieces = {
+        spikes: () => groundSeq(Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => pick(['spike', 'spike', 'laser']))),
+        gaps: () => {
+            const n = 1 + Math.floor(Math.random() * (1 + diff * 2.5));
+            for (let i = 0; i < n; i++) {
+                const start = x;
+                x += T(rnd(0.5, 0.8));
+                ground(start, x);
+                x += T(rnd(0.2, 0.26 + 0.14 * diff));      // void gap (<= ~0.40s vs 0.61s jump)
+            }
+            const s = x;
+            x += T(rnd(0.6, 0.9));
+            ground(s, x);
+        },
+        tunnel: () => groundSeq(['tunnel']),
+        highRoad: () => {                    // hop across platforms above a spike carpet
+            const start = x;
+            x += T(rnd(0.5, 0.7));
+            const spikeStart = x;
+            const count = 2 + Math.floor(Math.random() * (2 + diff * 2));
+            for (let i = 0; i < count; i++) {
+                const w = T(rnd(0.4, 0.55));
+                lvl.platforms.push({ x, y: Math.round(rnd(335, 350)), w, h: 20 });
+                x += w;
+                if (i < count - 1) x += T(rnd(0.12, 0.22));
+            }
+            spike(spikeStart, x - spikeStart);
+            const end = x + T(rnd(0.5, 0.8));
+            ground(start, end);
+            x = end;
+        },
+        islands: () => {                     // floating islands over the void
+            const start = x;
+            x += T(rnd(0.5, 0.7));
+            ground(start, x);
+            let curY = 400;
+            const count = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < count; i++) {
+                const first = i === 0;
+                let newY = curY - rnd(-40, 45);
+                newY = Math.round(Math.max(first ? 340 : 290, Math.min(first ? 395 : 400, newY)));
+                const dyUp = curY - newY;
+                const maxGap = Math.min(0.26 + 0.12 * diff, endlessAirTime(dyUp) - 0.22);
+                x += T(Math.max(0.12, rnd(0.18, maxGap)));
+                const spiked = !first && Math.random() < 0.1 + 0.3 * diff;
+                const w = spiked ? T(rnd(1.1, 1.3)) : T(rnd(0.45, 0.8));
+                lvl.platforms.push({ x, y: newY, w, h: 20 });
+                if (spiked) spike(x + T(0.35), Math.max(40, T(0.08)), newY);
+                x += w;
+                curY = newY;
+            }
+            const maxFinal = Math.min(0.3, endlessAirTime(curY - 400) - 0.22);
+            x += T(Math.max(0.12, rnd(0.18, maxFinal)));
+            const s = x;
+            x += T(rnd(0.6, 0.9));
+            ground(s, x);
+        },
+        field: () => groundSeq(['field']),
+        gauntlet: () => groundSeq(Array.from({ length: 3 + Math.floor(Math.random() * 2) }, () => pick(['spike', 'laser', 'tunnel', 'spike']))),
+        boost: () => {                       // speed pad with a clear runway behind it
+            const start = x;
+            x += T(0.5);
+            lvl.speedPads.push({ x, y: 400, w: 90, boostVx: 220 });
+            x += T(1.2);
+            ground(start, x);
+        }
+    };
+
+    const table = [
+        ['spikes', 0, 3], ['gaps', 0, 2.5], ['boost', 0, 0.6], ['tunnel', 0.03, 2],
+        ['highRoad', 0.05, 2], ['islands', 0.1, 2.2], ['field', 0.25, 1.6], ['gauntlet', 0.4, 2]
+    ].filter(e => diff >= e[1] && !endlessPieceHistory.slice(-2).includes(e[0]));
+    const total = table.reduce((s, e) => s + e[2], 0);
+    let r = Math.random() * total;
+    let chosen = table[table.length - 1][0];
+    for (const e of table) { r -= e[2]; if (r <= 0) { chosen = e[0]; break; } }
+    endlessPieceHistory.push(chosen);
+    if (endlessPieceHistory.length > 6) endlessPieceHistory.shift();
+    pieces[chosen]();
+
+    game.endlessLastSpawnX = x;
 }
 
 function startEndlessMode() {
@@ -8929,8 +8948,8 @@ function startEndlessMode() {
         name: "CYBER OVERDRIVE // ENDLESS MARATHON",
         theme: "cyber",
         bpm: 140,
-        startSpeed: 310,
-        maxSpeed: 820,
+        startSpeed: ENDLESS_START_SPEED,
+        maxSpeed: ENDLESS_MAX_SPEED,
         length: 999999999,
         color: '#06b6d4',
         platforms: [
@@ -8950,6 +8969,7 @@ function startEndlessMode() {
     game.endlessDistance = 0;
     game.endlessLastSpawnX = 1400;
     game.endlessNextWarpMeters = 1000;
+    endlessPieceHistory = [];
     try {
         const storedPB = localStorage.getItem('neon_pulse_endless_best');
         game.endlessBestDistance = storedPB ? parseInt(storedPB, 10) || 0 : 0;
