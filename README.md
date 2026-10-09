@@ -89,10 +89,13 @@ Personalize your runner with unlocks earned through medals, shard collection, da
 ---
 
 ### 🏃 Endless Cyber Marathon Mode
-- Fully procedural infinite runner: every piece is randomly assembled (spike carpets, low lasers, slide-only laser tunnels, void gaps, floating islands, high-roads over spike carpets, double-jump spike fields, boost lanes, **disappearing floors** that flash then drop away, mixed gauntlets) so runs never repeat. No shards in this mode. Starts hyper-fast (500 px/s) with dense, compact back-to-back obstacle cadence (slide-hop combos, rapid hurdles, crumbling pit bridges) ramping to maximum intensity by ~1,400m.
+- Fully procedural infinite runner: every piece is randomly assembled (dense spike carpets, low lasers, slide-only laser tunnels, void gaps, floating islands, high-roads over spike carpets, double-jump spike fields, boost lanes, **gravity rift portals (upside-down ceiling highways with inverted spikes)**, **reappearing quantum platforms** that vanish upon touch and recharge, crumbling trapdoors, and high-intensity gauntlets) so runs never repeat. No shards in this mode. Starts hyper-fast (500 px/s) with dense, compact back-to-back obstacle cadence ramping to maximum intensity by ~1,400m.
+- **Gravity Rift Portals**: Step into glowing rift gateways that invert gravity (`p.gravityDir = -1`), transporting the runner to run upside-down on ceiling highways with inverted stalactite spikes, before exit gateways flip gravity back down to catch platforms.
+- **Reappearing Quantum Platforms**: Interactive pads that activate on landing, give a 0.4s warning jitter, dematerialize into translucent holographic recharge wireframes with visible recharge meters, and re-materialize solid after 1.25s with glowing particle bursts.
 - **Flat-Memory Entity Recycling**: Automatically prunes distant off-screen platforms and hazards to maintain 60+ FPS performance.
 - **Always Accelerating**: Base speed climbs steadily (500 -> 920 px/s) and never drops. All pieces are built in time-units of the current speed and verified with a bot, so every combination stays clearable at any pace.
 - **Dimension Shifts**: Chromatic warps trigger dynamically every 1,000 meters, increasing tempo and shifting hazard patterns.
+- **Hardcore Milestone Achievements**: Tracked up to the legendary **50,000m APEX TRANSCENDENCE** high-score achievement, alongside 10,000m Neo Marathoner, 25,000m Cyber Overlord, 15 Warp Zone survivals, Vertigo Shifter gravity flips, and Quantum Leaper platform hops.
 
 ---
 
@@ -196,7 +199,7 @@ Build, playtest, and share custom obstacle courses directly in-game:
 
 ## 🚀 Steam & Desktop Executable Packaging
 Neon Pulse is 100% Steam-ready with native desktop packaging support:
-- **Steamworks SDK Bridge (`steam_bridge.js`)**: Automatically syncs the 29 in-game achievements (including Grandmaster Perfection) with the Steam overlay, provides Steam Cloud sync hooks, and reports Rich Presence.
+- **Steamworks SDK Bridge (`steam_bridge.js`)**: Automatically syncs the 35 in-game achievements (including 50,000m Apex Transcendence and Grandmaster Perfection) with the Steam overlay, provides Steam Cloud sync hooks, and reports Rich Presence.
 - **Standalone Desktop Build (Electron / Tauri)**:
   ```bash
   # Install desktop packaging dependencies

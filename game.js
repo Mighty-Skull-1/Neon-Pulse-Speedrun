@@ -1244,6 +1244,12 @@ const ACHIEVEMENTS = [
     { id: "endless_1000m", title: "MARATHONER", desc: "Survive 1,000 meters in Endless Marathon", icon: "🏃", category: "CAMPAIGN" },
     { id: "endless_2500m", title: "INFINITY RUNNER", desc: "Survive 2,500 meters in Endless Marathon", icon: "🪐", category: "CAMPAIGN" },
     { id: "endless_warp_5", title: "WARP HOPPER", desc: "Survive 5 hyper-speed zone warps in Endless Mode", icon: "🌀", category: "CAMPAIGN" },
+    { id: "endless_10000m", title: "NEO MARATHONER", desc: "Survive 10,000 meters in Endless Marathon", icon: "🌌", category: "CAMPAIGN" },
+    { id: "endless_25000m", title: "CYBER OVERLORD", desc: "Survive 25,000 meters in Endless Marathon", icon: "🪐", category: "CAMPAIGN" },
+    { id: "endless_50000m", title: "APEX TRANSCENDENCE", desc: "Reach the legendary high score of 50,000 meters in Endless Marathon", icon: "👑", category: "CAMPAIGN" },
+    { id: "endless_warp_15", title: "DIMENSION CONQUEROR", desc: "Survive 15 hyper-speed zone warps in a single Endless run", icon: "🌀", category: "CAMPAIGN" },
+    { id: "endless_gravity_master", title: "VERTIGO SHIFTER", desc: "Shift gravity through 5 gravity rift portals in Endless Marathon", icon: "🔄", category: "TECH" },
+    { id: "endless_quantum_hopper", title: "QUANTUM LEAPER", desc: "Successfully leap across 15 reappearing quantum platforms in Endless Marathon", icon: "✨", category: "TECH" },
     { id: "multiplayer_win", title: "APEX DUELIST", desc: "Win a 1v1 Multiplayer Race against a rival", icon: "⚔️", category: "SPEEDRUN" },
     { id: "daily_challenge_clear", title: "DAILY OPERATIVE", desc: "Complete today's Seeded Daily Challenge", icon: "📅", category: "DAILY" },
     { id: "daily_streak_3", title: "DEDICATED RUNNER", desc: "Maintain a 3-day daily reward login streak", icon: "🔥", category: "DAILY" },
@@ -1286,6 +1292,8 @@ const achievementSystem = {
         stage20Cleared: false,
         endlessBestDist: 0,
         endlessBestWarps: 0,
+        endlessGravityShifts: 0,
+        endlessQuantumHops: 0,
         mpWins: 0,
         dailyClears: 0,
         streak: 1,
@@ -1350,6 +1358,9 @@ const achievementSystem = {
             const endlessBest = parseInt(localStorage.getItem('neon_pulse_endless_best') || '0', 10);
             if (endlessBest >= 1000) this.unlock('endless_1000m', false);
             if (endlessBest >= 2500) this.unlock('endless_2500m', false);
+            if (endlessBest >= 10000) this.unlock('endless_10000m', false);
+            if (endlessBest >= 25000) this.unlock('endless_25000m', false);
+            if (endlessBest >= 50000) this.unlock('endless_50000m', false);
 
             const topSpeed = parseInt(localStorage.getItem('neon_pulse_top_speed') || '0', 10);
             if (topSpeed >= 400) this.unlock('mach_400', false);
@@ -6050,6 +6061,10 @@ function killPlayer(force = false) {
 
     game.attempts++;
     const prevTime = game.runTime;
+    if (game.isEndless) {
+        startEndlessMode();
+        return;
+    }
     resetPlayerState();
     if (game.isMultiplayer) {
         game.runTime = prevTime;
@@ -6487,6 +6502,9 @@ function updatePhysics(rawDt) {
         if (plat.phase && plat.phase !== 'NEUTRAL' && plat.phase !== game.phaseColor) {
             continue;
         }
+        if (plat.reappear && plat.vanished) {
+            continue;
+        }
         if (p.x + p.w > plat.x && p.x < plat.x + plat.w) {
             if (p.gravityDir === 1 && p.vy >= 0) {
                 if (prevY + p.h <= plat.y + maxStep && p.y + p.h >= plat.y) {
@@ -6494,6 +6512,15 @@ function updatePhysics(rawDt) {
                     p.vy = 0;
                     p.isGrounded = true;
                     p.isJumping = false;
+                    if (plat.reappear && !plat.triggered) {
+                        plat.triggered = true;
+                        plat.triggerTime = game.runTime;
+                        game.endlessQuantumHops = (game.endlessQuantumHops || 0) + 1;
+                        if (game.endlessQuantumHops >= 15 && typeof achievementSystem !== 'undefined') {
+                            achievementSystem.unlock('endless_quantum_hopper');
+                        }
+                        if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
+                    }
                     break;
                 }
             } else if (p.gravityDir === -1 && p.vy <= 0) {
@@ -6503,6 +6530,15 @@ function updatePhysics(rawDt) {
                     p.vy = 0;
                     p.isGrounded = true;
                     p.isJumping = false;
+                    if (plat.reappear && !plat.triggered) {
+                        plat.triggered = true;
+                        plat.triggerTime = game.runTime;
+                        game.endlessQuantumHops = (game.endlessQuantumHops || 0) + 1;
+                        if (game.endlessQuantumHops >= 15 && typeof achievementSystem !== 'undefined') {
+                            achievementSystem.unlock('endless_quantum_hopper');
+                        }
+                        if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
+                    }
                     break;
                 }
             }
@@ -6922,6 +6958,12 @@ function checkInteractions() {
                     p.hasDoubleJumped = false;
                     audio.playJump(true);
                     game.screenShake = 6;
+                    if (game.isEndless) {
+                        game.endlessGravityShifts = (game.endlessGravityShifts || 0) + 1;
+                        if (game.endlessGravityShifts >= 5 && typeof achievementSystem !== 'undefined') {
+                            achievementSystem.unlock('endless_gravity_master');
+                        }
+                    }
                 }
             }
         }
@@ -7353,6 +7395,7 @@ function runBotPilotAI() {
         for (let i = 0; i < lvl.platforms.length; i++) {
             const plat = lvl.platforms[i];
             if (plat.phase && plat.phase !== 'NEUTRAL' && plat.phase !== game.phaseColor) continue;
+            if (plat.reappear && plat.vanished) continue;
             if (checkX >= plat.x && checkX <= plat.x + plat.w) {
                 if (p.gravityDir === 1) {
                     if (Math.abs((p.y + p.h) - plat.y) < 45) {
@@ -7390,6 +7433,18 @@ function runBotPilotAI() {
         }
     }
 
+    // Reappearing platform urgency: leap off before collapse
+    if (p.isGrounded && lvl.platforms) {
+        for (let i = 0; i < lvl.platforms.length; i++) {
+            const pl = lvl.platforms[i];
+            if (pl.reappear && pl.triggered && (game.runTime - pl.triggerTime > 0.22)) {
+                if (p.x + p.w >= pl.x && p.x <= pl.x + pl.w) {
+                    mustJump = true;
+                }
+            }
+        }
+    }
+
     // Trampoline lookahead: don't jump over an upcoming trampoline on the ground
     if (lvl.trampolines && p.isGrounded) {
         for (let i = 0; i < lvl.trampolines.length; i++) {
@@ -7408,6 +7463,7 @@ function runBotPilotAI() {
             for (let i = 0; i < lvl.platforms.length; i++) {
                 const plat = lvl.platforms[i];
                 if (plat.phase && plat.phase !== 'NEUTRAL' && plat.phase !== game.phaseColor) continue;
+                if (plat.reappear && plat.vanished) continue;
                 if (p.x + p.w > plat.x && p.x < plat.x + plat.w && plat.y >= p.y + p.h - 10) {
                     floorBelow = true;
                     break;
@@ -7419,6 +7475,7 @@ function runBotPilotAI() {
             for (let i = 0; i < lvl.platforms.length; i++) {
                 const plat = lvl.platforms[i];
                 if (plat.phase && plat.phase !== 'NEUTRAL' && plat.phase !== game.phaseColor) continue;
+                if (plat.reappear && plat.vanished) continue;
                 if (p.x + p.w > plat.x && p.x < plat.x + plat.w && (plat.y + plat.h) <= p.y + 10) {
                     ceilingAbove = true;
                     break;
@@ -7721,6 +7778,61 @@ function render() {
                     ctx.moveTo(sx, plat.y + 3);
                     ctx.lineTo(sx + 10, plat.y + Math.min(plat.h, 16));
                     ctx.stroke();
+                }
+                ctx.restore();
+                ctx.fillStyle = '#0f172a';
+                ctx.strokeStyle = lvl.color;
+            } else if (plat.reappear) {
+                ctx.save();
+                if (plat.vanished) {
+                    const recharge = Math.min(1, Math.max(0, (game.runTime - plat.triggerTime - 0.40) / 1.25));
+                    ctx.setLineDash([4, 4]);
+                    ctx.strokeStyle = 'rgba(6, 182, 212, 0.45)';
+                    ctx.lineWidth = 1.5;
+                    ctx.fillStyle = 'rgba(6, 182, 212, 0.05)';
+                    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                    ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = 'rgba(6, 182, 212, 0.2)';
+                    ctx.fillRect(plat.x, plat.y, plat.w, 3);
+                    ctx.fillStyle = '#06b6d4';
+                    ctx.fillRect(plat.x, plat.y, plat.w * recharge, 3);
+                    if (plat.w >= 45) {
+                        ctx.fillStyle = 'rgba(34, 211, 238, 0.8)';
+                        ctx.font = 'bold 7px monospace';
+                        ctx.fillText('⟳ CHARGING', plat.x + 4, plat.y + 13);
+                    }
+                } else if (plat.flicker) {
+                    const flash = Math.floor(game.runTime * 20) % 2 === 0;
+                    const jx = (Math.random() - 0.5) * 3;
+                    const jy = (Math.random() - 0.5) * 2;
+                    ctx.fillStyle = flash ? '#164e63' : '#0f172a';
+                    ctx.strokeStyle = flash ? '#22d3ee' : '#06b6d4';
+                    ctx.shadowColor = '#22d3ee';
+                    ctx.shadowBlur = 10;
+                    ctx.lineWidth = 2.5;
+                    ctx.fillRect(plat.x + jx, plat.y + jy, plat.w, plat.h);
+                    ctx.strokeRect(plat.x + jx, plat.y + jy, plat.w, plat.h);
+                    ctx.fillStyle = '#22d3ee';
+                    ctx.fillRect(plat.x + jx, plat.y + jy, plat.w, 4);
+                    if (plat.w >= 45) {
+                        ctx.fillStyle = '#cffafe';
+                        ctx.font = 'bold 8px monospace';
+                        ctx.fillText('⚡ SHIFTING', plat.x + jx + 4, plat.y + jy + 14);
+                    }
+                } else {
+                    ctx.fillStyle = '#091528';
+                    ctx.strokeStyle = '#06b6d4';
+                    ctx.shadowColor = '#06b6d4';
+                    ctx.shadowBlur = 8;
+                    ctx.lineWidth = 2;
+                    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                    ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+                    ctx.fillStyle = '#22d3ee';
+                    ctx.fillRect(plat.x, plat.y, plat.w, 3);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(plat.x + 2, plat.y + 4, 3, 3);
+                    ctx.fillRect(plat.x + plat.w - 5, plat.y + 4, 3, 3);
                 }
                 ctx.restore();
                 ctx.fillStyle = '#0f172a';
@@ -8174,12 +8286,36 @@ function drawRing(r) {
 
 function drawPortal(prt) {
     ctx.save();
-    const color = prt.targetGravity === -1 ? '#8b5cf6' : '#06b6d4';
+    const isInverted = prt.targetGravity === -1;
+    const color = isInverted ? '#a855f7' : '#06b6d4';
+    const accent = isInverted ? '#ec4899' : '#10b981';
+    const now = (typeof game !== 'undefined' ? game.runTime : Date.now() * 0.001);
+    const pulse = Math.sin(now * 8) * 0.2 + 0.8;
+    const grad = ctx.createLinearGradient(prt.x, prt.y, prt.x + prt.w, prt.y);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    grad.addColorStop(0.5, isInverted ? 'rgba(168, 85, 247, 0.28)' : 'rgba(6, 182, 212, 0.28)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(prt.x, prt.y, prt.w, prt.h);
     ctx.strokeStyle = color;
     ctx.shadowColor = color;
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 18 * pulse;
     ctx.lineWidth = 3;
     ctx.strokeRect(prt.x, prt.y, prt.w, prt.h);
+    const scanY = ((now * 260) % Math.max(1, prt.h));
+    ctx.fillStyle = accent;
+    ctx.shadowColor = accent;
+    ctx.shadowBlur = 12;
+    ctx.fillRect(prt.x + 2, prt.y + (isInverted ? (prt.h - scanY) : scanY), prt.w - 4, 3);
+    ctx.fillStyle = color;
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    const arrow = isInverted ? '▲' : '▼';
+    for (let y = prt.y + 45; y < prt.y + prt.h - 30; y += 80) {
+        ctx.fillText(arrow, prt.x + prt.w / 2, y);
+    }
     ctx.restore();
 }
 
@@ -8850,7 +8986,7 @@ function spawnNextEndlessChunk() {
     let x = x0;
 
     const ground = (a, b) => { if (b - a > 1) lvl.platforms.push({ x: a, y: 400, w: b - a, h: 40 }); };
-    const spike = (a, w, y = 400) => lvl.spikes.push({ x: a, y, w, h: 20, inverted: false });
+    const spike = (a, w, y = 400, inverted = false) => lvl.spikes.push({ x: a, y, w, h: 20, inverted });
     const laser = (a, y, w, h) => lvl.lasers.push({ x: a, y, w, h });
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
@@ -9015,6 +9151,78 @@ function spawnNextEndlessChunk() {
         // Long spike field requiring confident double-jump
         field: () => groundSeq(['field']),
 
+        // Quantum Stepping Stones: consecutive platforms that vanish upon landing & recharge
+        quantumPads: () => {
+            const start = x;
+            x += T(rnd(0.30, 0.42));
+            ground(start, x);
+            const spikeStart = x;
+            const count = 3 + Math.floor(Math.random() * (2 + diff * 2));
+            for (let i = 0; i < count; i++) {
+                const padW = Math.max(68, T(rnd(0.24, 0.35)));
+                const padY = Math.round(rnd(335, 360));
+                lvl.platforms.push({
+                    x: x,
+                    y: padY,
+                    w: padW,
+                    h: 20,
+                    reappear: true
+                });
+                x += padW;
+                x += T(rnd(0.14, 0.20 + 0.04 * diff));
+            }
+            spike(spikeStart, x - spikeStart + T(0.3), 400, false);
+            const landStart = x;
+            x += T(rnd(0.36, 0.48));
+            ground(landStart, x);
+            seg = x;
+        },
+
+        // Gravity Rift Highway: Enter portal to run upside down on ceiling with inverted spikes!
+        gravityRift: () => {
+            const start = x;
+            x += T(0.32);
+            ground(start, x + 40);
+            const portalInX = x;
+            lvl.portals.push({
+                x: portalInX,
+                y: 0,
+                w: 36,
+                h: 540,
+                targetGravity: -1
+            });
+            const ceilLength = Math.max(720, T(rnd(2.0, 3.0 + 0.6 * diff)));
+            const ceilStart = portalInX - 50;
+            const ceilEnd = portalInX + ceilLength;
+            lvl.platforms.push({
+                x: ceilStart,
+                y: 100,
+                w: ceilLength + 70,
+                h: 25
+            });
+            let cx = portalInX + T(0.45);
+            const spikeCount = 2 + Math.floor(Math.random() * (2 + diff * 2));
+            for (let i = 0; i < spikeCount; i++) {
+                const spkW = Math.max(38, T(rnd(0.08, 0.16)));
+                spike(cx, spkW, 125, true);
+                cx += spkW + T(rnd(0.44, 0.56));
+                if (cx >= ceilEnd - T(0.4)) break;
+            }
+            const portalOutX = ceilEnd;
+            lvl.portals.push({
+                x: portalOutX,
+                y: 0,
+                w: 36,
+                h: 540,
+                targetGravity: 1
+            });
+            const groundLand = portalOutX - 60;
+            const landLen = T(rnd(0.45, 0.60));
+            ground(groundLand, groundLand + landLen);
+            x = groundLand + landLen;
+            seg = x;
+        },
+
         // The Gauntlet: non-stop back-to-back onslaught of 4 to 9 hazards
         gauntlet: () => {
             const count = 4 + Math.floor(Math.random() * (2 + diff * 4));
@@ -9035,16 +9243,18 @@ function spawnNextEndlessChunk() {
     };
 
     const table = [
-        ['spikes', 0, 3.0],
-        ['slideHop', 0, 3.2], // High weight for slide-hop combos!
-        ['gaps', 0, 2.5],
+        ['spikes', 0, 3.2],
+        ['slideHop', 0, 3.0],
+        ['gaps', 0, 2.0],
         ['boost', 0, 0.4],
-        ['tunnel', 0.02, 2.2],
-        ['trapdoors', 0.04, 3.0], // Prominent disappearing floor frequency!
-        ['highRoad', 0.05, 2.2],
-        ['islands', 0.08, 2.4],
-        ['field', 0.15, 2.0],
-        ['gauntlet', 0.20, 3.5] // Gauntlet appears early and often!
+        ['tunnel', 0.02, 1.8],
+        ['trapdoors', 0.03, 2.2],
+        ['quantumPads', 0.03, 3.6], // High frequency reappearing platforms!
+        ['gravityRift', 0.04, 3.6], // Early & frequent upside-down gravity rifts!
+        ['highRoad', 0.05, 2.4],
+        ['islands', 0.07, 2.2],
+        ['field', 0.10, 2.4],
+        ['gauntlet', 0.14, 3.8]
     ].filter(e => diff >= e[1] && !endlessPieceHistory.slice(-2).includes(e[0]));
 
     const total = table.reduce((s, e) => s + e[2], 0);
@@ -9073,6 +9283,8 @@ function startEndlessMode() {
     game.attempts = 1;
     game.runTime = 0;
     game.endlessWarpCount = 0;
+    game.endlessGravityShifts = 0;
+    game.endlessQuantumHops = 0;
     setPause(false);
 
     game.level = {
@@ -9173,6 +9385,9 @@ function updateEndlessMode(dt) {
     if (typeof achievementSystem !== 'undefined') {
         if (game.endlessDistance >= 1000) achievementSystem.unlock('endless_1000m');
         if (game.endlessDistance >= 2500) achievementSystem.unlock('endless_2500m');
+        if (game.endlessDistance >= 10000) achievementSystem.unlock('endless_10000m');
+        if (game.endlessDistance >= 25000) achievementSystem.unlock('endless_25000m');
+        if (game.endlessDistance >= 50000) achievementSystem.unlock('endless_50000m');
     }
     if (typeof dailySystem !== 'undefined') {
         dailySystem.updateBountyProgress('endless_dist', game.endlessDistance);
@@ -9199,6 +9414,54 @@ function updateEndlessMode(dt) {
         if (game.level.rings) game.level.rings = game.level.rings.filter(el => el.x + 30 > pruneThreshold);
         if (game.level.portals) game.level.portals = game.level.portals.filter(el => el.x + (el.w || 30) > pruneThreshold);
         if (game.level.shards) game.level.shards = game.level.shards.filter(el => el.x + 30 > pruneThreshold);
+    }
+
+    // Reappearing platforms lifecycle: flicker -> vanish -> recharge & materialize
+    {
+        const plats = game.level.platforms;
+        for (let i = 0; i < plats.length; i++) {
+            const pl = plats[i];
+            if (!pl.reappear || !pl.triggered) continue;
+            const elapsed = game.runTime - pl.triggerTime;
+            if (elapsed < 0.40) {
+                pl.flicker = true;
+                pl.vanished = false;
+            } else if (elapsed < 1.65) {
+                if (!pl.vanished) {
+                    pl.vanished = true;
+                    pl.flicker = false;
+                    for (let k = 0; k < 10; k++) {
+                        game.particles.push({
+                            x: pl.x + Math.random() * pl.w,
+                            y: pl.y + Math.random() * pl.h,
+                            vx: (Math.random() - 0.5) * 140,
+                            vy: (Math.random() - 0.5) * 140,
+                            life: 0.35,
+                            maxLife: 0.35,
+                            color: '#06b6d4',
+                            size: Math.random() * 4 + 2
+                        });
+                    }
+                }
+            } else {
+                pl.vanished = false;
+                pl.triggered = false;
+                pl.flicker = false;
+                pl.triggerTime = undefined;
+                for (let k = 0; k < 12; k++) {
+                    game.particles.push({
+                        x: pl.x + Math.random() * pl.w,
+                        y: pl.y + Math.random() * pl.h,
+                        vx: (Math.random() - 0.5) * 160,
+                        vy: (Math.random() - 0.5) * 160,
+                        life: 0.45,
+                        maxLife: 0.45,
+                        color: '#22d3ee',
+                        size: Math.random() * 4 + 2
+                    });
+                }
+            }
+        }
     }
 
     // Disappearing floors: flash as the player approaches, then (usually) drop away
@@ -9247,6 +9510,7 @@ function triggerDimensionWarp() {
     game.endlessWarpCount = (game.endlessWarpCount || 0) + 1;
     if (typeof achievementSystem !== 'undefined') {
         if (game.endlessWarpCount >= 5) achievementSystem.unlock('endless_warp_5');
+        if (game.endlessWarpCount >= 15) achievementSystem.unlock('endless_warp_15');
     }
 
     const overlay = document.getElementById('warp-overlay');
@@ -12788,7 +13052,11 @@ window.addEventListener('keydown', (e) => {
     }
 
     if (isAction('restart') || e.code === 'KeyR' || e.key === 'r' || e.key === 'R') {
-        resetPlayerState();
+        if (game.isEndless) {
+            startEndlessMode();
+        } else {
+            resetPlayerState();
+        }
         return;
     }
 
