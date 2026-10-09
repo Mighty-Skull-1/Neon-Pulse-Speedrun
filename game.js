@@ -7683,6 +7683,20 @@ function render() {
                 ctx.fillStyle = pColor;
                 ctx.fillRect(plat.x, plat.y, plat.w, 4);
                 ctx.restore();
+            } else if (plat.trap && plat.warn) {
+                // Unstable floor: flashes red/amber and jitters before it may drop
+                const flash = Math.floor(game.runTime * 14) % 2 === 0;
+                const jx = (Math.random() - 0.5) * 2;
+                ctx.save();
+                ctx.fillStyle = flash ? '#7f1d1d' : '#0f172a';
+                ctx.strokeStyle = flash ? '#f43f5e' : '#f59e0b';
+                ctx.fillRect(plat.x + jx, plat.y, plat.w, plat.h);
+                ctx.strokeRect(plat.x + jx, plat.y, plat.w, plat.h);
+                ctx.fillStyle = flash ? '#f43f5e' : '#f59e0b';
+                ctx.fillRect(plat.x + jx, plat.y, plat.w, 3);
+                ctx.restore();
+                ctx.fillStyle = '#0f172a';
+                ctx.strokeStyle = lvl.color;
             } else {
                 ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
                 ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
@@ -8779,10 +8793,10 @@ const ENDLESS_CHUNKS = [
 ];
 
 // Endless base speed: rises steadily (never plateaus early, never drops) until a high ceiling.
-const ENDLESS_START_SPEED = 430;
-const ENDLESS_MAX_SPEED = 850;
+const ENDLESS_START_SPEED = 460;
+const ENDLESS_MAX_SPEED = 880;
 function endlessBaseSpeed(meters) {
-    return Math.min(ENDLESS_MAX_SPEED, ENDLESS_START_SPEED + Math.max(0, meters) * 0.1);
+    return Math.min(ENDLESS_MAX_SPEED, ENDLESS_START_SPEED + Math.max(0, meters) * 0.12);
 }
 
 // ---------------------------------------------------------------------------
@@ -8807,25 +8821,27 @@ function spawnNextEndlessChunk() {
     const x0 = game.endlessLastSpawnX;
     const meters = x0 / 10;
     const v = endlessBaseSpeed(meters);
-    const diff = Math.min(1, meters / 4000);
+    const diff = Math.min(1, meters / 2200);
     const T = t => t * v;
     const rnd = (a, b) => a + Math.random() * (b - a);
     let x = x0;
 
-    const ground = (a, b) => lvl.platforms.push({ x: a, y: 400, w: Math.max(1, b - a), h: 40 });
+    const ground = (a, b) => { if (b - a > 1) lvl.platforms.push({ x: a, y: 400, w: b - a, h: 40 }); };
     const spike = (a, w, y = 400) => lvl.spikes.push({ x: a, y, w, h: 20, inverted: false });
     const laser = (a, y, w, h) => lvl.lasers.push({ x: a, y, w, h });
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
     // --- Ground obstacles: each is preceded by a runway so there is always time to react ----
+    let seg = x;   // start of the current solid ground stretch
     const placeObstacle = (kind) => {
-        x += T(rnd(0.7, 0.95));
+        x += T(rnd(0.72 - 0.1 * diff, 0.95 - 0.25 * diff));
         if (kind === 'spike') {
             const groups = 1 + Math.floor(Math.random() * (1 + diff * 2));
             for (let i = 0; i < groups; i++) {
-                const w = Math.max(40, T(rnd(0.07, 0.15 + 0.12 * diff)));
+                const w = Math.max(40, T(rnd(0.07, 0.17 + 0.14 * diff)));
                 spike(x, w);
                 x += w;
-                if (i < groups - 1) x += T(rnd(0.5, 0.75));
+                if (i < groups - 1) x += T(rnd(0.5 - 0.08 * diff, 0.75 - 0.15 * diff));
             }
         } else if (kind === 'laser') {      // low beam: slide under it or jump over it
             const w = Math.max(60, T(rnd(0.1, 0.28)));
@@ -8836,44 +8852,51 @@ function spawnNextEndlessChunk() {
             laser(x, 300, w, 60);
             x += w;
         } else if (kind === 'field') {      // wide spike field: needs a double jump
-            const w = Math.max(80, T(rnd(0.3, 0.34 + 0.18 * diff)));
+            const w = Math.max(80, T(rnd(0.3, 0.34 + 0.14 * diff)));
             spike(x, w);
             x += w;
+        } else if (kind === 'trap') {       // disappearing floor: flashes, then (usually) drops away
+            ground(seg, x);
+            const w = Math.max(70, T(rnd(0.2, 0.27 + 0.17 * diff)));
+            lvl.platforms.push({ x, y: 400, w, h: 40, trap: true, vanish: Math.random() < 0.75 });
+            x += w;
+            seg = x;
         }
     };
     const groundSeq = (kinds) => {
-        const start = x;
+        seg = x;
         kinds.forEach(placeObstacle);
         x += T(rnd(0.5, 0.8));
-        ground(start, x);
+        ground(seg, x);
     };
-    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const many = (min, extra, kinds) => Array.from({ length: min + Math.floor(Math.random() * (extra + 1)) }, () => pick(kinds));
 
     const pieces = {
-        spikes: () => groundSeq(Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => pick(['spike', 'spike', 'laser']))),
+        spikes: () => groundSeq(many(1, 2 + Math.round(diff * 2), ['spike', 'spike', 'laser'])),
         gaps: () => {
-            const n = 1 + Math.floor(Math.random() * (1 + diff * 2.5));
+            const n = 1 + Math.floor(Math.random() * (1 + diff * 3));
             for (let i = 0; i < n; i++) {
                 const start = x;
                 x += T(rnd(0.5, 0.8));
                 ground(start, x);
-                x += T(rnd(0.2, 0.26 + 0.14 * diff));      // void gap (<= ~0.40s vs 0.61s jump)
+                x += T(rnd(0.2, 0.26 + 0.16 * diff));      // void gap (<= ~0.42s vs 0.61s jump)
             }
             const s = x;
             x += T(rnd(0.6, 0.9));
             ground(s, x);
         },
-        tunnel: () => groundSeq(['tunnel']),
+        tunnel: () => groundSeq(many(1, Math.round(diff), ['tunnel'])),
+        trapdoors: () => groundSeq(many(2, 2 + Math.round(diff * 2), ['trap', 'trap', 'trap', 'spike'])),
         highRoad: () => {                    // hop across platforms above a spike carpet
             const start = x;
             x += T(rnd(0.5, 0.7));
             const spikeStart = x;
-            const count = 2 + Math.floor(Math.random() * (2 + diff * 2));
+            const count = 2 + Math.floor(Math.random() * (2 + diff * 3));
             for (let i = 0; i < count; i++) {
-                const w = T(rnd(0.4, 0.55));
+                const w = T(rnd(0.36, 0.52));
                 lvl.platforms.push({ x, y: Math.round(rnd(335, 350)), w, h: 20 });
                 x += w;
-                if (i < count - 1) x += T(rnd(0.12, 0.22));
+                if (i < count - 1) x += T(rnd(0.12, 0.2 + 0.06 * diff));
             }
             spike(spikeStart, x - spikeStart);
             const end = x + T(rnd(0.5, 0.8));
@@ -8885,29 +8908,29 @@ function spawnNextEndlessChunk() {
             x += T(rnd(0.5, 0.7));
             ground(start, x);
             let curY = 400;
-            const count = 3 + Math.floor(Math.random() * 3);
+            const count = 3 + Math.floor(Math.random() * (3 + diff * 2));
             for (let i = 0; i < count; i++) {
                 const first = i === 0;
-                let newY = curY - rnd(-40, 45);
-                newY = Math.round(Math.max(first ? 340 : 290, Math.min(first ? 395 : 400, newY)));
+                let newY = curY - rnd(-45, 50);
+                newY = Math.round(Math.max(first ? 340 : 285, Math.min(first ? 395 : 400, newY)));
                 const dyUp = curY - newY;
-                const maxGap = Math.min(0.26 + 0.12 * diff, endlessAirTime(dyUp) - 0.22);
+                const maxGap = Math.min(0.28 + 0.12 * diff, endlessAirTime(dyUp) - 0.2);
                 x += T(Math.max(0.12, rnd(0.18, maxGap)));
-                const spiked = !first && Math.random() < 0.1 + 0.3 * diff;
-                const w = spiked ? T(rnd(1.1, 1.3)) : T(rnd(0.45, 0.8));
+                const spiked = !first && Math.random() < 0.15 + 0.35 * diff;
+                const w = spiked ? T(rnd(1.1, 1.3)) : T(rnd(0.4, 0.7));
                 lvl.platforms.push({ x, y: newY, w, h: 20 });
                 if (spiked) spike(x + T(0.35), Math.max(40, T(0.08)), newY);
                 x += w;
                 curY = newY;
             }
-            const maxFinal = Math.min(0.3, endlessAirTime(curY - 400) - 0.22);
+            const maxFinal = Math.min(0.3, endlessAirTime(curY - 400) - 0.2);
             x += T(Math.max(0.12, rnd(0.18, maxFinal)));
             const s = x;
             x += T(rnd(0.6, 0.9));
             ground(s, x);
         },
-        field: () => groundSeq(['field']),
-        gauntlet: () => groundSeq(Array.from({ length: 3 + Math.floor(Math.random() * 2) }, () => pick(['spike', 'laser', 'tunnel', 'spike']))),
+        field: () => groundSeq(many(1, Math.round(diff), ['field'])),
+        gauntlet: () => groundSeq(many(3, 1 + Math.round(diff * 3), ['spike', 'laser', 'tunnel', 'spike', 'trap', 'field'])),
         boost: () => {                       // speed pad with a clear runway behind it
             const start = x;
             x += T(0.5);
@@ -8918,8 +8941,9 @@ function spawnNextEndlessChunk() {
     };
 
     const table = [
-        ['spikes', 0, 3], ['gaps', 0, 2.5], ['boost', 0, 0.6], ['tunnel', 0.03, 2],
-        ['highRoad', 0.05, 2], ['islands', 0.1, 2.2], ['field', 0.25, 1.6], ['gauntlet', 0.4, 2]
+        ['spikes', 0, 3], ['gaps', 0, 2.5], ['boost', 0, 0.35], ['tunnel', 0.03, 2],
+        ['trapdoors', 0.06, 2.6], ['highRoad', 0.05, 2], ['islands', 0.1, 2.2],
+        ['field', 0.2, 1.8], ['gauntlet', 0.3, 2.8]
     ].filter(e => diff >= e[1] && !endlessPieceHistory.slice(-2).includes(e[0]));
     const total = table.reduce((s, e) => s + e[2], 0);
     let r = Math.random() * total;
@@ -9068,6 +9092,24 @@ function updateEndlessMode(dt) {
         if (game.level.rings) game.level.rings = game.level.rings.filter(el => el.x + 30 > pruneThreshold);
         if (game.level.portals) game.level.portals = game.level.portals.filter(el => el.x + (el.w || 30) > pruneThreshold);
         if (game.level.shards) game.level.shards = game.level.shards.filter(el => el.x + 30 > pruneThreshold);
+    }
+
+    // Disappearing floors: flash as the player approaches, then (usually) drop away
+    {
+        const plats = game.level.platforms;
+        let dropped = false;
+        for (let i = 0; i < plats.length; i++) {
+            const pl = plats[i];
+            if (!pl.trap || pl.gone) continue;
+            const dist = pl.x - p.x;
+            if (dist < p.vx * 0.7) pl.warn = true;
+            if (pl.vanish && dist < p.vx * 0.3) { pl.gone = true; dropped = true; }
+        }
+        if (dropped) {
+            game.level.platforms = plats.filter(pl => !pl.gone);
+            game.screenShake = Math.max(game.screenShake || 0, 4);
+            if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
+        }
     }
 
     if (game.endlessDistance >= game.endlessNextWarpMeters) {
