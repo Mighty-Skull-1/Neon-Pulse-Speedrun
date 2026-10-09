@@ -97,7 +97,7 @@ Personalize your runner with unlocks earned through medals, shard collection, da
 
 ### 🌐 Live 1v1 WebRTC Multiplayer & Ghost Challenge Links
 - **Peer-to-Peer 1v1 Racing**: Host or join private multiplayer lobbies using 4-character room codes. Synchronizes rival positions at 30Hz with smooth Hermite interpolation and a live ahead/behind distance delta badge.
-- **Best-of-3 Series**: Automated round progression with synchronized 3-2-1-GO visual countdowns and 50/50 coin-flip track selection.
+- **Best-of-3 Series**: Automated round progression with synchronized 3-2-1-GO visual countdowns and a per-round **Stage Select** (20s timer, controller-friendly): if both players pick the same map it is used, otherwise a fair 50/50 flip decides between the two picks.
 - **Practice Bots**: Warm up against adaptive AI rivals across Novice, Expert, and Demon difficulties.
 - **Shareable Ghost Challenge URLs**: Exports 15Hz replay recordings into base64 challenge URLs. Share run replay links with friends to challenge their time asynchronously.
 

@@ -1621,6 +1621,7 @@ const gamepadSystem = {
 
     getActiveModal() {
         const modalIds = [
+            'modal-mp-pick',
             'modal-settings',
             'modal-editor',
             'modal-race-result',
@@ -1646,6 +1647,7 @@ const gamepadSystem = {
     closeActiveModal(modalEl) {
         if (!modalEl) return;
         const id = modalEl.id;
+        if (id === 'modal-mp-pick') return; // must lock in a pick
         if (id === 'modal-settings') {
             if (typeof settingsSystem !== 'undefined') settingsSystem.close();
         } else if (id === 'modal-editor') {
@@ -1726,6 +1728,15 @@ const gamepadSystem = {
 
         const curr = this.currentFocusEl;
 
+        // Dropdowns: Left/Right cycles the option
+        if (curr.tagName === 'SELECT' && (dir === 'left' || dir === 'right') && curr.options && curr.options.length) {
+            const n = curr.options.length;
+            const i = curr.selectedIndex >= 0 ? curr.selectedIndex : 0;
+            curr.selectedIndex = dir === 'right' ? (i + 1) % n : (i - 1 + n) % n;
+            curr.dispatchEvent(new Event('change', { bubbles: true }));
+            if (typeof audio !== 'undefined' && audio.playNavTick) audio.playNavTick();
+            return;
+        }
         // If currently focused element is a range slider and moving left/right: adjust value
         if (curr.tagName === 'INPUT' && curr.type === 'range' && (dir === 'left' || dir === 'right')) {
             const min = parseFloat(curr.min) || 0;
@@ -9399,7 +9410,9 @@ function startVisualRaceCountdown(config = {}) {
                     rouletteTrack.className = "text-xs font-cyber font-bold text-cyan-300 tracking-wide text-center drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]";
                 }
                 if (roulettePickBy) {
-                    roulettePickBy.innerHTML = `<span>SELECTED BY 50/50 FLIP: <span class="text-amber-400 font-bold">${(config.chosenBy || 'HOST').toUpperCase()}'S CHOICE</span></span>`;
+                    roulettePickBy.innerHTML = (config.chosenBy === 'BOTH')
+                        ? `<span><span class="text-emerald-400 font-bold">BOTH PLAYERS PICKED THIS MAP!</span></span>`
+                        : `<span>SELECTED BY 50/50 FLIP: <span class="text-amber-400 font-bold">${(config.chosenBy || 'HOST').toUpperCase()}'S CHOICE</span></span>`;
                 }
                 if (subHint) subHint.innerText = "TRACK LOCKED! PREPARE TO RACE!";
                 const timerId = setTimeout(() => runCountdownSequence(), 400);
@@ -9589,6 +9602,7 @@ const MP = {
     },
 
     expireSession(reason = "RIVAL LEFT / CANCELLED") {
+        if (this.hideChoiceModal) this.hideChoiceModal();
         this.sessionExpired = true;
         this.stopHeartbeat();
         if (this.rematch && this.rematch.decisionTimer) {
@@ -10465,40 +10479,136 @@ const MP = {
     },
 
     hostTriggerStartRound() {
-        if (!this.connected) {
+        if (!this.connected && !(game.mpRival && game.mpRival.isAI)) {
             showNotification("⚠️ NO RIVAL CONNECTED YET");
             return;
         }
-
         this.series.playedTracks = this.series.playedTracks || [];
+        // Tell the rival to open their pick screen, then open ours
+        this.sendMsg({ type: 'BEGIN_PICK', round: this.series.currentRound });
+        this.beginPickPhase();
+    },
 
-        const stageSelect = document.getElementById('mp-stage-select');
-        const hostChoice = (stageSelect && stageSelect.value) ? stageSelect.value : (this.series.hostTrack || 'RANDOM_ALL');
-        this.series.hostTrack = hostChoice;
+    beginPickPhase() {
+        this.pick = { mine: null, rival: null, timer: null, left: 20 };
+        const modal = document.getElementById('modal-mp-pick');
+        const sel = document.getElementById('mp-pick-select');
+        const src = document.getElementById('mp-stage-select');
+        if (!modal || !sel) {
+            // Fallback: no UI, resolve with lobby choices
+            if (this.isHost) this.hostResolveRound();
+            return;
+        }
+        if (src) sel.innerHTML = src.innerHTML;
+        const lobbySel = document.getElementById(this.isHost ? 'mp-stage-select' : 'mp-guest-stage-select');
+        sel.value = (lobbySel && lobbySel.value) || 'RANDOM_ALL';
+        if (!sel.value) sel.value = 'RANDOM_ALL';
+        sel.disabled = false;
+        const rd = document.getElementById('mp-pick-round');
+        if (rd) rd.innerText = `ROUND ${this.series.currentRound} OF 3`;
+        const me = document.getElementById('mp-pick-status-me');
+        const rv = document.getElementById('mp-pick-status-rival');
+        if (me) { me.innerText = 'YOU: CHOOSING...'; me.className = 'text-neutral-400'; }
+        if (rv) { rv.innerText = 'RIVAL: CHOOSING...'; rv.className = 'text-neutral-400'; }
+        const btn = document.getElementById('btn-mp-pick-lock');
+        if (btn) { btn.disabled = false; btn.innerText = '🔒 LOCK IN PICK'; btn.classList.remove('opacity-50'); }
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
 
-        // If AI, AI randomly selects from all 20 modes
-        let guestChoice = this.series.guestTrack || 'RANDOM_ALL';
+        const tick = () => {
+            const t = document.getElementById('mp-pick-timer');
+            if (t) t.innerText = `${this.pick.left}s`;
+        };
+        tick();
+        this.pick.timer = setInterval(() => {
+            this.pick.left--;
+            tick();
+            if (this.pick.left <= 0) {
+                if (this.pick.mine === null) this.lockPick(true);
+                clearInterval(this.pick.timer);
+                this.pick.timer = null;
+            }
+        }, 1000);
+
+        // AI rival locks in after a short "thinking" delay
         if (game.mpRival && game.mpRival.isAI) {
-            guestChoice = 'RANDOM_ALL';
-            this.series.guestTrack = guestChoice;
+            const aiDelay = 900 + Math.random() * 1500;
+            setTimeout(() => {
+                if (!this.pick || this.pick.rival !== null) return;
+                this.pick.rival = 'RANDOM_ALL';
+                this.updatePickStatus();
+                this.maybeResolvePick();
+            }, aiDelay);
+        }
+    },
+
+    lockPick(auto = false) {
+        if (!this.pick || this.pick.mine !== null) return;
+        const sel = document.getElementById('mp-pick-select');
+        this.pick.mine = (auto || !sel || !sel.value) ? (sel && sel.value ? sel.value : 'RANDOM_ALL') : sel.value;
+        if (sel) sel.disabled = true;
+        const btn = document.getElementById('btn-mp-pick-lock');
+        if (btn) { btn.disabled = true; btn.innerText = '✓ LOCKED — WAITING FOR RIVAL...'; btn.classList.add('opacity-50'); }
+        this.sendMsg({ type: 'PICK_LOCK', choice: this.pick.mine });
+        this.updatePickStatus();
+        this.maybeResolvePick();
+    },
+
+    updatePickStatus() {
+        const me = document.getElementById('mp-pick-status-me');
+        const rv = document.getElementById('mp-pick-status-rival');
+        if (!this.pick) return;
+        if (me && this.pick.mine !== null) { me.innerText = 'YOU: LOCKED ✓'; me.className = 'text-emerald-400 font-bold'; }
+        if (rv && this.pick.rival !== null) { rv.innerText = 'RIVAL: LOCKED ✓'; rv.className = 'text-emerald-400 font-bold'; }
+    },
+
+    maybeResolvePick() {
+        if (!this.pick || this.pick.mine === null || this.pick.rival === null) return;
+        if (!this.isHost && !(game.mpRival && game.mpRival.isAI)) return; // host resolves
+        if (this.pick.resolved) return;
+        this.pick.resolved = true;
+        this.series.hostTrack = this.pick.mine;
+        this.series.guestTrack = this.pick.rival;
+        this.hostResolveRound();
+    },
+
+    hideChoiceModal() {
+        if (this.pick && this.pick.timer) { clearInterval(this.pick.timer); this.pick.timer = null; }
+        const modal = document.getElementById('modal-mp-pick');
+        if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
+    },
+
+    hostResolveRound() {
+        this.series.playedTracks = this.series.playedTracks || [];
+        const hostChoice = this.series.hostTrack || 'RANDOM_ALL';
+        const guestChoice = this.series.guestTrack || 'RANDOM_ALL';
+        const isAI = !!(game.mpRival && game.mpRival.isAI);
+
+        const hostActualTrack = this.resolveTrackIndex(hostChoice, this.series.playedTracks);
+        let guestActualTrack;
+        // Identical picks => both want the same thing, no flip needed
+        const sameChoice = String(hostChoice) === String(guestChoice);
+        if (sameChoice) {
+            guestActualTrack = hostActualTrack;
+        } else {
+            guestActualTrack = this.resolveTrackIndex(guestChoice, [...this.series.playedTracks, hostActualTrack]);
         }
 
-        // Resolve non-repeating track candidates for both host and guest
-        const hostActualTrack = this.resolveTrackIndex(hostChoice, this.series.playedTracks);
-        const guestActualTrack = this.resolveTrackIndex(guestChoice, [...this.series.playedTracks, hostActualTrack]);
-
-        // 50/50 Coin Flip / Roulette Decision
-        const roll = Math.random() < 0.5;
-        const chosenTrack = roll ? hostActualTrack : guestActualTrack;
-        const chosenBy = roll 
-            ? (game.mpRival && game.mpRival.isAI ? 'YOUR' : 'HOST')
-            : (game.mpRival && game.mpRival.isAI ? 'AI RIVAL' : 'GUEST');
+        let chosenTrack, chosenBy;
+        if (hostActualTrack === guestActualTrack) {
+            chosenTrack = hostActualTrack;
+            chosenBy = 'BOTH';
+        } else {
+            // Different picks => fair 50/50 flip
+            const roll = Math.random() < 0.5;
+            chosenTrack = roll ? hostActualTrack : guestActualTrack;
+            chosenBy = roll ? (isAI ? 'YOUR' : 'HOST') : (isAI ? 'AI RIVAL' : 'GUEST');
+        }
 
         this.series.playedTracks.push(chosenTrack);
         this.series.activeTrackIdx = chosenTrack;
         this.series.chosenBy = chosenBy;
 
-        // Send synchronized 50/50 countdown instruction to peer
         this.sendMsg({
             type: 'START_ROUND_COUNTDOWN',
             round: this.series.currentRound,
@@ -10562,6 +10672,16 @@ const MP = {
             const choice = data.trackChoice !== undefined ? data.trackChoice : data.trackIdx;
             this.series.hostTrack = choice;
             this.updateHostTrackDisplay(choice);
+        } else if (data.type === 'BEGIN_PICK') {
+            this.series.currentRound = data.round || this.series.currentRound;
+            const modalEl = document.getElementById('modal-mp-pick');
+            const alreadyOpen = modalEl && modalEl.style.display === 'flex' && this.pick && !this.pick.resolved;
+            if (!alreadyOpen) this.beginPickPhase();
+        } else if (data.type === 'PICK_LOCK') {
+            if (!this.pick) this.beginPickPhase();
+            this.pick.rival = data.choice || 'RANDOM_ALL';
+            this.updatePickStatus();
+            this.maybeResolvePick();
         } else if (data.type === 'START_ROUND_COUNTDOWN') {
             this.series.currentRound = data.round;
             if (this.isHost) {
@@ -10692,6 +10812,7 @@ const MP = {
     },
 
     playVisualCountdown(stageIdx, chosenBy) {
+        this.hideChoiceModal();
         game.isMultiplayer = true;
         const mpModal = document.getElementById('modal-multiplayer');
         const resModal = document.getElementById('modal-race-result');
@@ -13294,6 +13415,10 @@ bindClick('btn-load-ghost-challenge', () => {
 
 bindClick('btn-victory-share-ghost', () => {
     exportGhostRun();
+});
+
+bindClick('btn-mp-pick-lock', () => {
+    if (typeof MP !== 'undefined') MP.lockPick();
 });
 
 function handleNextRoundClick() {
