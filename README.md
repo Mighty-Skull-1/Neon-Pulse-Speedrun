@@ -91,6 +91,7 @@ Personalize your runner with unlocks earned through medals, shard collection, da
 ### 🏃 Endless Cyber Marathon Mode
 - Procedural infinite runner powered by 8 hand-tuned chunk architectures (*Cyber Highway, Laser Corridor, Chasm Leap, Gravity Flux Rift, Multi-Tiered Runway, Phase Barrier Vault, Trampoline Skyway, Quantum Overclock*).
 - **Flat-Memory Entity Recycling**: Automatically prunes distant off-screen platforms and hazards to maintain 60+ FPS performance.
+- **Always Accelerating**: Base speed climbs steadily (310 -> 820 px/s, ~+55 per 500m) and never drops. Chunks are stretched horizontally with speed so every gap, platform and hazard stays clearable at any pace.
 - **Dimension Shifts**: Chromatic warps trigger dynamically every 1,000 meters, increasing tempo and shifting hazard patterns.
 
 ---

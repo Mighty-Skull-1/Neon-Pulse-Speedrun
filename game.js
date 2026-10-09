@@ -6291,7 +6291,7 @@ function updatePhysics(rawDt) {
     const progressRatio = (!lvl || !lvl.length) ? 0 : Math.min(1, Math.max(0, p.x / lvl.length));
     if (game.isEndless && typeof updateEndlessMode === 'function') {
         updateEndlessMode(dt);
-        p.vx += p.bonusVx;
+        p.vx = Math.min(1050, p.vx + p.bonusVx);
     } else {
         const baseSpeed = lvl.startSpeed + (lvl.maxSpeed - lvl.startSpeed) * Math.pow(progressRatio, 1.2);
         p.vx = baseSpeed + p.bonusVx;
@@ -8776,6 +8776,37 @@ const ENDLESS_CHUNKS = [
     }
 ];
 
+// Endless base speed: rises steadily (never plateaus early, never drops) until a high ceiling.
+const ENDLESS_START_SPEED = 310;
+const ENDLESS_MAX_SPEED = 820;
+function endlessBaseSpeed(meters) {
+    return Math.min(ENDLESS_MAX_SPEED, ENDLESS_START_SPEED + Math.max(0, meters) * 0.11);
+}
+
+// Stretch a chunk horizontally by speed factor k so gap/platform/hazard TIMING stays the same
+// as at the starting speed (jump distance grows with speed, so everything stays clearable).
+// Hazard widths grow by sqrt(k) so they never get wider (in time) than at start speed.
+function scaleEndlessChunk(chunk, k) {
+    if (k <= 1.001) return chunk;
+    const kh = Math.sqrt(k);
+    const pos = (arr, wk) => (arr || []).map(o => {
+        const n = Object.assign({}, o, { relX: o.relX * k });
+        if (o.w !== undefined) n.w = o.w * wk;
+        return n;
+    });
+    return Object.assign({}, chunk, {
+        width: chunk.width * k,
+        platforms: pos(chunk.platforms, k),
+        spikes: pos(chunk.spikes, kh),
+        lasers: pos(chunk.lasers, kh),
+        speedPads: pos(chunk.speedPads, kh),
+        trampolines: pos(chunk.trampolines, 1),
+        rings: pos(chunk.rings, 1),
+        portals: pos(chunk.portals, 1),
+        shards: pos(chunk.shards, 1)
+    });
+}
+
 let lastEndlessChunkIdx = -1;
 function spawnNextEndlessChunk() {
     if (!game.level) return;
@@ -8784,8 +8815,8 @@ function spawnNextEndlessChunk() {
         idx = (idx + 1) % ENDLESS_CHUNKS.length;
     }
     lastEndlessChunkIdx = idx;
-    const chunk = ENDLESS_CHUNKS[idx];
     const sx = game.endlessLastSpawnX;
+    const chunk = scaleEndlessChunk(ENDLESS_CHUNKS[idx], endlessBaseSpeed(sx / 10) / ENDLESS_START_SPEED);
 
     if (chunk.platforms) {
         chunk.platforms.forEach(p => {
@@ -8899,7 +8930,7 @@ function startEndlessMode() {
         theme: "cyber",
         bpm: 140,
         startSpeed: 310,
-        maxSpeed: 680,
+        maxSpeed: 820,
         length: 999999999,
         color: '#06b6d4',
         platforms: [
@@ -8996,14 +9027,14 @@ function updateEndlessMode(dt) {
         dailySystem.updateBountyProgress('endless_dist', game.endlessDistance);
     }
 
-    p.vx = Math.min(680, 310 + Math.pow(game.endlessDistance / 80, 0.65) * 25);
+    p.vx = endlessBaseSpeed(game.endlessDistance);
 
     const distText = document.getElementById('hud-endless-dist');
     const hudPct = document.getElementById('hud-pct-text');
     if (distText) distText.innerText = `${game.endlessDistance}m`;
     if (hudPct) hudPct.innerText = `${game.endlessDistance}m (PB: ${game.endlessBestDistance}m)`;
 
-    while (game.endlessLastSpawnX < p.x + 2200) {
+    while (game.endlessLastSpawnX < p.x + Math.max(2200, p.vx * 3.2)) {
         spawnNextEndlessChunk();
     }
 
