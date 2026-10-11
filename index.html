@@ -320,7 +320,10 @@
                         <input id="input-pilot-tag" type="text" maxlength="15" value="PULSE_PILOT" placeholder="USERNAME" class="text-xs font-cyber font-bold text-cyan-400 bg-neutral-900 border border-cyan-800/80 hover:border-cyan-400 focus:border-cyan-400 px-2.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-cyan-400 uppercase tracking-wider w-32 sm:w-36 text-center cursor-text transition shadow-inner" title="Click to edit your Pilot Username">
                         <span id="main-pilot-display" class="hidden">PULSE_PILOT</span>
                     </div>
-                    <div class="flex items-center gap-1.5 sm:gap-2">
+                        <button id="btn-menu-admin-badge" class="hidden px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-500/70 text-xs font-cyber text-amber-300 rounded-lg items-center gap-1.5 transition cursor-pointer shadow-[0_0_12px_rgba(245,158,11,0.3)]" title="Open Admin Control Panel">
+                            <span>👑</span>
+                            <span class="font-bold">ADMIN PANEL</span>
+                        </button>
                         <button id="btn-menu-audio" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-cyber text-cyan-400 rounded-lg flex items-center gap-1 transition cursor-pointer">
                             <span id="menu-audio-icon">🔊</span>
                             <span id="menu-audio-text" class="hidden sm:inline">AUDIO: ON</span>
@@ -1675,38 +1678,121 @@
 
         <!-- MODAL: Admin Security Gateway / Developer Tools Unlock -->
         <div id="modal-admin-auth" class="hidden modal-backdrop absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4" style="display:none">
-            <div class="w-full max-w-md bg-neutral-900 border border-cyan-500/80 rounded-xl p-5 sm:p-6 shadow-[0_0_50px_rgba(6,182,212,0.3)] flex flex-col gap-4">
+            <div class="w-full max-w-lg bg-neutral-900 border border-cyan-500/80 rounded-xl p-5 sm:p-6 shadow-[0_0_50px_rgba(6,182,212,0.3)] flex flex-col gap-4 max-h-[92vh] overflow-y-auto">
                 <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
                     <div class="flex items-center gap-2.5">
                         <div class="w-9 h-9 rounded-lg bg-cyan-950 border border-cyan-400 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(6,182,212,0.4)]">
                             👑
                         </div>
                         <div>
-                            <h2 class="text-base font-cyber font-bold tracking-wider text-cyan-400">ADMIN GATEWAY</h2>
-                            <p class="text-[10px] text-neutral-400 font-mono">Restricted Developer Diagnostics & Reset Controls</p>
+                            <h2 class="text-base font-cyber font-bold tracking-wider text-cyan-400">ADMIN CONTROL PANEL</h2>
+                            <p class="text-[10px] text-neutral-400 font-mono">Developer Diagnostics, Simulation & Live Engine Controls</p>
                         </div>
                     </div>
                     <button id="btn-close-admin-auth" class="w-7 h-7 flex items-center justify-center rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-neutral-200 font-mono text-sm transition cursor-pointer">✕</button>
                 </div>
 
-                <div class="space-y-3">
+                <!-- Unauthenticated State (Password Input) -->
+                <div id="admin-login-view" class="space-y-3">
                     <p class="text-xs text-neutral-300 font-mono leading-relaxed">
-                        Enter cryptographic authorization key to unlock developer simulation and progress reset tools.
+                        Enter cryptographic authorization key to unlock developer diagnostics and simulation tools.
                     </p>
                     <div>
                         <label class="block text-[10px] font-cyber text-cyan-300 uppercase tracking-wider mb-1">AUTHORIZATION KEY</label>
                         <input id="admin-key-input" type="password" autocomplete="off" placeholder="••••••••••••" class="w-full bg-neutral-950 border border-neutral-700 focus:border-cyan-400 text-neutral-100 font-mono text-sm px-3 py-2 rounded-lg outline-none transition shadow-inner">
                     </div>
                     <div id="admin-auth-msg" class="text-xs font-mono min-h-[1.25rem] text-rose-400 font-semibold hidden"></div>
+
+                    <div class="flex items-center justify-between gap-3 pt-2 border-t border-neutral-800">
+                        <button id="btn-admin-cancel" class="flex-1 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-cyber text-xs rounded border border-neutral-700 transition cursor-pointer">
+                            CANCEL
+                        </button>
+                        <button id="btn-admin-authenticate" class="flex-1 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-cyber font-bold text-xs rounded transition shadow-[0_0_15px_rgba(6,182,212,0.4)] cursor-pointer">
+                            AUTHORIZE
+                        </button>
+                    </div>
                 </div>
 
-                <div class="flex items-center justify-between gap-3 pt-2 border-t border-neutral-800">
-                    <button id="btn-admin-cancel" class="flex-1 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-cyber text-xs rounded border border-neutral-700 transition cursor-pointer">
-                        CANCEL
-                    </button>
-                    <button id="btn-admin-authenticate" class="flex-1 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-cyber font-bold text-xs rounded transition shadow-[0_0_15px_rgba(6,182,212,0.4)] cursor-pointer">
-                        AUTHORIZE
-                    </button>
+                <!-- Authenticated State (Active Developer Controls Panel) -->
+                <div id="admin-panel-view" class="hidden space-y-4">
+                    <div class="p-3 bg-emerald-950/40 border border-emerald-500/60 rounded-lg flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-xs font-cyber text-emerald-300 font-bold">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span>STATUS: AUTHORIZED DEVELOPER MODE</span>
+                        </div>
+                        <button id="btn-admin-panel-logout" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 text-rose-400 text-[10px] font-cyber font-bold rounded border border-neutral-700 hover:border-rose-500 transition cursor-pointer">
+                            🔒 LOCK &amp; LOGOUT
+                        </button>
+                    </div>
+
+                    <!-- Developer Quick Actions Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                        <!-- 1. Simulate +24h Daily Matrix -->
+                        <div class="p-3 bg-neutral-950 border border-neutral-800 rounded-lg flex flex-col justify-between gap-2">
+                            <div>
+                                <div class="text-xs font-cyber font-bold text-amber-300 flex items-center gap-1.5">
+                                    <span>📅</span> DAILY ROTATION
+                                </div>
+                                <div class="text-[10px] text-neutral-400 font-mono mt-0.5">Advance matrix by 24h to test next day supply drops &amp; bounties.</div>
+                            </div>
+                            <button id="btn-admin-action-nextday" class="w-full py-1.5 bg-neutral-800 hover:bg-amber-950/70 border border-neutral-700 hover:border-amber-500/70 text-amber-300 text-xs font-cyber rounded transition cursor-pointer">
+                                ⏩ +24H NEXT DAY
+                            </button>
+                        </div>
+
+                        <!-- 2. Grant Credits -->
+                        <div class="p-3 bg-neutral-950 border border-neutral-800 rounded-lg flex flex-col justify-between gap-2">
+                            <div>
+                                <div class="text-xs font-cyber font-bold text-cyan-300 flex items-center gap-1.5">
+                                    <span>🪙</span> CYBER CREDITS
+                                </div>
+                                <div class="text-[10px] text-neutral-400 font-mono mt-0.5">Add 5,000 Cyber Credits to wallet for testing locker store unlocks.</div>
+                            </div>
+                            <button id="btn-admin-action-credits" class="w-full py-1.5 bg-neutral-800 hover:bg-cyan-950/70 border border-neutral-700 hover:border-cyan-500/70 text-cyan-300 text-xs font-cyber rounded transition cursor-pointer">
+                                🪙 +5,000 CREDITS
+                            </button>
+                        </div>
+
+                        <!-- 3. Unlock All Cosmetics -->
+                        <div class="p-3 bg-neutral-950 border border-neutral-800 rounded-lg flex flex-col justify-between gap-2">
+                            <div>
+                                <div class="text-xs font-cyber font-bold text-purple-300 flex items-center gap-1.5">
+                                    <span>🎨</span> COSMETIC SUITE
+                                </div>
+                                <div class="text-[10px] text-neutral-400 font-mono mt-0.5">Instantly unlock all 35 Exosuits and 29 Energy Trails.</div>
+                            </div>
+                            <button id="btn-admin-action-unlock-all" class="w-full py-1.5 bg-neutral-800 hover:bg-purple-950/70 border border-neutral-700 hover:border-purple-500/70 text-purple-300 text-xs font-cyber rounded transition cursor-pointer">
+                                🔓 UNLOCK ALL (35/29)
+                            </button>
+                        </div>
+
+                        <!-- 4. Reset All Progress -->
+                        <div class="p-3 bg-neutral-950 border border-neutral-800 rounded-lg flex flex-col justify-between gap-2">
+                            <div>
+                                <div class="text-xs font-cyber font-bold text-rose-300 flex items-center gap-1.5">
+                                    <span>⚠️</span> SYSTEM RESET
+                                </div>
+                                <div class="text-[10px] text-neutral-400 font-mono mt-0.5">Clear all medals, PBs, and return to clean player state.</div>
+                            </div>
+                            <button id="btn-admin-action-reset" class="w-full py-1.5 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/60 hover:border-rose-500 text-rose-300 text-xs font-cyber rounded transition cursor-pointer">
+                                💥 HARD RESET DATA
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Diagnostics & Storage Inspector -->
+                    <div class="p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-left text-xs font-mono space-y-1">
+                        <div class="text-[10px] font-cyber text-neutral-500 uppercase">ENGINE DIAGNOSTICS</div>
+                        <div class="flex justify-between text-neutral-300">
+                            <span>TOTAL EXOSUITS:</span> <strong class="text-cyan-400">35</strong>
+                        </div>
+                        <div class="flex justify-between text-neutral-300">
+                            <span>TOTAL TRAILS:</span> <strong class="text-pink-400">29</strong>
+                        </div>
+                        <div class="flex justify-between text-neutral-300">
+                            <span>HOTKEY SHORTCUT:</span> <strong class="text-amber-400">[CTRL + SHIFT + A]</strong>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1891,6 +1977,6 @@
     <!-- Steamworks & Desktop Bridge -->
     <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=7.1"></script>
+    <script src="game.js?v=7.2"></script>
 </body>
 </html>

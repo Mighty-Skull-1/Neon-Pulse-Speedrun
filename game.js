@@ -195,17 +195,19 @@ class AdminSecuritySystem {
             });
         }
 
+        // Top main menu admin badge click
+        const menuAdminBtn = document.getElementById('btn-menu-admin-badge');
+        if (menuAdminBtn) {
+            menuAdminBtn.addEventListener('click', () => {
+                this.openAuthModal();
+            });
+        }
+
         // Keyboard shortcut: Ctrl+Shift+A / Cmd+Shift+A
         window.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
                 e.preventDefault();
-                if (this.authenticated) {
-                    if (typeof showNotification === 'function') {
-                        showNotification("👑 ADMIN MODE IS ALREADY ACTIVE");
-                    }
-                } else {
-                    this.openAuthModal();
-                }
+                this.openAuthModal();
             }
         });
 
@@ -239,6 +241,68 @@ class AdminSecuritySystem {
             });
         }
 
+        // Admin Panel Actions
+        const btnLogout = document.getElementById('btn-admin-panel-logout');
+        if (btnLogout) {
+            btnLogout.addEventListener('click', () => {
+                this.logout();
+                this.closeAuthModal();
+            });
+        }
+
+        const btnNextDay = document.getElementById('btn-admin-action-nextday');
+        if (btnNextDay) {
+            btnNextDay.addEventListener('click', () => {
+                const simBtn = document.getElementById('btn-instant-streak-test');
+                if (simBtn) simBtn.click();
+                else if (typeof dailySystem !== 'undefined') {
+                    dailySystem.lastClaimTimestamp = 0;
+                    dailySystem.streak = (dailySystem.streak || 1) + 1;
+                    dailySystem.save();
+                    dailySystem.updateUI();
+                    if (typeof showNotification === 'function') showNotification(`⏩ SIMULATED +24H: STREAK NOW ${dailySystem.streak} DAYS!`);
+                }
+            });
+        }
+
+        const btnCredits = document.getElementById('btn-admin-action-credits');
+        if (btnCredits) {
+            btnCredits.addEventListener('click', () => {
+                if (typeof dailySystem !== 'undefined') {
+                    dailySystem.credits = (dailySystem.credits || 0) + 5000;
+                    dailySystem.save();
+                    dailySystem.updateCreditsDisplay();
+                    if (typeof showNotification === 'function') showNotification("🪙 +5,000 CYBER CREDITS GRANTED TO WALLET!");
+                }
+            });
+        }
+
+        const btnUnlockAll = document.getElementById('btn-admin-action-unlock-all');
+        if (btnUnlockAll) {
+            btnUnlockAll.addEventListener('click', () => {
+                if (typeof lockerSystem !== 'undefined') {
+                    SKINS.forEach(s => lockerSystem.unlockedSkins.add(s.id));
+                    TRAILS.forEach(t => lockerSystem.unlockedTrails.add(t.id));
+                    lockerSystem.save();
+                    if (typeof populateLockerModal === 'function') populateLockerModal();
+                    if (typeof showNotification === 'function') showNotification("🔓 ALL 35 EXOSUITS & 29 TRAILS UNLOCKED!");
+                }
+            });
+        }
+
+        const btnResetData = document.getElementById('btn-admin-action-reset');
+        if (btnResetData) {
+            btnResetData.addEventListener('click', () => {
+                if (confirm("💥 HARD RESET: Clear all personal bests, ghost runs, and medals?")) {
+                    if (typeof window.resetAllProgress === 'function') {
+                        window.resetAllProgress();
+                    } else if (typeof executeGlobalProgressReset === 'function') {
+                        executeGlobalProgressReset(true);
+                    }
+                }
+            });
+        }
+
         // Lock buttons
         const lockDaily = document.getElementById('btn-admin-lock-daily');
         if (lockDaily) {
@@ -263,34 +327,37 @@ class AdminSecuritySystem {
 
         if (this.triggerClickCount >= 5) {
             this.triggerClickCount = 0;
-            if (this.authenticated) {
-                if (typeof showNotification === 'function') {
-                    showNotification("👑 ADMIN MODE ACTIVE: Developer controls are already unlocked.");
-                }
-            } else {
-                this.openAuthModal();
-            }
+            this.openAuthModal();
         }
     }
 
     openAuthModal() {
         const modal = document.getElementById('modal-admin-auth');
+        const loginView = document.getElementById('admin-login-view');
+        const panelView = document.getElementById('admin-panel-view');
         const input = document.getElementById('admin-key-input');
         const msg = document.getElementById('admin-auth-msg');
         if (!modal) return;
 
-        if (msg) {
-            msg.textContent = '';
-            msg.className = 'text-xs font-mono min-h-[1.25rem] text-rose-400 font-semibold hidden';
-        }
-        if (input) {
-            input.value = '';
+        if (this.authenticated) {
+            if (loginView) loginView.classList.add('hidden');
+            if (panelView) panelView.classList.remove('hidden');
+        } else {
+            if (loginView) loginView.classList.remove('hidden');
+            if (panelView) panelView.classList.add('hidden');
+            if (msg) {
+                msg.textContent = '';
+                msg.className = 'text-xs font-mono min-h-[1.25rem] text-rose-400 font-semibold hidden';
+            }
+            if (input) {
+                input.value = '';
+            }
         }
 
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
         setTimeout(() => {
-            if (input && typeof input.focus === 'function') input.focus();
+            if (!this.authenticated && input && typeof input.focus === 'function') input.focus();
         }, 80);
     }
 
@@ -322,12 +389,12 @@ class AdminSecuritySystem {
             }
 
             setTimeout(() => {
-                this.closeAuthModal();
                 this.updateUI();
+                this.openAuthModal(); // Immediately render the active Developer Controls Panel
                 if (typeof showNotification === 'function') {
                     showNotification("👑 ADMIN ACCESS GRANTED: Developer controls unlocked.");
                 }
-            }, 600);
+            }, 400);
             return true;
         } else {
             if (msg) {
@@ -362,6 +429,18 @@ class AdminSecuritySystem {
     }
 
     updateUI() {
+        // Main Menu Admin Badge Button
+        const menuAdminBtn = document.getElementById('btn-menu-admin-badge');
+        if (menuAdminBtn) {
+            if (this.authenticated) {
+                menuAdminBtn.classList.remove('hidden');
+                menuAdminBtn.style.display = 'inline-flex';
+            } else {
+                menuAdminBtn.classList.add('hidden');
+                menuAdminBtn.style.display = 'none';
+            }
+        }
+
         // Daily Simulation Button & Badge
         const simBtn = document.getElementById('btn-instant-streak-test');
         const dailyBadge = document.getElementById('admin-badge-daily');
