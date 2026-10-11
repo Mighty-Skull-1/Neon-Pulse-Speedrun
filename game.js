@@ -14699,7 +14699,31 @@ bindClick('dim-tab-2', () => {
     populateStageMenu();
 });
 
+function switchHowToPlayTab(tabKey) {
+    const tabs = ['basics', 'abilities', 'elements'];
+    tabs.forEach(t => {
+        const pane = document.getElementById(`howtoplay-pane-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (pane) {
+            if (t === tabKey) {
+                pane.classList.remove('hidden');
+            } else {
+                pane.classList.add('hidden');
+            }
+        }
+        if (btn) {
+            if (t === tabKey) {
+                btn.className = "howtoplay-tab-btn flex-1 py-1.5 px-3 rounded-lg text-xs font-cyber font-bold transition flex items-center justify-center gap-1.5 bg-cyan-950/80 border border-cyan-500/60 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.2)]";
+            } else {
+                btn.className = "howtoplay-tab-btn flex-1 py-1.5 px-3 rounded-lg text-xs font-cyber font-bold transition flex items-center justify-center gap-1.5 bg-neutral-900/80 border border-neutral-800 text-neutral-400 hover:text-neutral-200";
+            }
+        }
+    });
+}
+window.switchHowToPlayTab = switchHowToPlayTab;
+
 bindClick('btn-main-howtoplay', () => {
+    switchHowToPlayTab('basics');
     const howModal = document.getElementById('modal-howtoplay');
     if (howModal) {
         howModal.classList.remove('hidden');
