@@ -174,7 +174,9 @@ class AdminSecuritySystem {
 
         // Check URL parameter (?admin or #admin)
         if (typeof window !== 'undefined' && window.location) {
-            const hasParam = window.location.search.includes('admin') || window.location.hash.includes('admin');
+            const searchStr = window.location.search || '';
+            const hashStr = window.location.hash || '';
+            const hasParam = searchStr.includes('admin') || hashStr.includes('admin');
             if (hasParam) {
                 setTimeout(() => {
                     if (!this.authenticated) this.openAuthModal();
@@ -431,13 +433,19 @@ class AdminSecuritySystem {
     updateUI() {
         // Main Menu Admin Badge Button
         const menuAdminBtn = document.getElementById('btn-menu-admin-badge');
+        const adminIcon = document.getElementById('menu-admin-icon');
+        const adminText = document.getElementById('menu-admin-text');
         if (menuAdminBtn) {
+            menuAdminBtn.classList.remove('hidden');
+            menuAdminBtn.style.display = 'inline-flex';
             if (this.authenticated) {
-                menuAdminBtn.classList.remove('hidden');
-                menuAdminBtn.style.display = 'inline-flex';
+                menuAdminBtn.className = "px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-500/70 text-xs font-cyber text-amber-300 rounded-lg inline-flex items-center gap-1.5 transition cursor-pointer shadow-[0_0_12px_rgba(245,158,11,0.3)]";
+                if (adminIcon) adminIcon.textContent = '👑';
+                if (adminText) adminText.textContent = 'ADMIN PANEL';
             } else {
-                menuAdminBtn.classList.add('hidden');
-                menuAdminBtn.style.display = 'none';
+                menuAdminBtn.className = "px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-500 text-xs font-cyber text-neutral-400 hover:text-amber-300 rounded-lg inline-flex items-center gap-1 transition cursor-pointer";
+                if (adminIcon) adminIcon.textContent = '🔒';
+                if (adminText) adminText.textContent = 'ADMIN';
             }
         }
 
@@ -14747,6 +14755,7 @@ function returnToMainMenu() {
     if (mainMenu) {
         mainMenu.classList.remove('hidden');
         mainMenu.style.display = '';
+        mainMenu.scrollTop = 0;
     }
 
     const pilotDisplay = document.getElementById('main-pilot-display');
@@ -14762,6 +14771,9 @@ function returnToMainMenu() {
     updateGhostToggleUI();
     syncAudioSliders();
     updateAudioUI();
+    if (typeof adminSystem !== 'undefined' && adminSystem) {
+        adminSystem.updateUI();
+    }
 }
 window.returnToMainMenu = returnToMainMenu;
 
