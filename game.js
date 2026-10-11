@@ -10059,6 +10059,204 @@ function drawAcrobaticHuman(p) {
         ctx.shadowBlur = 8;
         ctx.fillRect(0, -18, 6, 3);
         ctx.restore();
+    } else if (skinId === 'celestial_emperor') {
+        // Grand Imperial Sun Crown
+        ctx.save();
+        ctx.fillStyle = '#fbbf24';
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#fde047';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(-6, -24); ctx.lineTo(-3, -20); ctx.lineTo(0, -25); ctx.lineTo(3, -20); ctx.lineTo(6, -24); ctx.lineTo(4, -18); ctx.lineTo(-4, -18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'royal_hyper') {
+        // Royal Hyperion Golden Tiara
+        ctx.save();
+        ctx.fillStyle = '#ffd700';
+        ctx.shadowColor = '#facc15';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(-5, -23); ctx.lineTo(-1, -19); ctx.lineTo(0, -24); ctx.lineTo(1, -19); ctx.lineTo(5, -23); ctx.lineTo(3, -17); ctx.lineTo(-3, -17);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    } else if (skinId === 'crimson_oni') {
+        // Red Demon Horns
+        ctx.save();
+        ctx.strokeStyle = '#dc2626';
+        ctx.fillStyle = '#991b1b';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(-3, -18); ctx.lineTo(-8, -26); ctx.lineTo(-2, -21);
+        ctx.moveTo(3, -18); ctx.lineTo(8, -26); ctx.lineTo(2, -21);
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'cyber_valkyrie') {
+        // Angelic Valkyrie Halo & Wing Antenna
+        ctx.save();
+        ctx.strokeStyle = '#f0abfc';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#e879f9';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.ellipse(0, -23, 7, 2.5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-4, -18); ctx.lineTo(-9, -24);
+        ctx.moveTo(4, -18); ctx.lineTo(9, -24);
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'sakura_cyber') {
+        // Cyber Neko / Cat Ears with Flower Accent
+        ctx.save();
+        ctx.fillStyle = '#ff77a9';
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#ff77a9';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(-4, -18); ctx.lineTo(-7, -25); ctx.lineTo(-1, -21);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(1, -21); ctx.lineTo(7, -25); ctx.lineTo(4, -18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'phantom_stealth') {
+        // Shinobi Headband Ribbons trailing behind head
+        ctx.save();
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#64748b';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(-3, -16); ctx.lineTo(-11, -14); ctx.lineTo(-17, -19);
+        ctx.moveTo(-3, -15); ctx.lineTo(-10, -11); ctx.lineTo(-15, -13);
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'frost_zero') {
+        // Cryo Ice Horns / Spikes
+        ctx.save();
+        ctx.strokeStyle = '#a5f3fc';
+        ctx.lineWidth = 1.8;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(-3, -18); ctx.lineTo(-5, -25);
+        ctx.moveTo(0, -19); ctx.lineTo(0, -27);
+        ctx.moveTo(3, -18); ctx.lineTo(5, -25);
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'mecha_gundam') {
+        // V-Fin Mecha Antenna
+        ctx.save();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.fillStyle = '#0284c7';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(0, -19); ctx.lineTo(-8, -26);
+        ctx.moveTo(0, -19); ctx.lineTo(8, -26);
+        ctx.stroke();
+        ctx.fillRect(-2, -21, 4, 3);
+        ctx.restore();
+    } else if (skinId === 'radioactive_decay') {
+        // Hazmat Gas Mask Filter / Cyber Visor
+        ctx.save();
+        ctx.fillStyle = '#84cc16';
+        ctx.shadowColor = '#a3e635';
+        ctx.shadowBlur = 9;
+        ctx.beginPath();
+        ctx.arc(3, -14, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#4d7c0f';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'solar_phoenix') {
+        // Phoenix Fire Crest Plume
+        ctx.save();
+        ctx.fillStyle = '#f97316';
+        ctx.shadowColor = '#ea580c';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(1, -19); ctx.lineTo(-6, -26); ctx.lineTo(2, -23); ctx.lineTo(0, -28); ctx.lineTo(4, -20);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    } else if (skinId === 'chrono_shift') {
+        // Chrono Temporal Halo Dial
+        ctx.save();
+        ctx.strokeStyle = '#fcd34d';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#fbbf24';
+        ctx.shadowBlur = 9;
+        ctx.beginPath();
+        ctx.arc(0, -22, 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, -22); ctx.lineTo(0, -26);
+        ctx.moveTo(0, -22); ctx.lineTo(3, -22);
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'blood_moon') {
+        // Crescent Blood Horn / Moon
+        ctx.save();
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#b91c1c';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(-2, -22, 6, -Math.PI * 0.4, Math.PI * 0.4);
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'plasma_aurora') {
+        // Northern Lights Aurora Crest
+        ctx.save();
+        ctx.strokeStyle = '#2dd4bf';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#14b8a6';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(-6, -22); ctx.quadraticCurveTo(0, -28, 6, -22);
+        ctx.stroke();
+        ctx.restore();
+    } else if (skinId === 'deep_abyss') {
+        // Anglerfish Bio-luminescent Lure
+        ctx.save();
+        ctx.strokeStyle = '#0284c7';
+        ctx.fillStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(2, -19); ctx.quadraticCurveTo(7, -27, 9, -21);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(9, -21, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    } else if (skinId === 'galaxy_nebula' || skinId === 'dark_matter') {
+        // Orbital Cosmic Satellite Halo
+        ctx.save();
+        ctx.strokeStyle = skinId === 'dark_matter' ? '#818cf8' : '#c084fc';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#a855f7';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.ellipse(0, -22, 7, 3, Math.PI / 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
     }
 
     if (p.isSliding) {
@@ -14013,6 +14211,159 @@ function startLockerPreviewAnimation() {
             pctx.beginPath();
             pctx.moveTo(-3, -18); pctx.lineTo(-3, -23);
             pctx.moveTo(3, -18); pctx.lineTo(3, -23);
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'crimson') {
+            pctx.save();
+            pctx.fillStyle = '#ef4444';
+            pctx.fillRect(0, -18, 6, 3);
+            pctx.restore();
+        } else if (skinData.id === 'celestial_emperor') {
+            pctx.save();
+            pctx.fillStyle = '#fbbf24';
+            pctx.strokeStyle = '#f59e0b';
+            pctx.lineWidth = 1.5;
+            pctx.beginPath();
+            pctx.moveTo(-6, -24); pctx.lineTo(-3, -20); pctx.lineTo(0, -25); pctx.lineTo(3, -20); pctx.lineTo(6, -24); pctx.lineTo(4, -18); pctx.lineTo(-4, -18);
+            pctx.closePath();
+            pctx.fill();
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'royal_hyper') {
+            pctx.save();
+            pctx.fillStyle = '#ffd700';
+            pctx.beginPath();
+            pctx.moveTo(-5, -23); pctx.lineTo(-1, -19); pctx.lineTo(0, -24); pctx.lineTo(1, -19); pctx.lineTo(5, -23); pctx.lineTo(3, -17); pctx.lineTo(-3, -17);
+            pctx.closePath();
+            pctx.fill();
+            pctx.restore();
+        } else if (skinData.id === 'crimson_oni') {
+            pctx.save();
+            pctx.strokeStyle = '#dc2626';
+            pctx.lineWidth = 2;
+            pctx.beginPath();
+            pctx.moveTo(-3, -18); pctx.lineTo(-8, -26); pctx.lineTo(-2, -21);
+            pctx.moveTo(3, -18); pctx.lineTo(8, -26); pctx.lineTo(2, -21);
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'cyber_valkyrie') {
+            pctx.save();
+            pctx.strokeStyle = '#f0abfc';
+            pctx.lineWidth = 1.5;
+            pctx.beginPath();
+            pctx.ellipse(0, -23, 7, 2.5, 0, 0, Math.PI * 2);
+            pctx.stroke();
+            pctx.beginPath();
+            pctx.moveTo(-4, -18); ctx ? pctx.lineTo(-9, -24) : 0;
+            pctx.moveTo(4, -18); pctx.lineTo(9, -24);
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'sakura_cyber') {
+            pctx.save();
+            pctx.fillStyle = '#ff77a9';
+            pctx.strokeStyle = '#f43f5e';
+            pctx.lineWidth = 1.5;
+            pctx.beginPath();
+            pctx.moveTo(-4, -18); pctx.lineTo(-7, -25); pctx.lineTo(-1, -21);
+            pctx.closePath();
+            pctx.fill();
+            pctx.stroke();
+            pctx.beginPath();
+            pctx.moveTo(1, -21); pctx.lineTo(7, -25); pctx.lineTo(4, -18);
+            pctx.closePath();
+            pctx.fill();
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'phantom_stealth') {
+            pctx.save();
+            pctx.strokeStyle = '#94a3b8';
+            pctx.lineWidth = 2;
+            pctx.beginPath();
+            pctx.moveTo(-3, -16); pctx.lineTo(-11, -14); pctx.lineTo(-17, -19);
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'frost_zero') {
+            pctx.save();
+            pctx.strokeStyle = '#a5f3fc';
+            pctx.lineWidth = 1.8;
+            pctx.beginPath();
+            pctx.moveTo(-3, -18); pctx.lineTo(-5, -25);
+            pctx.moveTo(0, -19); pctx.lineTo(0, -27);
+            pctx.moveTo(3, -18); pctx.lineTo(5, -25);
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'mecha_gundam') {
+            pctx.save();
+            pctx.strokeStyle = '#38bdf8';
+            pctx.fillStyle = '#0284c7';
+            pctx.lineWidth = 2;
+            pctx.beginPath();
+            pctx.moveTo(0, -19); pctx.lineTo(-8, -26);
+            pctx.moveTo(0, -19); pctx.lineTo(8, -26);
+            pctx.stroke();
+            pctx.fillRect(-2, -21, 4, 3);
+            pctx.restore();
+        } else if (skinData.id === 'radioactive_decay') {
+            pctx.save();
+            pctx.fillStyle = '#84cc16';
+            pctx.beginPath();
+            pctx.arc(3, -14, 2.8, 0, Math.PI * 2);
+            pctx.fill();
+            pctx.restore();
+        } else if (skinData.id === 'solar_phoenix') {
+            pctx.save();
+            pctx.fillStyle = '#f97316';
+            pctx.beginPath();
+            pctx.moveTo(1, -19); pctx.lineTo(-6, -26); pctx.lineTo(2, -23); pctx.lineTo(0, -28); pctx.lineTo(4, -20);
+            pctx.closePath();
+            pctx.fill();
+            pctx.restore();
+        } else if (skinData.id === 'chrono_shift') {
+            pctx.save();
+            pctx.strokeStyle = '#fcd34d';
+            pctx.lineWidth = 1.5;
+            pctx.beginPath();
+            pctx.arc(0, -22, 6, 0, Math.PI * 2);
+            pctx.stroke();
+            pctx.beginPath();
+            pctx.moveTo(0, -22); pctx.lineTo(0, -26);
+            pctx.moveTo(0, -22); pctx.lineTo(3, -22);
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'blood_moon') {
+            pctx.save();
+            pctx.strokeStyle = '#dc2626';
+            pctx.lineWidth = 2;
+            pctx.beginPath();
+            pctx.arc(-2, -22, 6, -Math.PI * 0.4, Math.PI * 0.4);
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'plasma_aurora') {
+            pctx.save();
+            pctx.strokeStyle = '#2dd4bf';
+            pctx.lineWidth = 2;
+            pctx.beginPath();
+            pctx.moveTo(-6, -22); pctx.quadraticCurveTo(0, -28, 6, -22);
+            pctx.stroke();
+            pctx.restore();
+        } else if (skinData.id === 'deep_abyss') {
+            pctx.save();
+            pctx.strokeStyle = '#0284c7';
+            pctx.fillStyle = '#38bdf8';
+            pctx.lineWidth = 1.5;
+            pctx.beginPath();
+            pctx.moveTo(2, -19); pctx.quadraticCurveTo(7, -27, 9, -21);
+            pctx.stroke();
+            pctx.beginPath();
+            pctx.arc(9, -21, 2.5, 0, Math.PI * 2);
+            pctx.fill();
+            pctx.restore();
+        } else if (skinData.id === 'galaxy_nebula' || skinData.id === 'dark_matter') {
+            pctx.save();
+            pctx.strokeStyle = skinData.id === 'dark_matter' ? '#818cf8' : '#c084fc';
+            pctx.lineWidth = 1.5;
+            pctx.beginPath();
+            pctx.ellipse(0, -22, 7, 3, Math.PI / 6, 0, Math.PI * 2);
             pctx.stroke();
             pctx.restore();
         }
