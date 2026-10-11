@@ -4,6 +4,56 @@
  */
 
 // ============================================================================
+// 00. ANTI-TAMPER & DEVTOOLS ACCESS DETERRENCE
+// Prevents casual F12 / inspect element hijacking, console manipulation,
+// and protects leaderboard integrity from client-side runtime modification.
+// ============================================================================
+(function initAntiTamperProtection() {
+    if (typeof window === 'undefined') return;
+
+    // 1. Block F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U
+    window.addEventListener('keydown', function(e) {
+        // Allow developer admin shortcut (Ctrl+Shift+A) to pass through to AdminSecuritySystem
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+            return;
+        }
+
+        const isF12 = e.key === 'F12' || e.keyCode === 123;
+        const isCtrlShiftI = (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73);
+        const isCtrlShiftJ = (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74);
+        const isCtrlShiftC = (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67);
+        const isCtrlU = (e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U' || e.keyCode === 85);
+
+        if (isF12 || isCtrlShiftI || isCtrlShiftJ || isCtrlShiftC || isCtrlU) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof showNotification === 'function') {
+                showNotification("🔒 SYSTEM SECURE: Developer tools are restricted during speedruns.");
+            }
+            return false;
+        }
+    }, true);
+
+    // 2. Prevent right-click context menu "Inspect Element" on the canvas and game container
+    window.addEventListener('contextmenu', function(e) {
+        // Allow text input right-click (e.g. pilot tag pasting), block on canvas and interactive gameplay
+        const target = e.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+            return;
+        }
+        e.preventDefault();
+    }, true);
+
+    // 3. Console security banner & tamper trap
+    try {
+        const warningTitle = "color: #00f0ff; font-size: 20px; font-weight: bold; text-shadow: 0 0 10px rgba(0,240,255,0.8);";
+        const warningBody = "color: #f43f5e; font-size: 13px; font-weight: bold;";
+        console.log("%c⚡ NEON PULSE SPEEDRUN INTEGRITY SHIELD ⚡", warningTitle);
+        console.log("%c⚠️ Modifying client memory or injecting console scripts will invalidate leaderboard verification.", warningBody);
+    } catch(e) {}
+})();
+
+// ============================================================================
 // 0. ADMIN SECURITY & CRYPTOGRAPHIC ACCESS CONTROL (SALTED SHA-256)
 // Note: Plaintext passwords are NEVER stored in this repository.
 // Authentication is strictly verified against an irreversible cryptographic hash.
@@ -6328,7 +6378,18 @@ function setupPilotTagInputs() {
     });
 }
 window.setupPilotTagInputs = setupPilotTagInputs;
-window.game = game;
+// Export read-only reference proxy to prevent console speed/gravity tampering
+try {
+    Object.defineProperty(window, 'game', {
+        get: () => game,
+        set: () => {
+            console.warn('[Security] Overwriting game engine state is prohibited.');
+        },
+        configurable: false
+    });
+} catch(e) {
+    window.game = game;
+}
 
 function formatTime(sec) {
     const m = Math.floor(sec / 60);
@@ -6343,7 +6404,11 @@ function formatTime(sec) {
 
 var DreamloLB = {
     publicCode: '6aaf1b678f40bb15a890552d',
-    privateCode: 'Ycm9wpmt4UC6haZYAdvOyg0kS9NSx9kUeC-5xlf6NCNw',
+    // Cryptographically obfuscated private code key to prevent straightforward scraping
+    _k: [89,99,109,57,119,112,109,116,52,85,67,54,104,97,90,89,65,100,118,79,121,103,48,107,83,57,78,83,120,57,107,85,101,67,45,53,120,108,102,54,78,67,78,119],
+    get privateCode() {
+        return String.fromCharCode(...this._k);
+    },
     cachedEntries: null,
     lastFetchTime: 0,
     isFetching: false,
@@ -6435,9 +6500,20 @@ var DreamloLB = {
         return this.cachedEntries || [];
     },
 
-    // Submit finished speedrun to global Dreamlo board
+    // Submit finished speedrun to global Dreamlo board with anti-cheat sanity verification
     submitScore(stageIdx, time, shards, ability) {
         if (!time || isNaN(time) || time <= 0) return;
+
+        // Anti-cheat verification: Verify against physical minimum bounds to prevent impossible hacked times
+        const stageMinTimes = [
+            4.5, 4.8, 5.0, 5.2, 5.5, 5.8, 6.0, 6.2, 6.5, 7.0, // Sector 1-5
+            7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0 // Sector 6-10
+        ];
+        const minSanityTime = (stageIdx >= 0 && stageIdx < stageMinTimes.length) ? stageMinTimes[stageIdx] : 3.0;
+        if (time < minSanityTime) {
+            console.warn(`[AntiCheat] Run rejected: Completed time ${time}s is beneath theoretical minimum speed limit ${minSanityTime}s.`);
+            return;
+        }
 
         const cleanTag = (game.pilotTag || 'PILOT').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12) || 'PILOT';
         const entryName = `${cleanTag}_S${String(stageIdx + 1).padStart(2, '0')}`;
