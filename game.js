@@ -14153,14 +14153,6 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
-    if (e.code === 'KeyA' || e.key === 'a' || e.key === 'A') {
-        e.preventDefault();
-        if (typeof achievementSystem !== 'undefined') {
-            achievementSystem.toggleModal();
-        }
-        return;
-    }
-
     if (e.code === 'KeyM' || e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         populateStageMenu();
@@ -14835,6 +14827,10 @@ bindClick('btn-close-daily', () => {
 });
 
 bindClick('btn-achievements-open', () => {
+    if (typeof achievementSystem !== 'undefined') achievementSystem.openModal();
+});
+
+bindClick('btn-main-achievements', () => {
     if (typeof achievementSystem !== 'undefined') achievementSystem.openModal();
 });
 
