@@ -4720,7 +4720,7 @@ const SECTORS = [
 
 const CURATED_LEVELS = [
     // ------------------------------------------------------------------------
-    // LEVEL 1: HIGHWAY ZERO (Introduction to momentum, speed pads, low spikes, slide gates)
+    // LEVEL 1: HIGHWAY ZERO (Introduction to momentum, jump, and slide basics)
     // ------------------------------------------------------------------------
     {
         id: 1,
@@ -4730,42 +4730,37 @@ const CURATED_LEVELS = [
         subtitle: "HIGHLINE METROPOLIS — STAGE 01",
         difficulty: "NORMAL",
         bpm: 124,
-        startSpeed: 270,
-        maxSpeed: 360,
-        length: 4200,
+        startSpeed: 250,
+        maxSpeed: 330,
+        length: 3600,
         color: "#06b6d4",
+        tutorialCues: [
+            { x: 350, y: 340, text: "SPACE TO JUMP", subtext: "TAP OR HOLD" },
+            { x: 1350, y: 340, text: "DOUBLE TAP SPACE", subtext: "AIR DOUBLE JUMP" },
+            { x: 2150, y: 340, text: "HOLD DOWN / S", subtext: "SLIDE UNDER LASERS" }
+        ],
         platforms: [
-            { x: 0, y: 400, w: 4500, h: 100 },
-            { x: 1800, y: 320, w: 900, h: 20 }
+            { x: 0, y: 400, w: 4000, h: 100 }
         ],
         spikes: [
-            { x: 750, y: 400, w: 30, h: 28, inverted: false },
-            { x: 1350, y: 400, w: 30, h: 28, inverted: false },
-            { x: 2250, y: 320, w: 30, h: 28, inverted: false },
-            { x: 3100, y: 400, w: 30, h: 28, inverted: false },
-            { x: 3500, y: 400, w: 30, h: 28, inverted: false }
+            { x: 800, y: 400, w: 30, h: 28, inverted: false },
+            { x: 1750, y: 400, w: 30, h: 28, inverted: false },
+            { x: 1785, y: 400, w: 30, h: 28, inverted: false },
+            { x: 3050, y: 400, w: 30, h: 28, inverted: false }
         ],
         lasers: [
-            { x: 1050, y: 355, w: 85, h: 14 },
-            { x: 2850, y: 355, w: 90, h: 14 }
+            { x: 2450, y: 355, w: 90, h: 14 }
         ],
         speedPads: [
-            { x: 450, y: 396, w: 60, boostVx: 220 },
-            { x: 2700, y: 396, w: 60, boostVx: 240 }
+            { x: 1100, y: 396, w: 60, boostVx: 180 }
         ],
-        trampolines: [
-            { x: 1720, y: 394, w: 55, launchVy: -650 }
-        ],
+        trampolines: [],
         glitchPlatforms: [],
-        rings: [
-            { x: 2100, y: 240, r: 24, type: 'BOOST', color: "#f59e0b", boostVx: 250 },
-            { x: 3350, y: 260, r: 20, color: "#06b6d4", boostY: -560 }
-        ],
+        rings: [],
         portals: [],
         shards: [
-            { id: 1, x: 1090, y: 380, taken: false },
-            { id: 2, x: 2250, y: 240, taken: false },
-            { id: 3, x: 3750, y: 345, taken: false }
+            { id: 1, x: 1450, y: 330, taken: false },
+            { id: 2, x: 2800, y: 340, taken: false }
         ]
     },
 
@@ -9023,6 +9018,40 @@ function render() {
         drawFinishGate(lvl.length);
     }
 
+    // Tutorial Guidance Cues (e.g. Stage 01 onboarding)
+    if (lvl.tutorialCues && lvl.tutorialCues.length > 0) {
+        ctx.save();
+        ctx.textAlign = 'center';
+        for (let i = 0; i < lvl.tutorialCues.length; i++) {
+            const cue = lvl.tutorialCues[i];
+            if (cue.x + 300 > cameraX && cue.x - 300 < cameraX + V_WIDTH) {
+                // Background subtle pill
+                ctx.fillStyle = 'rgba(6, 182, 212, 0.12)';
+                ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
+                ctx.lineWidth = 1.5;
+                const boxW = 200;
+                const boxH = cue.subtext ? 42 : 28;
+                const boxX = cue.x - boxW / 2;
+                const boxY = cue.y - (cue.subtext ? 30 : 20);
+                ctx.fillRect(boxX, boxY, boxW, boxH);
+                ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+                // Main Prompt Text
+                ctx.font = 'bold 13px "Courier New", monospace';
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillText(cue.text, cue.x, cue.y - (cue.subtext ? 10 : 2));
+
+                // Subtext / description
+                if (cue.subtext) {
+                    ctx.font = '10px "Courier New", monospace';
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.fillText(cue.subtext, cue.x, cue.y + 6);
+                }
+            }
+        }
+        ctx.restore();
+    }
+
     drawPlayerTrail();
     drawAcrobaticHuman(game.player);
 
@@ -10450,8 +10479,9 @@ function startEndlessMode() {
     if (endlessBadge) endlessBadge.classList.remove('hidden');
     if (objPill) objPill.classList.add('hidden');
     if (hudLevelName) hudLevelName.innerText = "⚡ ENDLESS MARATHON";
-    if (hudPct) hudPct.innerText = "0m";
     if (hudFill) hudFill.style.width = "100%";
+    const abilityDock = document.getElementById('hud-ability-dock');
+    if (abilityDock) abilityDock.classList.remove('hidden');
 
     updateAbilityHUD();
     startVisualRaceCountdown({
@@ -13580,6 +13610,16 @@ function startLevel(idx, skipCountdown = false) {
 
     updateShardHUD();
     updateAbilityHUD();
+
+    // Declutter early stages: Only show 3-ability dock once introduced (Level 2+) or in Endless/Custom modes
+    const abilityDock = document.getElementById('hud-ability-dock');
+    if (abilityDock) {
+        if (idx === 0 && !game.isEndless && !game.isCustomLevel) {
+            abilityDock.classList.add('hidden');
+        } else {
+            abilityDock.classList.remove('hidden');
+        }
+    }
 
     if (skipCountdown || game.isMultiplayer) {
         if (!game.isMultiplayer) {
