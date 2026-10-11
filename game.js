@@ -4507,8 +4507,12 @@ const lockerSystem = {
         } catch(e) {}
         if (this.activeSkin) this.unlockedSkins.add(this.activeSkin);
         if (this.activeTrail) this.unlockedTrails.add(this.activeTrail);
-        this.previewSkin = this.activeSkin;
-        this.previewTrail = this.activeTrail;
+        if (!this.previewSkin || !SKINS.some(s => s.id === this.previewSkin)) {
+            this.previewSkin = this.activeSkin || "cyan";
+        }
+        if (!this.previewTrail || !TRAILS.some(t => t.id === this.previewTrail)) {
+            this.previewTrail = this.activeTrail || "pulse_dash";
+        }
         this.checkUnlocks();
     },
 
@@ -13349,7 +13353,6 @@ setTimeout(updateDailyCountdownUI, 100);
 // 11D. CYBER LOCKER UI CONTROLLER & PREVIEW ANIMATOR
 // ============================================================================
 function populateLockerModal() {
-    lockerSystem.load();
     lockerSystem.checkUnlocks();
 
     if (dailySystem && typeof dailySystem.updateCreditsDisplay === 'function') {
@@ -13372,33 +13375,30 @@ function populateLockerModal() {
 
             const card = document.createElement('div');
             card.className = `p-2.5 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1.5 text-left relative select-none ${
-                isEquipped ? 'border-emerald-400/90 bg-emerald-950/40 shadow-[0_0_14px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/40' :
-                (isSelected ? 'border-cyan-400 bg-cyan-950/60 shadow-[0_0_12px_rgba(6,182,212,0.3)]' :
+                isSelected ? 'border-cyan-400 bg-cyan-950/70 shadow-[0_0_14px_rgba(6,182,212,0.4)] ring-1 ring-cyan-400' :
+                (isEquipped ? 'border-emerald-400/90 bg-emerald-950/40 shadow-[0_0_12px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/40' :
                 (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-cyan-400 hover:bg-neutral-800' : (hasPrice ? 'border-amber-900/60 bg-neutral-950/80 opacity-90 hover:border-amber-500/60' : 'border-neutral-800 bg-neutral-950/80 opacity-70 hover:border-neutral-700')))
             }`;
-            card.onclick = (e) => {
-                if (e) e.stopPropagation();
-                if (unlocked) {
-                    lockerSystem.equipSkin(skin.id);
-                } else {
-                    lockerSystem.previewSkin = skin.id;
-                    lockerSystem.updateUI();
-                    if (typeof audio !== 'undefined' && typeof audio.playUiTick === 'function') audio.playUiTick();
-                    else if (typeof audio !== 'undefined' && typeof audio.playJump === 'function') audio.playJump();
-                    showNotification(`👁️ PREVIEWING: ${skin.name} — ${skin.unlockDesc}${hasPrice ? ` (Buy for ${price.toLocaleString()} CR)` : ''}`);
-                }
+
+            // Card click ALWAYS triggers 3D/2D live hologram preview
+            card.onclick = () => {
+                lockerSystem.previewSkin = skin.id;
+                lockerSystem.updateUI();
+                if (typeof audio !== 'undefined' && typeof audio.playUiTick === 'function') audio.playUiTick();
+                else if (typeof audio !== 'undefined' && typeof audio.playJump === 'function') audio.playJump();
+                showNotification(`👁️ PREVIEWING: ${skin.name} — ${skin.unlockDesc}${hasPrice && !unlocked ? ` (Buy for ${price.toLocaleString()} CR)` : ''}`);
                 populateLockerModal();
             };
 
             card.innerHTML = `
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between pointer-events-auto">
                     <span class="text-lg">${skin.icon || '🦿'}</span>
                     ${isEquipped ? `
                         <span class="text-[9px] font-cyber px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500 font-bold shadow-[0_0_8px_rgba(16,185,129,0.3)] flex items-center gap-1">
                             <span>✓</span> EQUIPPED
                         </span>
                     ` : unlocked ? `
-                        <button class="text-[9px] font-cyber px-2 py-0.5 rounded bg-cyan-950 hover:bg-cyan-800 text-cyan-300 border border-cyan-500/80 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)] transition cursor-pointer flex items-center gap-1">
+                        <button class="btn-card-equip-skin text-[9px] font-cyber px-2 py-0.5 rounded bg-cyan-950 hover:bg-cyan-800 text-cyan-300 border border-cyan-500/80 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)] transition cursor-pointer flex items-center gap-1">
                             <span>⚡</span> EQUIP
                         </button>
                     ` : hasPrice ? `
@@ -13413,9 +13413,21 @@ function populateLockerModal() {
                 </div>
                 <div>
                     <div class="text-[11px] font-cyber font-bold truncate flex items-center gap-1" style="color:${skin.color};">${skin.name}</div>
-                    <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${isEquipped ? 'Currently active • Running' : unlocked ? 'Owned • Tap to equip' : skin.unlockDesc}</div>
+                    <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${isEquipped ? 'Currently active • Running' : unlocked ? 'Owned • Tap card to preview' : skin.unlockDesc}</div>
                 </div>
             `;
+
+            // Explicit Equip button
+            if (unlocked && !isEquipped) {
+                const equipBtn = card.querySelector('.btn-card-equip-skin');
+                if (equipBtn) {
+                    equipBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        lockerSystem.equipSkin(skin.id);
+                        populateLockerModal();
+                    };
+                }
+            }
 
             // Bind unlock button specifically if locked shop item
             if (!unlocked && hasPrice) {
@@ -13445,33 +13457,30 @@ function populateLockerModal() {
 
             const card = document.createElement('div');
             card.className = `p-2.5 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1.5 text-left relative select-none ${
-                isEquipped ? 'border-emerald-400/90 bg-emerald-950/40 shadow-[0_0_14px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/40' :
-                (isSelected ? 'border-pink-400 bg-pink-950/60 shadow-[0_0_12px_rgba(236,72,153,0.3)]' :
+                isSelected ? 'border-pink-400 bg-pink-950/70 shadow-[0_0_14px_rgba(236,72,153,0.4)] ring-1 ring-pink-400' :
+                (isEquipped ? 'border-emerald-400/90 bg-emerald-950/40 shadow-[0_0_12px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/40' :
                 (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-pink-400 hover:bg-neutral-800' : (hasPrice ? 'border-amber-900/60 bg-neutral-950/80 opacity-90 hover:border-amber-500/60' : 'border-neutral-800 bg-neutral-950/80 opacity-70 hover:border-neutral-700')))
             }`;
-            card.onclick = (e) => {
-                if (e) e.stopPropagation();
-                if (unlocked) {
-                    lockerSystem.equipTrail(trail.id);
-                } else {
-                    lockerSystem.previewTrail = trail.id;
-                    lockerSystem.updateUI();
-                    if (typeof audio !== 'undefined' && typeof audio.playUiTick === 'function') audio.playUiTick();
-                    else if (typeof audio !== 'undefined' && typeof audio.playJump === 'function') audio.playJump();
-                    showNotification(`👁️ PREVIEWING: ${trail.name} — ${trail.unlockDesc}${hasPrice ? ` (Buy for ${price.toLocaleString()} CR)` : ''}`);
-                }
+
+            // Card click ALWAYS triggers trail preview in live hologram
+            card.onclick = () => {
+                lockerSystem.previewTrail = trail.id;
+                lockerSystem.updateUI();
+                if (typeof audio !== 'undefined' && typeof audio.playUiTick === 'function') audio.playUiTick();
+                else if (typeof audio !== 'undefined' && typeof audio.playJump === 'function') audio.playJump();
+                showNotification(`👁️ PREVIEWING: ${trail.name} — ${trail.unlockDesc}${hasPrice && !unlocked ? ` (Buy for ${price.toLocaleString()} CR)` : ''}`);
                 populateLockerModal();
             };
 
             card.innerHTML = `
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between pointer-events-auto">
                     <span class="text-lg">${trail.icon || '✨'}</span>
                     ${isEquipped ? `
                         <span class="text-[9px] font-cyber px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500 font-bold shadow-[0_0_8px_rgba(16,185,129,0.3)] flex items-center gap-1">
                             <span>✓</span> EQUIPPED
                         </span>
                     ` : unlocked ? `
-                        <button class="text-[9px] font-cyber px-2 py-0.5 rounded bg-pink-950 hover:bg-pink-800 text-pink-300 border border-pink-500/80 font-bold shadow-[0_0_8px_rgba(236,72,153,0.3)] transition cursor-pointer flex items-center gap-1">
+                        <button class="btn-card-equip-trail text-[9px] font-cyber px-2 py-0.5 rounded bg-pink-950 hover:bg-pink-800 text-pink-300 border border-pink-500/80 font-bold shadow-[0_0_8px_rgba(236,72,153,0.3)] transition cursor-pointer flex items-center gap-1">
                             <span>✨</span> EQUIP
                         </button>
                     ` : hasPrice ? `
@@ -13486,9 +13495,21 @@ function populateLockerModal() {
                 </div>
                 <div>
                     <div class="text-[11px] font-cyber font-bold truncate" style="color:${trail.color};">${trail.name}</div>
-                    <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${isEquipped ? 'Currently active • Running' : unlocked ? trail.desc + ' • Tap to equip' : trail.unlockDesc}</div>
+                    <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${isEquipped ? 'Currently active • Running' : unlocked ? trail.desc + ' • Tap card to preview' : trail.unlockDesc}</div>
                 </div>
             `;
+
+            // Explicit Equip button
+            if (unlocked && !isEquipped) {
+                const equipBtn = card.querySelector('.btn-card-equip-trail');
+                if (equipBtn) {
+                    equipBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        lockerSystem.equipTrail(trail.id);
+                        populateLockerModal();
+                    };
+                }
+            }
 
             // Bind unlock button specifically if locked shop item
             if (!unlocked && hasPrice) {
