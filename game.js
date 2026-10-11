@@ -15036,18 +15036,6 @@ document.querySelectorAll('.sector-tab').forEach(tab => {
     });
 });
 
-document.querySelectorAll('.ability-card').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const ability = btn.getAttribute('data-ability');
-        game.selectedAbility = ability;
-        document.querySelectorAll('.ability-card').forEach(c => {
-            c.className = "ability-card flex-1 py-1 px-2 bg-neutral-900 border border-neutral-700 rounded flex items-center justify-center gap-1 text-[11px] font-cyber text-neutral-300";
-        });
-        btn.className = "ability-card flex-1 py-1 px-2 bg-neutral-900 border-2 border-cyan-500 rounded flex items-center justify-center gap-1 text-[11px] font-cyber text-cyan-300";
-        updateAbilityHUD();
-    });
-});
-
 // ============================================================================
 // ENDLESS & MULTIPLAYER EVENT LISTENERS
 // ============================================================================
