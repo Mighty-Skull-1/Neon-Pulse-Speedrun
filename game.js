@@ -1129,32 +1129,32 @@ window.setSfxVolume = (v) => {
 // 2. CYBER LOCKER (10 SKINS & 6 CUSTOM ENERGY TRAILS) + DAILY SYSTEM
 // ============================================================================
 const SKINS = [
-    { id: "cyan", name: "CYBER CYAN", color: "#06b6d4", glow: "rgba(6,182,212,0.8)", icon: "💎", unlockDay: 1, unlockDesc: "Default starter exosuit" },
-    { id: "violet", name: "PHANTOM VIOLET", color: "#a855f7", glow: "rgba(168,85,247,0.8)", icon: "🔮", unlockDay: 2, unlockDesc: "Clear Stage 05 or Day 2 login" },
-    { id: "emerald", name: "NEO EMERALD", color: "#10b981", glow: "rgba(16,185,129,0.8)", icon: "💚", unlockDay: 3, unlockDesc: "Collect 15 total cyber shards" },
-    { id: "solar", name: "SOLAR FLARE", color: "#f59e0b", glow: "rgba(245,158,11,0.8)", icon: "☀️", unlockDay: 4, unlockDesc: "Earn 3 Gold Medals" },
-    { id: "crimson", name: "BLOOD CRIMSON", color: "#ef4444", glow: "rgba(239,68,68,0.8)", icon: "🩸", unlockDay: 5, unlockDesc: "Reach 400+ km/h speed" },
-    { id: "glitch", name: "GLITCH SHIFTER", color: "#ec4899", glow: "rgba(236,72,153,0.8)", icon: "🧬", unlockDay: 6, unlockDesc: "Earn 1 Diamond Author Medal" },
-    { id: "apex_gold", name: "APEX CHAMPION", color: "#eab308", glow: "rgba(234,179,8,1.0)", icon: "👑", unlockDay: 7, unlockDesc: "Clear 10 Stages or 7-day streak" },
-    { id: "vaporwave", name: "VAPORWAVE SUNSET", color: "#f43f5e", glow: "rgba(244,63,94,0.9)", icon: "🌅", unlockDay: 8, unlockDesc: "Clear today's Daily Seeded Challenge" },
-    { id: "matrix", name: "MATRIX OVERDRIVE", color: "#22c55e", glow: "rgba(34,197,94,0.9)", icon: "📟", unlockDay: 9, unlockDesc: "Reach 500+ km/h or chain 3 Slide-Hops" },
-    { id: "void_shadow", name: "VOID SHADOW", color: "#8b5cf6", glow: "rgba(139,92,246,0.9)", icon: "🌌", unlockDay: 10, unlockDesc: "Complete Dimension β (Stage 20)" },
-    { id: "plasma_white", name: "PLASMA WHITE", color: "#f8fafc", glow: "rgba(248,250,252,0.95)", icon: "🤍", unlockDay: 11, unlockDesc: "Rotating Supply Drop or Mach 450" },
-    { id: "quantum_gold", name: "QUANTUM RELIC", color: "#fbbf24", glow: "rgba(251,191,36,0.95)", icon: "✨", unlockDay: 12, unlockDesc: "Rotating Supply Drop or 15 Gold Medals" },
-    { id: "toxic_acid", name: "TOXIC HAZARD", color: "#a3e635", glow: "rgba(163,230,53,0.95)", icon: "☣️", unlockDay: 13, unlockDesc: "Rotating Supply Drop or 1000m Marathon" },
-    { id: "cyber_chrome", name: "CYBER CHROME", color: "#38bdf8", glow: "rgba(56,189,248,0.95)", icon: "💿", unlockDay: 14, unlockDesc: "Rotating Supply Drop or Master 20 Achievements" }
+    { id: "cyan", name: "CYBER CYAN", color: "#06b6d4", glow: "rgba(6,182,212,0.8)", icon: "💎", price: 0, unlockDay: 1, unlockDesc: "Default starter exosuit" },
+    { id: "violet", name: "PHANTOM VIOLET", color: "#a855f7", glow: "rgba(168,85,247,0.8)", icon: "🔮", price: 1500, unlockDay: 2, unlockDesc: "Clear Stage 05 or Day 2 login" },
+    { id: "emerald", name: "NEO EMERALD", color: "#10b981", glow: "rgba(16,185,129,0.8)", icon: "💚", price: 2000, unlockDay: 3, unlockDesc: "Collect 15 total cyber shards" },
+    { id: "solar", name: "SOLAR FLARE", color: "#f59e0b", glow: "rgba(245,158,11,0.8)", icon: "☀️", price: 2500, unlockDay: 4, unlockDesc: "Earn 3 Gold Medals" },
+    { id: "crimson", name: "BLOOD CRIMSON", color: "#ef4444", glow: "rgba(239,68,68,0.8)", icon: "🩸", price: 3000, unlockDay: 5, unlockDesc: "Reach 400+ km/h speed" },
+    { id: "glitch", name: "GLITCH SHIFTER", color: "#ec4899", glow: "rgba(236,72,153,0.8)", icon: "🧬", price: 4000, unlockDay: 6, unlockDesc: "Earn 1 Diamond Author Medal" },
+    { id: "apex_gold", name: "APEX CHAMPION", color: "#eab308", glow: "rgba(234,179,8,1.0)", icon: "👑", price: 5000, unlockDay: 7, unlockDesc: "Clear 10 Stages or 7-day streak" },
+    { id: "vaporwave", name: "VAPORWAVE SUNSET", color: "#f43f5e", glow: "rgba(244,63,94,0.9)", icon: "🌅", price: 3500, unlockDay: 8, unlockDesc: "Clear today's Daily Seeded Challenge" },
+    { id: "matrix", name: "MATRIX OVERDRIVE", color: "#22c55e", glow: "rgba(34,197,94,0.9)", icon: "📟", price: 4500, unlockDay: 9, unlockDesc: "Reach 500+ km/h or chain 3 Slide-Hops" },
+    { id: "void_shadow", name: "VOID SHADOW", color: "#8b5cf6", glow: "rgba(139,92,246,0.9)", icon: "🌌", price: 6000, unlockDay: 10, unlockDesc: "Complete Dimension β (Stage 20)" },
+    { id: "plasma_white", name: "PLASMA WHITE", color: "#f8fafc", glow: "rgba(248,250,252,0.95)", icon: "🤍", price: 5000, unlockDay: 11, unlockDesc: "Rotating Supply Drop or Mach 450" },
+    { id: "quantum_gold", name: "QUANTUM RELIC", color: "#fbbf24", glow: "rgba(251,191,36,0.95)", icon: "✨", price: 5500, unlockDay: 12, unlockDesc: "Rotating Supply Drop or 15 Gold Medals" },
+    { id: "toxic_acid", name: "TOXIC HAZARD", color: "#a3e635", glow: "rgba(163,230,53,0.95)", icon: "☣️", price: 4000, unlockDay: 13, unlockDesc: "Rotating Supply Drop or 1000m Marathon" },
+    { id: "cyber_chrome", name: "CYBER CHROME", color: "#38bdf8", glow: "rgba(56,189,248,0.95)", icon: "💿", price: 6500, unlockDay: 14, unlockDesc: "Rotating Supply Drop or Master 20 Achievements" }
 ];
 
 const TRAILS = [
-    { id: "pulse_dash", name: "PULSE DASH", desc: "Classic after-image exosuit ghost frames", color: "#06b6d4", icon: "⚡", unlockDesc: "Default unlocked" },
-    { id: "laser_ribbon", name: "LASER RIBBON", desc: "Continuous luminous neon laser streamer line", color: "#38bdf8", icon: "🎗️", unlockDesc: "Clear Stage 03" },
-    { id: "stardust", name: "STARDUST SPARKLES", desc: "Glittering diamond star sparkles & trail", color: "#fef08a", icon: "✨", unlockDesc: "Collect 20 total shards" },
-    { id: "fire_ember", name: "AFTERBURNER EMBER", desc: "Blazing rocket flame exhaust & ember sparks", color: "#f97316", icon: "🔥", unlockDesc: "Reach 350+ km/h speed" },
-    { id: "rainbow_hyper", name: "HYPERDRIVE RAINBOW", desc: "Prismatic RGB chroma cycle stream", color: "#a855f7", icon: "🌈", unlockDesc: "Earn 5 Gold Medals" },
-    { id: "matrix_rain", name: "MATRIX BINARY RAIN", desc: "Cascading digital binary code glyphs", color: "#22c55e", icon: "👾", unlockDesc: "Clear today's Daily Challenge" },
-    { id: "plasma_flame", name: "PLASMA FLAME", desc: "Intense searing white-hot plasma fire", color: "#ffffff", icon: "🔥", unlockDesc: "Rotating Supply Drop or Mach 400" },
-    { id: "quantum_dust", name: "QUANTUM DUST", desc: "Swirling luminous golden antimatter particles", color: "#f59e0b", icon: "✨", unlockDesc: "Rotating Supply Drop or 5 Author Medals" },
-    { id: "chroma_glitch", name: "CHROMA GLITCH", desc: "Distorted chromatic aberration cyber trail", color: "#e879f9", icon: "💫", unlockDesc: "Rotating Supply Drop or Dimension β Clear" }
+    { id: "pulse_dash", name: "PULSE DASH", desc: "Classic after-image exosuit ghost frames", color: "#06b6d4", icon: "⚡", price: 0, unlockDesc: "Default unlocked" },
+    { id: "laser_ribbon", name: "LASER RIBBON", desc: "Continuous luminous neon laser streamer line", color: "#38bdf8", icon: "🎗️", price: 1500, unlockDesc: "Clear Stage 03" },
+    { id: "stardust", name: "STARDUST SPARKLES", desc: "Glittering diamond star sparkles & trail", color: "#fef08a", icon: "✨", price: 2000, unlockDesc: "Collect 20 total shards" },
+    { id: "fire_ember", name: "AFTERBURNER EMBER", desc: "Blazing rocket flame exhaust & ember sparks", color: "#f97316", icon: "🔥", price: 2500, unlockDesc: "Reach 350+ km/h speed" },
+    { id: "rainbow_hyper", name: "HYPERDRIVE RAINBOW", desc: "Prismatic RGB chroma cycle stream", color: "#a855f7", icon: "🌈", price: 3500, unlockDesc: "Earn 5 Gold Medals" },
+    { id: "matrix_rain", name: "MATRIX BINARY RAIN", desc: "Cascading digital binary code glyphs", color: "#22c55e", icon: "👾", price: 3000, unlockDesc: "Clear today's Daily Challenge" },
+    { id: "plasma_flame", name: "PLASMA FLAME", desc: "Intense searing white-hot plasma fire", color: "#ffffff", icon: "🔥", price: 4000, unlockDesc: "Rotating Supply Drop or Mach 400" },
+    { id: "quantum_dust", name: "QUANTUM DUST", desc: "Swirling luminous golden antimatter particles", color: "#f59e0b", icon: "✨", price: 4500, unlockDesc: "Rotating Supply Drop or 5 Author Medals" },
+    { id: "chroma_glitch", name: "CHROMA GLITCH", desc: "Distorted chromatic aberration cyber trail", color: "#e879f9", icon: "💫", price: 5000, unlockDesc: "Rotating Supply Drop or Dimension β Clear" }
 ];
 
 const ROTATING_SUPPLY_POOL = [
@@ -2180,6 +2180,8 @@ const dailySystem = {
     updateCreditsDisplay() {
         const el = document.getElementById('daily-credits-display');
         if (el) el.innerText = this.credits.toLocaleString();
+        const lockerEl = document.getElementById('locker-credits-display');
+        if (lockerEl) lockerEl.innerText = this.credits.toLocaleString();
     },
 
     getTodayIndex() {
@@ -4650,6 +4652,54 @@ const lockerSystem = {
         this.updateUI();
         const trailData = getActiveTrailData();
         showNotification(`✨ EQUIPPED TRAIL: ${trailData.name}`);
+    },
+
+    purchaseItem(type, id) {
+        const list = type === 'skin' ? SKINS : TRAILS;
+        const item = list.find(x => x.id === id);
+        if (!item) return false;
+
+        const isAlreadyUnlocked = type === 'skin' ? this.isSkinUnlocked(id) : this.isTrailUnlocked(id);
+        if (isAlreadyUnlocked) {
+            if (typeof showNotification === 'function') showNotification(`ALREADY OWNED: ${item.name}`);
+            return false;
+        }
+
+        const price = item.price || 0;
+        if (!dailySystem || dailySystem.credits < price) {
+            if (typeof audio !== 'undefined' && typeof audio.playLaser === 'function') audio.playLaser();
+            const deficit = price - ((dailySystem && dailySystem.credits) || 0);
+            if (typeof showNotification === 'function') showNotification(`⚠️ NEED ${deficit.toLocaleString()} MORE CREDITS!`);
+            return false;
+        }
+
+        // Deduct credits
+        dailySystem.credits -= price;
+        dailySystem.save();
+        dailySystem.updateCreditsDisplay();
+
+        // Unlock item
+        if (type === 'skin') {
+            this.unlockedSkins.add(id);
+            if (dailySystem.unlockedSkins) dailySystem.unlockedSkins.add(id);
+            this.equipSkin(id);
+        } else {
+            this.unlockedTrails.add(id);
+            this.equipTrail(id);
+        }
+        this.save();
+
+        if (typeof audio !== 'undefined') {
+            if (typeof audio.playAchievement === 'function') audio.playAchievement();
+            else if (typeof audio.playBoostPad === 'function') audio.playBoostPad();
+        }
+        if (typeof showNotification === 'function') {
+            showNotification(`🔓 UNLOCKED: ${item.name} (-${price.toLocaleString()} CR)!`);
+        }
+        if (typeof populateLockerModal === 'function') {
+            populateLockerModal();
+        }
+        return true;
     },
 
     updateUI() {
@@ -13210,6 +13260,11 @@ function populateLockerModal() {
     lockerSystem.load();
     lockerSystem.checkUnlocks();
 
+    if (dailySystem && typeof dailySystem.updateCreditsDisplay === 'function') {
+        dailySystem.updateCreditsDisplay();
+    }
+
+    const playerCredits = (dailySystem && dailySystem.credits) ? dailySystem.credits : 0;
     const skinsGrid = document.getElementById('locker-skins-grid');
     const trailsGrid = document.getElementById('locker-trails-grid');
 
@@ -13219,12 +13274,14 @@ function populateLockerModal() {
             const unlocked = lockerSystem.isSkinUnlocked(skin.id);
             const isEquipped = skin.id === lockerSystem.activeSkin;
             const isSelected = skin.id === lockerSystem.previewSkin;
+            const price = skin.price || 0;
+            const canAfford = playerCredits >= price;
 
             const card = document.createElement('div');
             card.className = `p-2.5 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1.5 text-left relative select-none ${
                 isEquipped ? 'border-emerald-400/90 bg-emerald-950/40 shadow-[0_0_14px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/40' :
                 (isSelected ? 'border-cyan-400 bg-cyan-950/60 shadow-[0_0_12px_rgba(6,182,212,0.3)]' :
-                (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-cyan-400 hover:bg-neutral-800' : 'border-neutral-800 bg-neutral-950/80 opacity-65 hover:border-neutral-700'))
+                (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-cyan-400 hover:bg-neutral-800' : 'border-neutral-800 bg-neutral-950/80 opacity-80 hover:border-amber-500/60'))
             }`;
             card.onclick = (e) => {
                 if (e) e.stopPropagation();
@@ -13234,7 +13291,7 @@ function populateLockerModal() {
                     lockerSystem.previewSkin = skin.id;
                     lockerSystem.updateUI();
                     audio.playLaser();
-                    showNotification(`🔒 LOCKED: ${skin.unlockDesc}`);
+                    showNotification(`🔒 LOCKED: ${skin.unlockDesc} (or unlock with ${price.toLocaleString()} CR)`);
                 }
                 populateLockerModal();
             };
@@ -13251,9 +13308,9 @@ function populateLockerModal() {
                             <span>⚡</span> EQUIP
                         </button>
                     ` : `
-                        <span class="text-[9px] font-cyber px-1.5 py-0.5 rounded bg-neutral-900 text-neutral-500 border border-neutral-700 flex items-center gap-1">
-                            <span>🔒</span> LOCKED
-                        </span>
+                        <button class="btn-unlock-skin text-[9px] font-cyber px-2 py-0.5 rounded ${canAfford ? 'bg-amber-950 hover:bg-amber-800 text-amber-300 border-amber-500/80 shadow-[0_0_10px_rgba(245,158,11,0.35)]' : 'bg-neutral-900 text-neutral-400 border-neutral-700 opacity-80'} border font-bold transition cursor-pointer flex items-center gap-1">
+                            <span>🪙</span> ${price.toLocaleString()} CR
+                        </button>
                     `}
                 </div>
                 <div>
@@ -13261,6 +13318,19 @@ function populateLockerModal() {
                     <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${isEquipped ? 'Currently active • Running' : unlocked ? 'Owned • Tap to equip' : skin.unlockDesc}</div>
                 </div>
             `;
+
+            // Bind unlock button specifically if locked
+            if (!unlocked) {
+                const unlockBtn = card.querySelector('.btn-unlock-skin');
+                if (unlockBtn) {
+                    unlockBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        lockerSystem.previewSkin = skin.id;
+                        lockerSystem.purchaseItem('skin', skin.id);
+                    };
+                }
+            }
+
             skinsGrid.appendChild(card);
         });
     }
@@ -13271,12 +13341,14 @@ function populateLockerModal() {
             const unlocked = lockerSystem.isTrailUnlocked(trail.id);
             const isEquipped = trail.id === lockerSystem.activeTrail;
             const isSelected = trail.id === lockerSystem.previewTrail;
+            const price = trail.price || 0;
+            const canAfford = playerCredits >= price;
 
             const card = document.createElement('div');
             card.className = `p-2.5 rounded-lg border transition cursor-pointer flex flex-col justify-between gap-1.5 text-left relative select-none ${
                 isEquipped ? 'border-emerald-400/90 bg-emerald-950/40 shadow-[0_0_14px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/40' :
                 (isSelected ? 'border-pink-400 bg-pink-950/60 shadow-[0_0_12px_rgba(236,72,153,0.3)]' :
-                (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-pink-400 hover:bg-neutral-800' : 'border-neutral-800 bg-neutral-950/80 opacity-65 hover:border-neutral-700'))
+                (unlocked ? 'border-neutral-700 bg-neutral-900/90 hover:border-pink-400 hover:bg-neutral-800' : 'border-neutral-800 bg-neutral-950/80 opacity-80 hover:border-amber-500/60'))
             }`;
             card.onclick = (e) => {
                 if (e) e.stopPropagation();
@@ -13286,7 +13358,7 @@ function populateLockerModal() {
                     lockerSystem.previewTrail = trail.id;
                     lockerSystem.updateUI();
                     audio.playLaser();
-                    showNotification(`🔒 LOCKED: ${trail.unlockDesc}`);
+                    showNotification(`🔒 LOCKED: ${trail.unlockDesc} (or unlock with ${price.toLocaleString()} CR)`);
                 }
                 populateLockerModal();
             };
@@ -13303,9 +13375,9 @@ function populateLockerModal() {
                             <span>✨</span> EQUIP
                         </button>
                     ` : `
-                        <span class="text-[9px] font-cyber px-1.5 py-0.5 rounded bg-neutral-900 text-neutral-500 border border-neutral-700 flex items-center gap-1">
-                            <span>🔒</span> LOCKED
-                        </span>
+                        <button class="btn-unlock-trail text-[9px] font-cyber px-2 py-0.5 rounded ${canAfford ? 'bg-amber-950 hover:bg-amber-800 text-amber-300 border-amber-500/80 shadow-[0_0_10px_rgba(245,158,11,0.35)]' : 'bg-neutral-900 text-neutral-400 border-neutral-700 opacity-80'} border font-bold transition cursor-pointer flex items-center gap-1">
+                            <span>🪙</span> ${price.toLocaleString()} CR
+                        </button>
                     `}
                 </div>
                 <div>
@@ -13313,6 +13385,19 @@ function populateLockerModal() {
                     <div class="text-[9px] font-mono text-neutral-400 leading-tight mt-0.5">${isEquipped ? 'Currently active • Running' : unlocked ? trail.desc + ' • Tap to equip' : trail.unlockDesc}</div>
                 </div>
             `;
+
+            // Bind unlock button specifically if locked
+            if (!unlocked) {
+                const unlockBtn = card.querySelector('.btn-unlock-trail');
+                if (unlockBtn) {
+                    unlockBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        lockerSystem.previewTrail = trail.id;
+                        lockerSystem.purchaseItem('trail', trail.id);
+                    };
+                }
+            }
+
             trailsGrid.appendChild(card);
         });
     }

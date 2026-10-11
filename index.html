@@ -717,6 +717,12 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <!-- Live Cyber Credits Balance -->
+                        <div class="flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/60 border border-amber-500/60 rounded-lg text-amber-300 font-mono text-xs font-bold shadow-[0_0_12px_rgba(245,158,11,0.2)]" title="Available Cyber Credits to Unlock Gear">
+                            <span class="text-amber-400">🪙</span>
+                            <span id="locker-credits-display">0</span>
+                            <span class="text-[9px] text-amber-400/70 font-cyber">CR</span>
+                        </div>
                         <button id="btn-locker-back-main" onclick="const m=document.getElementById('modal-locker');if(m){m.classList.add('hidden');m.style.display='none';}if(window.returnToMainMenu)window.returnToMainMenu();" class="cursor-pointer pointer-events-auto px-2.5 py-1 bg-neutral-950 hover:bg-neutral-800 text-cyan-400 hover:text-cyan-300 text-xs font-cyber font-bold rounded border border-cyan-500/50 hover:border-cyan-400 transition flex items-center gap-1">
                             <span>🏠</span> <span class="hidden sm:inline">MENU</span>
                         </button>
@@ -751,10 +757,10 @@
                         <!-- Tab Bar -->
                         <div class="flex items-center gap-2 p-1 bg-neutral-950 rounded-lg border border-neutral-800">
                             <button id="locker-tab-skins" class="flex-1 py-1 px-2 rounded text-xs font-cyber font-bold tracking-wider transition bg-cyan-950 text-cyan-300 border border-cyan-500/80 shadow-[0_0_10px_rgba(6,182,212,0.25)] flex items-center justify-center gap-1.5 cursor-pointer">
-                                <span>🦿</span> EXOSUITS (10)
+                                <span>🦿</span> EXOSUITS (14)
                             </button>
                             <button id="locker-tab-trails" class="flex-1 py-1 px-2 rounded text-xs font-cyber font-bold tracking-wider transition bg-neutral-900 text-neutral-400 border border-neutral-800 hover:border-pink-500 hover:text-pink-300 flex items-center justify-center gap-1.5 cursor-pointer">
-                                <span>✨</span> ENERGY TRAILS (6)
+                                <span>✨</span> ENERGY TRAILS (9)
                             </button>
                         </div>
 
@@ -1885,6 +1891,6 @@
     <!-- Steamworks & Desktop Bridge -->
     <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=6.4"></script>
+    <script src="game.js?v=6.5"></script>
 </body>
 </html>
