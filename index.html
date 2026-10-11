@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PeerJS WebRTC P2P Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=2.5">
+    <link rel="stylesheet" href="style.css?v=2.6">
 </head>
 <body class="w-screen h-screen flex flex-col items-center justify-center p-0 m-0 bg-neutral-950 text-neutral-100 select-none">
 
@@ -674,9 +674,14 @@
                             <p class="text-[11px] text-neutral-400 font-mono">35 achievements spanning speed tech, endless marathon, par times, and secrets.</p>
                         </div>
                     </div>
-                    <button id="btn-close-achievements" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition cursor-pointer">
-                        ✕ CLOSE [ESC]
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-ach-roll-credits" onclick="const m=document.getElementById('modal-achievements');if(m){m.classList.add('hidden');m.style.display='none';}if(window.startEndCredits)window.startEndCredits(false);" class="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-500/70 text-amber-300 text-xs font-cyber rounded transition cursor-pointer flex items-center gap-1 shadow-[0_0_10px_rgba(245,158,11,0.25)]" title="Watch Cinematic End Credits Roll">
+                            <span>🎬</span> CREDITS
+                        </button>
+                        <button id="btn-close-achievements" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-cyber rounded border border-neutral-700 transition cursor-pointer">
+                            ✕ CLOSE [ESC]
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Progress Overview & Category Tabs -->
@@ -1196,6 +1201,176 @@
             </div>
         </div>
 
+        <!-- MODAL: Cinematic End Credits (Multiverse Grand Finale) -->
+        <div id="modal-credits" class="hidden modal-backdrop absolute inset-0 z-40 bg-gradient-to-b from-black/85 via-black/55 to-black/90 backdrop-blur-[1px] flex flex-col justify-between p-3 sm:p-5 overflow-hidden" style="display:none">
+            <!-- Top Controls Bar -->
+            <div class="w-full flex items-center justify-between max-w-4xl mx-auto bg-neutral-950/85 border border-neutral-800/80 rounded-xl px-4 py-2 shadow-lg backdrop-blur-md z-10 shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span class="text-xs font-cyber font-bold text-amber-300 tracking-wider">
+                        MULTIVERSE CONQUERED // END CREDITS
+                    </span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-credits-speed" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-xs font-cyber text-cyan-300 rounded-lg flex items-center gap-1.5 transition cursor-pointer" title="Fast-Forward [Hold SPACE, DOWN, or Click]">
+                        <span id="credits-speed-icon">⏩</span>
+                        <span id="credits-speed-text">1X NORMAL</span>
+                    </button>
+                    <button id="btn-credits-skip" onclick="if(window.closeEndCredits)window.closeEndCredits();" class="px-2.5 py-1 bg-neutral-900 hover:bg-rose-950 border border-neutral-700 hover:border-rose-500 text-xs font-cyber text-neutral-300 hover:text-rose-300 rounded-lg flex items-center gap-1 transition cursor-pointer" title="Skip Credits [ESC]">
+                        <span>✕</span> SKIP
+                    </button>
+                </div>
+            </div>
+
+            <!-- Central Scrolling Credits Viewport -->
+            <div id="credits-viewport" class="relative flex-1 w-full max-w-3xl mx-auto overflow-y-auto my-2 py-4 px-3 flex flex-col items-center text-center scrollbar-none" style="scrollbar-width: none; -ms-overflow-style: none;">
+                <div id="credits-content" class="w-full flex flex-col items-center gap-8 py-10">
+                    <!-- Title & Victory Banner -->
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="px-3 py-1 bg-amber-950/80 border border-amber-500/80 rounded-full text-[10px] font-cyber font-bold tracking-widest text-amber-300 uppercase shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                            👑 CAMPAIGN SPEEDRUN COMPLETE 👑
+                        </div>
+                        <h1 class="text-4xl sm:text-6xl font-cyber font-extrabold tracking-widest text-white glow-cyan drop-shadow-[0_0_30px_rgba(6,182,212,0.8)]">
+                            NEON PULSE
+                        </h1>
+                        <p class="text-xs sm:text-sm font-cyber text-cyan-300/90 tracking-widest uppercase">
+                            20-STAGE MULTIVERSE SPEEDRUN EDITION
+                        </p>
+                    </div>
+
+                    <!-- Pilot Dossier Card -->
+                    <div class="w-full max-w-lg bg-neutral-950/85 border border-cyan-500/50 rounded-2xl p-5 shadow-[0_0_30px_rgba(6,182,212,0.25)] flex flex-col gap-3.5 backdrop-blur-md">
+                        <div class="flex items-center justify-between border-b border-neutral-800 pb-2">
+                            <span class="text-xs font-cyber font-bold text-cyan-300 flex items-center gap-1.5">
+                                <span>🎖️</span> OFFICIAL PILOT DOSSIER
+                            </span>
+                            <span id="credits-pilot-tag" class="text-xs font-mono font-bold text-amber-400 bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800">PILOT: MIGHTY</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2.5 text-left">
+                            <div class="p-2.5 bg-neutral-900/90 rounded-xl border border-neutral-800">
+                                <div class="text-[9px] font-cyber text-neutral-400">TOTAL CAMPAIGN PB TIME</div>
+                                <div id="credits-total-time" class="text-sm sm:text-base font-mono font-bold text-amber-300 mt-0.5">--:--.---</div>
+                            </div>
+                            <div class="p-2.5 bg-neutral-900/90 rounded-xl border border-neutral-800">
+                                <div class="text-[9px] font-cyber text-neutral-400">SECTORS CONQUERED</div>
+                                <div id="credits-stages-cleared" class="text-sm sm:text-base font-mono font-bold text-emerald-400 mt-0.5">20 / 20</div>
+                            </div>
+                            <div class="p-2.5 bg-neutral-900/90 rounded-xl border border-neutral-800">
+                                <div class="text-[9px] font-cyber text-neutral-400">SECRET SHARDS FOUND</div>
+                                <div id="credits-total-shards" class="text-sm sm:text-base font-mono font-bold text-pink-400 mt-0.5">-- / 60</div>
+                            </div>
+                            <div class="p-2.5 bg-neutral-900/90 rounded-xl border border-neutral-800">
+                                <div class="text-[9px] font-cyber text-neutral-400">GOLD &amp; AUTHOR MEDALS</div>
+                                <div id="credits-total-medals" class="text-sm sm:text-base font-mono font-bold text-cyan-400 mt-0.5">-- / 20</div>
+                            </div>
+                        </div>
+                        <div class="p-2 bg-gradient-to-r from-cyan-950/60 to-purple-950/60 rounded-xl border border-cyan-500/30 flex items-center justify-between text-xs font-cyber">
+                            <span class="text-neutral-400">COMPLETION STATUS:</span>
+                            <span class="text-emerald-300 font-bold tracking-wider">APEX MULTIVERSE MASTER</span>
+                        </div>
+                    </div>
+
+                    <!-- Grand Finale Unlocks Presentation -->
+                    <div class="w-full max-w-lg bg-gradient-to-r from-purple-950/80 via-neutral-950/90 to-amber-950/80 border border-purple-500/60 rounded-2xl p-4 shadow-[0_0_25px_rgba(168,85,247,0.3)] flex flex-col gap-2.5">
+                        <div class="text-[10px] font-cyber font-bold tracking-widest text-purple-300 uppercase">
+                            🎁 GRAND FINALE REWARDS UNLOCKED
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-cyber">
+                            <div class="p-2 bg-neutral-900/80 rounded-lg border border-purple-500/40 flex flex-col items-center">
+                                <span class="text-xl">🌌</span>
+                                <span class="text-purple-300 font-bold mt-1">VOID SHADOW</span>
+                                <span class="text-[9px] text-neutral-400 font-mono">Legendary Exosuit</span>
+                            </div>
+                            <div class="p-2 bg-neutral-900/80 rounded-lg border border-pink-500/40 flex flex-col items-center">
+                                <span class="text-xl">💫</span>
+                                <span class="text-pink-300 font-bold mt-1">CHROMA GLITCH</span>
+                                <span class="text-[9px] text-neutral-400 font-mono">Special Energy Trail</span>
+                            </div>
+                            <div class="p-2 bg-neutral-900/80 rounded-lg border border-amber-500/40 flex flex-col items-center">
+                                <span class="text-xl">🪙</span>
+                                <span class="text-amber-300 font-bold mt-1">+2,500 CREDITS</span>
+                                <span class="text-[9px] text-neutral-400 font-mono">Added to Cyber Wallet</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Production Credits List -->
+                    <div class="flex flex-col items-center gap-6 max-w-md w-full text-center">
+                        <div>
+                            <div class="text-[10px] font-cyber tracking-widest text-neutral-500 uppercase mb-1">CREATOR &amp; LEAD DEVELOPER</div>
+                            <div class="text-lg font-cyber font-bold text-cyan-300 tracking-wider">MIGHTY</div>
+                        </div>
+
+                        <div>
+                            <div class="text-[10px] font-cyber tracking-widest text-neutral-500 uppercase mb-1">GAME DESIGN &amp; LEVEL ARCHITECTURE</div>
+                            <div class="text-base font-cyber font-bold text-white tracking-wide">MIGHTY</div>
+                            <div class="text-xs text-neutral-400 font-mono mt-0.5">20 Handcrafted Campaign Sectors • Procedural Endless Marathon</div>
+                        </div>
+
+                        <div>
+                            <div class="text-[10px] font-cyber tracking-widest text-neutral-500 uppercase mb-1">PHYSICS &amp; ENGINE ARCHITECTURE</div>
+                            <div class="text-base font-cyber font-bold text-white tracking-wide">PRECISION PULSE ENGINE</div>
+                            <div class="text-xs text-neutral-400 font-mono mt-0.5">Wave-Dash • Rocket Slide • Gravity Inversion • Chrono Warp</div>
+                        </div>
+
+                        <div>
+                            <div class="text-[10px] font-cyber tracking-widest text-neutral-500 uppercase mb-1">ELECTRO SYNTHWAVE SOUNDTRACK</div>
+                            <div class="text-base font-cyber font-bold text-white tracking-wide">NEON SYNTH AUDIO</div>
+                            <div class="text-xs text-neutral-400 font-mono mt-0.5">Adaptive 120–175 BPM High-Octane Speedrun OST</div>
+                        </div>
+
+                        <div>
+                            <div class="text-[10px] font-cyber tracking-widest text-neutral-500 uppercase mb-1">MULTIPLAYER &amp; NETWORKING</div>
+                            <div class="text-base font-cyber font-bold text-white tracking-wide">WEBRTC GHOST &amp; RIVAL LINK</div>
+                            <div class="text-xs text-neutral-400 font-mono mt-0.5">Real-time P2P 1v1 Room Racing &amp; Solo Hologram Ghosts</div>
+                        </div>
+
+                        <div>
+                            <div class="text-[10px] font-cyber tracking-widest text-neutral-500 uppercase mb-1">COMMUNITY &amp; LEVEL BUILDER</div>
+                            <div class="text-base font-cyber font-bold text-white tracking-wide">CREATIVE PILOT WORKSHOP</div>
+                            <div class="text-xs text-neutral-400 font-mono mt-0.5">Empowering custom speedrun sector creation &amp; sharing</div>
+                        </div>
+
+                        <div class="pt-4 border-t border-neutral-800/80 w-full">
+                            <div class="text-[10px] font-cyber tracking-widest text-amber-400 uppercase mb-1.5 font-bold">SPECIAL THANKS</div>
+                            <p class="text-xs text-neutral-300 font-mono leading-relaxed">
+                                The Speedrun &amp; Precision Platformer Community<br>
+                                All Multiverse Pilots, Rivals, and Record Holders<br>
+                                Google DeepMind Antigravity AI Pair Programming<br>
+                                And <strong class="text-cyan-300">YOU</strong> for conquering the multiverse!
+                            </p>
+                        </div>
+
+                        <div class="py-8 flex flex-col items-center gap-2">
+                            <div class="text-2xl animate-pulse">⚡</div>
+                            <div class="text-sm font-cyber font-bold text-cyan-400 tracking-widest uppercase">
+                                KEEP SPRINTING AT THE SPEED OF LIGHT
+                            </div>
+                            <div class="text-[10px] font-mono text-neutral-500">
+                                NEON PULSE SPEEDRUN EDITION // COMPLETED
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Action Footer Bar -->
+            <div class="w-full flex flex-wrap items-center justify-center gap-2.5 max-w-4xl mx-auto bg-neutral-950/85 border border-neutral-800/80 rounded-xl p-2.5 shadow-lg backdrop-blur-md z-10 shrink-0">
+                <button id="btn-credits-menu" onclick="if(window.closeEndCredits)window.closeEndCredits();" class="px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-cyan-300 text-xs font-cyber font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer">
+                    <span>🏠</span> MAIN MENU
+                </button>
+                <button id="btn-credits-replay" onclick="if(window.closeEndCredits)window.closeEndCredits();if(window.startLevel)window.startLevel(19);" class="px-3.5 py-1.5 bg-neutral-900 hover:bg-purple-950 border border-neutral-700 hover:border-purple-400 text-purple-300 text-xs font-cyber font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer">
+                    <span>🔄</span> REPLAY STAGE 20
+                </button>
+                <button id="btn-credits-locker" onclick="if(window.closeEndCredits)window.closeEndCredits();const m=document.getElementById('modal-locker');if(m){m.classList.remove('hidden');m.style.display='';if(window.populateLockerModal)window.populateLockerModal();}" class="px-3.5 py-1.5 bg-neutral-900 hover:bg-pink-950 border border-neutral-700 hover:border-pink-400 text-pink-300 text-xs font-cyber font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer">
+                    <span>🎨</span> TRY NEW UNLOCKS
+                </button>
+                <button id="btn-credits-endless" onclick="if(window.closeEndCredits)window.closeEndCredits();if(window.startEndlessMode){window.startEndlessMode();game.botActive=false;if(game.player)game.player.isInvulnerable=false;}" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-cyber font-extrabold rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.5)]">
+                    <span>⚡</span> PLAY ENDLESS MARATHON
+                </button>
+            </div>
+        </div>
+
         <!-- MODAL: Multiplayer & Ghost Challenges -->
         <div id="modal-multiplayer" class="hidden modal-backdrop absolute inset-0 z-40 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
             <div class="w-full max-w-lg bg-neutral-900 border border-rose-500/70 rounded-xl p-5 shadow-[0_0_50px_rgba(244,63,94,0.25)] flex flex-col gap-4 max-h-[92vh] overflow-y-auto">
@@ -1585,6 +1760,19 @@
                                 <input id="settings-slider-sfx" type="range" min="0" max="100" value="80" class="w-full accent-amber-400 cursor-pointer">
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Cinematic End Credits Quick Launch -->
+                    <div class="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800 flex items-center justify-between">
+                        <div>
+                            <div class="font-cyber font-bold text-amber-300 text-[11px] flex items-center gap-1.5">
+                                <span>🎬</span> MULTIVERSE END CREDITS
+                            </div>
+                            <div class="text-[9px] text-neutral-400 font-mono">Play cinematic roll with background endless run</div>
+                        </div>
+                        <button id="btn-settings-roll-credits" onclick="const m=document.getElementById('modal-settings');if(m){m.classList.add('hidden');m.style.display='none';}if(window.startEndCredits)window.startEndCredits(false);" class="px-3 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-500/80 text-amber-300 font-cyber text-[10px] rounded font-bold transition cursor-pointer shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+                            ROLL CREDITS
+                        </button>
                     </div>
                 </div>
 
@@ -1978,6 +2166,6 @@
     <!-- Steamworks & Desktop Bridge -->
     <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=7.4"></script>
+    <script src="game.js?v=7.5"></script>
 </body>
 </html>

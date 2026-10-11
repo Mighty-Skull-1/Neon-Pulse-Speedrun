@@ -99,6 +99,15 @@ body {
     box-shadow: 0 0 8px #06b6d4;
 }
 
+/* Hide scrollbar for cinematic credits roll */
+.scrollbar-none::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
 /* Animated Cyber Grid Pulse */
 @keyframes cyberPulse {
     0%, 100% {

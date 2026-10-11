@@ -7292,6 +7292,7 @@ function resetPlayerState() {
 }
 
 function killPlayer(force = false) {
+    if (game.isCreditsRoll) return;
     if (!force && game.player.isInvulnerable) return;
 
     if (!game.inMainMenu) {
@@ -7665,7 +7666,7 @@ function updatePhysics(rawDt) {
     }
 
     // 2. Autonomous Bot AI Pilot
-    if (game.botDemo || game.inMainMenu) {
+    if (game.botDemo || game.inMainMenu || game.isCreditsRoll) {
         runBotPilotAI();
     }
 
@@ -8634,6 +8635,17 @@ function triggerVictory() {
     if (game.isMultiplayer && typeof MP !== 'undefined' && (MP.connected || (game.mpRival && game.mpRival.isAI))) {
         // Race finish is handled by MP.broadcastFinish / showPodium
         return;
+    }
+
+    const nextBtn = document.getElementById('btn-victory-next');
+    if (nextBtn) {
+        if (!game.isCustomLevel && !game.isEndless && !game.isDailyChallenge && game.currentLevelIdx === 19) {
+            nextBtn.innerText = "🎬 ROLL END CREDITS ▶";
+            nextBtn.className = "flex-1 py-2.5 bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-black font-cyber font-extrabold text-xs tracking-wider rounded shadow-[0_0_25px_rgba(245,158,11,0.7)] transition transform active:scale-95 animate-pulse cursor-pointer";
+        } else {
+            nextBtn.innerText = "NEXT STAGE ▶";
+            nextBtn.className = "flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-cyber font-bold text-xs tracking-wider rounded shadow-[0_0_15px_rgba(6,182,212,0.5)] transition cursor-pointer";
+        }
     }
 
     const vicModal = document.getElementById('modal-victory');
@@ -14732,8 +14744,14 @@ function returnToMainMenu() {
     const modalSettings = document.getElementById('modal-settings');
     const modalEditor = document.getElementById('modal-editor');
     const modalAdmin = document.getElementById('modal-admin-auth');
+    const modalCredits = document.getElementById('modal-credits');
+    game.isCreditsRoll = false;
+    if (typeof creditsAnimFrame !== 'undefined' && creditsAnimFrame) {
+        cancelAnimationFrame(creditsAnimFrame);
+        creditsAnimFrame = null;
+    }
 
-    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalLocker, modalAch, modalVictory, modalHow, modalMp, modalRaceResult, modalSettings, modalEditor, modalAdmin];
+    const allModals = [pauseModal, modalMenu, modalLb, modalDaily, modalLocker, modalAch, modalVictory, modalHow, modalMp, modalRaceResult, modalSettings, modalEditor, modalAdmin, modalCredits];
     allModals.forEach(m => {
         if (m) {
             m.classList.add('hidden');
@@ -14778,7 +14796,7 @@ function returnToMainMenu() {
 window.returnToMainMenu = returnToMainMenu;
 
 function setPause(paused, showModal = true) {
-    if (game.inMainMenu || game.isCountingDown) return;
+    if (game.inMainMenu || game.isCountingDown || game.isCreditsRoll) return;
     game.isPaused = paused;
     const pauseModal = document.getElementById('modal-pause');
     if (pauseModal) {
@@ -14999,6 +15017,7 @@ function populateDailyModal() {
 window.populateDailyModal = populateDailyModal;
 
 function toggleBotDemo(forceState) {
+    if (game.isCreditsRoll) return;
     game.botDemo = forceState !== undefined ? forceState : !game.botDemo;
     const btn = document.getElementById('btn-bot');
     const banner = document.getElementById('bot-active-banner');
@@ -15010,6 +15029,195 @@ function toggleBotDemo(forceState) {
         if (banner) banner.classList.add('hidden');
     }
 }
+
+// ============================================================================
+// 12.5 END CREDITS ROLL ENGINE & MULTIVERSE STATS
+// ============================================================================
+
+let creditsAnimFrame = null;
+let creditsSpeedMultiplier = 1;
+
+function updateCreditsSpeedUI() {
+    const textEl = document.getElementById('credits-speed-text');
+    const iconEl = document.getElementById('credits-speed-icon');
+    if (textEl) {
+        textEl.innerText = `${creditsSpeedMultiplier}X ${creditsSpeedMultiplier > 1 ? 'FAST' : 'NORMAL'}`;
+    }
+    if (iconEl) {
+        iconEl.innerText = creditsSpeedMultiplier > 1 ? '⏩' : '▶';
+    }
+}
+
+function toggleCreditsSpeed() {
+    creditsSpeedMultiplier = creditsSpeedMultiplier === 1 ? 3 : 1;
+    updateCreditsSpeedUI();
+}
+
+function startEndCredits(fromStage20 = false) {
+    if (typeof audio !== 'undefined') {
+        audio.init();
+        if (fromStage20 && typeof audio.playVictory === 'function') {
+            audio.playVictory();
+        }
+    }
+
+    // 1. Launch background endless runner with bot pilot
+    if (typeof startEndlessMode === 'function') {
+        startEndlessMode();
+    }
+    game.isCreditsRoll = true;
+    game.botDemo = true;
+    if (game.player) {
+        game.player.isInvulnerable = true;
+    }
+
+    // Ensure music is active
+    if (typeof audio !== 'undefined' && typeof audio.startMusic === 'function' && !audio.muted) {
+        audio.startMusic(140);
+    }
+
+    // 2. Hide all overlaying in-game HUDs so view is purely cinematic
+    const ingameHeader = document.getElementById('ingame-header');
+    if (ingameHeader) {
+        ingameHeader.classList.add('hidden');
+        ingameHeader.style.display = 'none';
+    }
+    const mobileControls = document.getElementById('mobile-touch-controls');
+    if (mobileControls) mobileControls.classList.add('hidden');
+    const streamerDock = document.getElementById('streamer-input-dock');
+    if (streamerDock) streamerDock.classList.add('hidden');
+    const vicModal = document.getElementById('modal-victory');
+    if (vicModal) {
+        vicModal.classList.add('hidden');
+        vicModal.style.display = 'none';
+    }
+
+    // 3. Compute Pilot Dossier Campaign Stats across all 20 stages
+    let totalPbSec = 0;
+    let stagesCleared = 0;
+    let totalShards = 0;
+    let topMedalsCount = 0;
+
+    for (let i = 0; i < 20; i++) {
+        let pb = null;
+        let shards = 0;
+        try {
+            const storedPb = localStorage.getItem(`neon_pulse_pb_${i}`);
+            if (storedPb) {
+                pb = parseFloat(storedPb);
+                totalPbSec += pb;
+                stagesCleared++;
+            }
+            const storedShards = localStorage.getItem(`neon_pulse_shards_${i}`);
+            if (storedShards) {
+                shards = parseInt(storedShards, 10) || 0;
+                totalShards += shards;
+            }
+        } catch(e) {}
+
+        if (typeof getStageMedal === 'function') {
+            const medal = getStageMedal(i, pb, shards);
+            if (medal && (medal.tier === 'GOLD' || medal.tier === 'DIAMOND')) {
+                topMedalsCount++;
+            }
+        }
+    }
+
+    // Update Dossier UI
+    const elPilot = document.getElementById('credits-pilot-tag');
+    if (elPilot) elPilot.innerText = `PILOT: ${game.pilotTag || 'MIGHTY'}`;
+    const elTime = document.getElementById('credits-total-time');
+    if (elTime) elTime.innerText = stagesCleared > 0 ? (typeof formatTime === 'function' ? formatTime(totalPbSec) : `${totalPbSec.toFixed(2)}s`) : '--:--.---';
+    const elStages = document.getElementById('credits-stages-cleared');
+    if (elStages) elStages.innerText = `${stagesCleared} / 20`;
+    const elShards = document.getElementById('credits-total-shards');
+    if (elShards) elShards.innerText = `${totalShards} / 60`;
+    const elMedals = document.getElementById('credits-total-medals');
+    if (elMedals) elMedals.innerText = `${topMedalsCount} / 20`;
+
+    // 4. Award Grand Finale Unlocks
+    try {
+        if (typeof lockerSystem !== 'undefined') {
+            lockerSystem.unlockedSkins.add('void_shadow');
+            lockerSystem.unlockedTrails.add('chroma_glitch');
+            lockerSystem.save();
+        }
+        if (typeof dailySystem !== 'undefined' && dailySystem.unlockedSkins) {
+            dailySystem.unlockedSkins.add('void_shadow');
+        }
+        if (!localStorage.getItem('neon_pulse_grand_finale_awarded')) {
+            localStorage.setItem('neon_pulse_grand_finale_awarded', 'true');
+            if (typeof dailySystem !== 'undefined') {
+                dailySystem.credits = (dailySystem.credits || 0) + 2500;
+                dailySystem.save();
+                dailySystem.updateCreditsDisplay();
+            }
+            if (typeof showNotification === 'function') {
+                showNotification("🎁 FINALE REWARDS: +2,500 CREDITS & VOID SHADOW UNLOCKED!");
+            }
+        }
+    } catch(e) {}
+
+    // 5. Reveal Credits Modal & start smooth autoscroll
+    const credModal = document.getElementById('modal-credits');
+    if (credModal) {
+        credModal.classList.remove('hidden');
+        credModal.style.display = 'flex';
+    }
+
+    const viewport = document.getElementById('credits-viewport');
+    if (viewport) {
+        viewport.scrollTop = 0;
+    }
+
+    creditsSpeedMultiplier = 1;
+    updateCreditsSpeedUI();
+
+    if (creditsAnimFrame) {
+        cancelAnimationFrame(creditsAnimFrame);
+        creditsAnimFrame = null;
+    }
+
+    let lastScrollTs = performance.now();
+    function scrollStep(ts) {
+        if (!game.isCreditsRoll) return;
+        const dt = Math.min(0.08, (ts - lastScrollTs) / 1000);
+        lastScrollTs = ts;
+
+        const vp = document.getElementById('credits-viewport');
+        if (vp) {
+            vp.scrollTop += (48 * creditsSpeedMultiplier) * dt;
+        }
+
+        creditsAnimFrame = requestAnimationFrame(scrollStep);
+    }
+    creditsAnimFrame = requestAnimationFrame(scrollStep);
+}
+
+function closeEndCredits() {
+    game.isCreditsRoll = false;
+    game.botDemo = false;
+    if (game.player) {
+        game.player.isInvulnerable = false;
+    }
+
+    if (creditsAnimFrame) {
+        cancelAnimationFrame(creditsAnimFrame);
+        creditsAnimFrame = null;
+    }
+
+    const credModal = document.getElementById('modal-credits');
+    if (credModal) {
+        credModal.classList.add('hidden');
+        credModal.style.display = 'none';
+    }
+
+    returnToMainMenu();
+}
+
+window.startEndCredits = startEndCredits;
+window.closeEndCredits = closeEndCredits;
+window.toggleCreditsSpeed = toggleCreditsSpeed;
 
 // ============================================================================
 // 13. INPUT & EVENT LISTENERS
@@ -15142,6 +15350,22 @@ window.addEventListener('keydown', (e) => {
         if (e.code === 'Escape' || e.key === 'Escape' || e.key === 'Enter') {
             active.blur();
             if (e.code === 'Escape' || e.key === 'Escape') e.preventDefault();
+        }
+        return;
+    }
+
+    // 1.05 End Credits roll controls
+    if (game.isCreditsRoll) {
+        if (e.code === 'Escape' || e.key === 'Escape') {
+            e.preventDefault();
+            closeEndCredits();
+            return;
+        }
+        if (e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'KeyS') {
+            e.preventDefault();
+            creditsSpeedMultiplier = 3;
+            updateCreditsSpeedUI();
+            return;
         }
         return;
     }
@@ -15333,6 +15557,13 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+    if (game.isCreditsRoll) {
+        if (e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'KeyS') {
+            creditsSpeedMultiplier = 1;
+            updateCreditsSpeedUI();
+            return;
+        }
+    }
     const active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
         return;
@@ -16067,6 +16298,12 @@ bindClick('btn-victory-next', () => {
         return;
     }
     const curIdx = (game.currentLevelIdx !== undefined && game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length) ? game.currentLevelIdx : 0;
+    if (curIdx === 19) {
+        if (typeof startEndCredits === 'function') {
+            startEndCredits(true);
+            return;
+        }
+    }
     const nextIdx = (curIdx + 1) % LEVELS.length;
     startLevel(nextIdx);
 });
@@ -16395,6 +16632,61 @@ function handleRaceCloseClick() {
 }
 window.handleRaceCloseClick = handleRaceCloseClick;
 bindClick('btn-race-close', handleRaceCloseClick);
+
+// ============================================================================
+// END CREDITS MODAL BUTTON BINDINGS & CONTROLS
+// ============================================================================
+bindClick('btn-credits-speed', () => {
+    toggleCreditsSpeed();
+});
+
+bindClick('btn-credits-skip', () => {
+    closeEndCredits();
+});
+
+bindClick('btn-credits-menu', () => {
+    closeEndCredits();
+});
+
+bindClick('btn-credits-replay', () => {
+    closeEndCredits();
+    startLevel(19);
+});
+
+bindClick('btn-credits-locker', () => {
+    closeEndCredits();
+    const lockerModal = document.getElementById('modal-locker');
+    if (lockerModal) {
+        lockerModal.classList.remove('hidden');
+        lockerModal.style.display = '';
+        if (typeof populateLockerModal === 'function') populateLockerModal();
+    }
+});
+
+bindClick('btn-credits-endless', () => {
+    closeEndCredits();
+    startEndlessMode();
+    game.botDemo = false;
+    if (game.player) game.player.isInvulnerable = false;
+});
+
+bindClick('btn-settings-roll-credits', () => {
+    const modalSettings = document.getElementById('modal-settings');
+    if (modalSettings) {
+        modalSettings.classList.add('hidden');
+        modalSettings.style.display = 'none';
+    }
+    startEndCredits(false);
+});
+
+bindClick('btn-ach-roll-credits', () => {
+    const modalAch = document.getElementById('modal-achievements');
+    if (modalAch) {
+        modalAch.classList.add('hidden');
+        modalAch.style.display = 'none';
+    }
+    startEndCredits(false);
+});
 
 window.addEventListener('beforeunload', () => {
     if (typeof MP !== 'undefined' && MP.connected) {
