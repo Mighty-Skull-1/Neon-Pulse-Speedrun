@@ -4737,16 +4737,29 @@ const lockerSystem = {
         const equipBtn = document.getElementById('btn-locker-equip');
         if (equipBtn) {
             const isEquipped = (this.previewSkin === this.activeSkin && this.previewTrail === this.activeTrail);
-            const canEquip = this.isSkinUnlocked(this.previewSkin) && this.isTrailUnlocked(this.previewTrail);
+            const skinUnlocked = this.isSkinUnlocked(this.previewSkin);
+            const trailUnlocked = this.isTrailUnlocked(this.previewTrail);
+            const canEquipBoth = skinUnlocked && trailUnlocked;
+
+            // Check if user is previewing an unowned shop item
+            const skinPrice = (typeof skinData.price === 'number' && skinData.price > 0 && !skinUnlocked) ? skinData.price : 0;
+            const trailPrice = (typeof trailData.price === 'number' && trailData.price > 0 && !trailUnlocked) ? trailData.price : 0;
+            const playerCredits = (dailySystem && dailySystem.credits) ? dailySystem.credits : 0;
+
             if (isEquipped) {
                 equipBtn.innerText = "EQUIPPED ✓";
                 equipBtn.className = "w-full py-1.5 px-3 bg-neutral-800 text-neutral-400 font-cyber font-bold text-xs rounded border border-neutral-700 cursor-default";
-            } else if (!canEquip) {
-                equipBtn.innerText = "LOCKED 🔒";
-                equipBtn.className = "w-full py-1.5 px-3 bg-neutral-900 text-rose-400 font-cyber font-bold text-xs rounded border border-rose-900/60 cursor-not-allowed";
-            } else {
+            } else if (canEquipBoth) {
                 equipBtn.innerText = "EQUIP SELECTION";
                 equipBtn.className = "w-full py-1.5 px-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-cyber font-bold text-xs rounded transition shadow-[0_0_15px_rgba(6,182,212,0.4)] cursor-pointer";
+            } else if (skinPrice > 0 || trailPrice > 0) {
+                const totalCost = skinPrice + trailPrice;
+                const canAfford = playerCredits >= totalCost;
+                equipBtn.innerText = `UNLOCK SELECTION (🪙 ${totalCost.toLocaleString()} CR)`;
+                equipBtn.className = `w-full py-1.5 px-3 ${canAfford ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-neutral-900 text-amber-500/60 border border-amber-900/60'} font-cyber font-bold text-xs rounded transition cursor-pointer`;
+            } else {
+                equipBtn.innerText = "LOCKED 🔒 (ACHIEVEMENT)";
+                equipBtn.className = "w-full py-1.5 px-3 bg-neutral-900 text-rose-400 font-cyber font-bold text-xs rounded border border-rose-900/60 cursor-not-allowed";
             }
         }
     }
@@ -13370,8 +13383,9 @@ function populateLockerModal() {
                 } else {
                     lockerSystem.previewSkin = skin.id;
                     lockerSystem.updateUI();
-                    audio.playLaser();
-                    showNotification(`🔒 LOCKED: ${skin.unlockDesc}${hasPrice ? ` (Unlock for ${price.toLocaleString()} CR)` : ''}`);
+                    if (typeof audio !== 'undefined' && typeof audio.playUiTick === 'function') audio.playUiTick();
+                    else if (typeof audio !== 'undefined' && typeof audio.playJump === 'function') audio.playJump();
+                    showNotification(`👁️ PREVIEWING: ${skin.name} — ${skin.unlockDesc}${hasPrice ? ` (Buy for ${price.toLocaleString()} CR)` : ''}`);
                 }
                 populateLockerModal();
             };
@@ -13442,8 +13456,9 @@ function populateLockerModal() {
                 } else {
                     lockerSystem.previewTrail = trail.id;
                     lockerSystem.updateUI();
-                    audio.playLaser();
-                    showNotification(`🔒 LOCKED: ${trail.unlockDesc}${hasPrice ? ` (Unlock for ${price.toLocaleString()} CR)` : ''}`);
+                    if (typeof audio !== 'undefined' && typeof audio.playUiTick === 'function') audio.playUiTick();
+                    else if (typeof audio !== 'undefined' && typeof audio.playJump === 'function') audio.playJump();
+                    showNotification(`👁️ PREVIEWING: ${trail.name} — ${trail.unlockDesc}${hasPrice ? ` (Buy for ${price.toLocaleString()} CR)` : ''}`);
                 }
                 populateLockerModal();
             };
@@ -14817,18 +14832,42 @@ bindClick('btn-locker-back-main', () => {
 });
 
 bindClick('btn-locker-equip', () => {
-    let equippedAny = false;
-    if (lockerSystem.isSkinUnlocked(lockerSystem.previewSkin)) {
+    const skinUnlocked = lockerSystem.isSkinUnlocked(lockerSystem.previewSkin);
+    const trailUnlocked = lockerSystem.isTrailUnlocked(lockerSystem.previewTrail);
+
+    // If both unlocked, equip selection
+    if (skinUnlocked && trailUnlocked) {
         lockerSystem.equipSkin(lockerSystem.previewSkin);
-        equippedAny = true;
-    }
-    if (lockerSystem.isTrailUnlocked(lockerSystem.previewTrail)) {
         lockerSystem.equipTrail(lockerSystem.previewTrail);
-        equippedAny = true;
+        populateLockerModal();
+        return;
     }
-    if (!equippedAny) {
-        audio.playLaser();
-        showNotification("🔒 ITEM IS CURRENTLY LOCKED");
+
+    // If any previewed item is a buyable shop item, attempt purchase
+    const skinData = SKINS.find(s => s.id === lockerSystem.previewSkin);
+    const trailData = TRAILS.find(t => t.id === lockerSystem.previewTrail);
+    let purchasedAny = false;
+
+    if (!skinUnlocked && skinData && typeof skinData.price === 'number' && skinData.price > 0) {
+        if (lockerSystem.purchaseItem('skin', skinData.id)) {
+            purchasedAny = true;
+        }
+    } else if (skinUnlocked) {
+        lockerSystem.equipSkin(lockerSystem.previewSkin);
+    }
+
+    if (!trailUnlocked && trailData && typeof trailData.price === 'number' && trailData.price > 0) {
+        if (lockerSystem.purchaseItem('trail', trailData.id)) {
+            purchasedAny = true;
+        }
+    } else if (trailUnlocked) {
+        lockerSystem.equipTrail(lockerSystem.previewTrail);
+    }
+
+    if (!purchasedAny && (!skinUnlocked || !trailUnlocked)) {
+        if (typeof audio !== 'undefined' && typeof audio.playLaser === 'function') audio.playLaser();
+        const unDesc = (!skinUnlocked && skinData) ? skinData.unlockDesc : (trailData ? trailData.unlockDesc : 'Achievement required');
+        showNotification(`🔒 LOCKED: ${unDesc}`);
     }
     populateLockerModal();
 });
