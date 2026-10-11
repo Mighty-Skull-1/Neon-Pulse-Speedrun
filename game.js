@@ -1151,7 +1151,24 @@ const SKINS = [
     { id: "abyssal_pulse", name: "ABYSSAL PULSE", color: "#00f0ff", glow: "rgba(0,240,255,0.85)", icon: "🌊", price: 2500, unlockDesc: "Black Market Store" },
     { id: "electric_lime", name: "ELECTRIC LIME", color: "#39ff14", glow: "rgba(57,255,20,0.85)", icon: "⚡", price: 3000, unlockDesc: "Black Market Store" },
     { id: "dark_matter", name: "DARK MATTER", color: "#6366f1", glow: "rgba(99,102,241,0.85)", icon: "🪐", price: 3500, unlockDesc: "Black Market Store" },
-    { id: "royal_hyper", name: "ROYAL HYPERION", color: "#ffd700", glow: "rgba(255,215,0,0.9)", icon: "🔱", price: 4500, unlockDesc: "Black Market Store" }
+    { id: "royal_hyper", name: "ROYAL HYPERION", color: "#ffd700", glow: "rgba(255,215,0,0.9)", icon: "🔱", price: 4500, unlockDesc: "Black Market Store" },
+
+    // --- 15 NEW BLACK MARKET EXOSUITS ---
+    { id: "sakura_cyber", name: "CHERRY SAKURA", color: "#ff77a9", glow: "rgba(255,119,169,0.9)", icon: "🌸", price: 1800, unlockDesc: "Black Market Store" },
+    { id: "phantom_stealth", name: "PHANTOM STEALTH", color: "#64748b", glow: "rgba(100,116,139,0.85)", icon: "🥷", price: 2200, unlockDesc: "Black Market Store" },
+    { id: "hyper_amethyst", name: "HYPER AMETHYST", color: "#9333ea", glow: "rgba(147,51,234,0.9)", icon: "🔮", price: 2400, unlockDesc: "Black Market Store" },
+    { id: "frost_zero", name: "SUB-ZERO CRYOMANCER", color: "#a5f3fc", glow: "rgba(165,243,252,0.95)", icon: "❄️", price: 2600, unlockDesc: "Black Market Store" },
+    { id: "crimson_oni", name: "CRIMSON ONI", color: "#dc2626", glow: "rgba(220,38,38,0.9)", icon: "👹", price: 2800, unlockDesc: "Black Market Store" },
+    { id: "cyber_valkyrie", name: "AERO VALKYRIE", color: "#f0abfc", glow: "rgba(240,171,252,0.9)", icon: "🪽", price: 3000, unlockDesc: "Black Market Store" },
+    { id: "radioactive_decay", name: "RADIOACTIVE REACTOR", color: "#84cc16", glow: "rgba(132,204,22,0.95)", icon: "☢️", price: 3200, unlockDesc: "Black Market Store" },
+    { id: "solar_phoenix", name: "SOLAR PHOENIX", color: "#f97316", glow: "rgba(249,115,22,0.95)", icon: "🦅", price: 3400, unlockDesc: "Black Market Store" },
+    { id: "galaxy_nebula", name: "GALAXY NEBULA", color: "#c084fc", glow: "rgba(192,132,252,0.95)", icon: "🌌", price: 3600, unlockDesc: "Black Market Store" },
+    { id: "mecha_gundam", name: "MECHA AEGIS", color: "#38bdf8", glow: "rgba(56,189,248,0.95)", icon: "🤖", price: 3800, unlockDesc: "Black Market Store" },
+    { id: "chrono_shift", name: "CHRONO TEMPLAR", color: "#fcd34d", glow: "rgba(252,211,77,0.9)", icon: "⏳", price: 4000, unlockDesc: "Black Market Store" },
+    { id: "blood_moon", name: "BLOOD MOON REAPER", color: "#b91c1c", glow: "rgba(185,28,28,0.95)", icon: "🌙", price: 4200, unlockDesc: "Black Market Store" },
+    { id: "plasma_aurora", name: "BOREALIS AURORA", color: "#2dd4bf", glow: "rgba(45,212,191,0.95)", icon: "🌠", price: 4500, unlockDesc: "Black Market Store" },
+    { id: "deep_abyss", name: "DEEP TRENCH LEVIATHAN", color: "#0284c7", glow: "rgba(2,132,199,0.95)", icon: "🦑", price: 4800, unlockDesc: "Black Market Store" },
+    { id: "celestial_emperor", name: "CELESTIAL SOVEREIGN", color: "#fbbf24", glow: "rgba(251,191,36,1.0)", icon: "☀️", price: 5000, unlockDesc: "Black Market Store" }
 ];
 
 const TRAILS = [
@@ -1171,7 +1188,24 @@ const TRAILS = [
     { id: "solar_flare_trail", name: "SOLAR EMBERSTORM", desc: "Violent solar flare plasma sparks & eruptive ash", color: "#ff6600", icon: "☀️", price: 2000, unlockDesc: "Black Market Store" },
     { id: "cosmic_void", name: "COSMIC VOID", desc: "Singularity black-hole rift & purple starlight", color: "#7c3aed", icon: "🌌", price: 2500, unlockDesc: "Black Market Store" },
     { id: "hyper_prism", name: "PRISMATIC LIGHT", desc: "Refracted iridescent glass crystal sparkles", color: "#f472b6", icon: "💎", price: 3200, unlockDesc: "Black Market Store" },
-    { id: "biohazard_trail", name: "BIO-HAZARD ACID", desc: "Fuming toxic acid droplets & radioactive vapor", color: "#84cc16", icon: "☣️", price: 4000, unlockDesc: "Black Market Store" }
+    { id: "biohazard_trail", name: "BIO-HAZARD ACID", desc: "Fuming toxic acid droplets & radioactive vapor", color: "#84cc16", icon: "☣️", price: 4000, unlockDesc: "Black Market Store" },
+
+    // --- 15 NEW BLACK MARKET ENERGY TRAILS ---
+    { id: "sakura_petals", name: "SAKURA DRIFT", desc: "Falling glowing neon cherry blossom petals", color: "#ff77a9", icon: "🌸", price: 1600, unlockDesc: "Black Market Store" },
+    { id: "frost_blizzard", name: "CRYOGENIC BLIZZARD", desc: "Freezing crystalline snowflakes and cold frost mist", color: "#67e8f9", icon: "❄️", price: 2000, unlockDesc: "Black Market Store" },
+    { id: "lightning_spark", name: "TESLA LIGHTNING", desc: "Violent jagged cyan electric arc discharges", color: "#38bdf8", icon: "⚡", price: 2200, unlockDesc: "Black Market Store" },
+    { id: "bubble_foam", name: "NEON BUBBLE STREAM", desc: "Iridescent buoyant floating cyber-bubbles", color: "#34d399", icon: "🫧", price: 2400, unlockDesc: "Black Market Store" },
+    { id: "supernova_burst", name: "SUPERNOVA BURST", desc: "Exploding stellar starburst sparkles and cosmic dust", color: "#facc15", icon: "💥", price: 2600, unlockDesc: "Black Market Store" },
+    { id: "shadow_smoke", name: "PHANTOM SHADOW SMOKE", desc: "Dark swirling stealth smoke & dark purple wisps", color: "#475569", icon: "💨", price: 2800, unlockDesc: "Black Market Store" },
+    { id: "pixel_cube", name: "8-BIT PIXEL CASCADE", desc: "Retro cubic voxel blocks tumbling through gravity", color: "#ec4899", icon: "🟩", price: 3000, unlockDesc: "Black Market Store" },
+    { id: "aurora_wave", name: "NORTHERN AURORA", desc: "Ethereal undulating emerald & violet light waves", color: "#10b981", icon: "🌊", price: 3200, unlockDesc: "Black Market Store" },
+    { id: "heart_pulse", name: "CYBER LOVESTRUCK", desc: "Pulsing neon heart symbols and magenta sparkles", color: "#f43f5e", icon: "💖", price: 3400, unlockDesc: "Black Market Store" },
+    { id: "infernal_magma", name: "MOLTEN MAGMA", desc: "Dripping liquid lava droplets and fiery scorch marks", color: "#ea580c", icon: "🌋", price: 3600, unlockDesc: "Black Market Store" },
+    { id: "chrono_gears", name: "CHRONO CLOCKWORK", desc: "Spinning golden holographic gears and clock hands", color: "#eab308", icon: "⚙️", price: 3800, unlockDesc: "Black Market Store" },
+    { id: "music_notes", name: "SYNTHWAVE MELODY", desc: "Dancing musical notes drifting in the wind", color: "#d946ef", icon: "🎵", price: 4000, unlockDesc: "Black Market Store" },
+    { id: "hyper_rings", name: "SONIC SHOCKWAVES", desc: "Expanding circular compression rings and shock fronts", color: "#06b6d4", icon: "💫", price: 4200, unlockDesc: "Black Market Store" },
+    { id: "vortex_rift", name: "SINGULARITY RIFT", desc: "Twisting spiral portal vortex of dark antimatter", color: "#8b5cf6", icon: "🌀", price: 4500, unlockDesc: "Black Market Store" },
+    { id: "diamond_glitter", name: "DIAMOND DUST", desc: "Pure dazzling diamond glints and brilliant white prisms", color: "#ffffff", icon: "💎", price: 5000, unlockDesc: "Black Market Store" }
 ];
 
 const ROTATING_SUPPLY_POOL = [
@@ -9747,6 +9781,182 @@ function drawPlayerTrail() {
             ctx.arc(tr.x + 6, tr.y + tr.h / 2 - (1 - tr.alpha) * 10, (tr.alpha * 4) + 2, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
+        } else if (trailStyle === 'sakura_petals') {
+            ctx.save();
+            ctx.translate(tr.x + 6, tr.y + tr.h / 2 + Math.sin(tr.alpha * 8 + i) * 8);
+            ctx.rotate(tr.alpha * 5 + i);
+            ctx.fillStyle = '#ff77a9';
+            ctx.shadowColor = '#f43f5e';
+            ctx.shadowBlur = 8;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, (tr.alpha * 4) + 2, (tr.alpha * 2) + 1.5, Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        } else if (trailStyle === 'frost_blizzard') {
+            ctx.save();
+            ctx.translate(tr.x + 8, tr.y + tr.h / 2);
+            ctx.rotate(tr.alpha * 7);
+            ctx.strokeStyle = '#a5f3fc';
+            ctx.shadowColor = '#38bdf8';
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            const r = (tr.alpha * 4) + 2;
+            ctx.beginPath();
+            ctx.moveTo(-r, 0); ctx.lineTo(r, 0);
+            ctx.moveTo(0, -r); ctx.lineTo(0, r);
+            ctx.stroke();
+            ctx.restore();
+        } else if (trailStyle === 'lightning_spark') {
+            ctx.save();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.shadowColor = '#00f0ff';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.95);
+            ctx.beginPath();
+            ctx.moveTo(tr.x, tr.y + tr.h / 2);
+            ctx.lineTo(tr.x + 6, tr.y + tr.h / 2 + (i % 2 === 0 ? -7 : 7));
+            ctx.lineTo(tr.x + 12, tr.y + tr.h / 2 + (i % 2 === 0 ? 5 : -5));
+            ctx.stroke();
+            ctx.restore();
+        } else if (trailStyle === 'bubble_foam') {
+            ctx.save();
+            ctx.strokeStyle = '#34d399';
+            ctx.fillStyle = 'rgba(52,211,153,0.3)';
+            ctx.shadowColor = '#10b981';
+            ctx.shadowBlur = 9;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.85);
+            ctx.beginPath();
+            ctx.arc(tr.x + 6, tr.y + tr.h / 2 - (1 - tr.alpha) * 14, (tr.alpha * 5) + 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        } else if (trailStyle === 'supernova_burst') {
+            ctx.save();
+            ctx.translate(tr.x + 8, tr.y + tr.h / 2);
+            ctx.rotate(tr.alpha * 10);
+            ctx.fillStyle = tr.alpha > 0.5 ? '#fef08a' : '#f59e0b';
+            ctx.shadowColor = '#fbbf24';
+            ctx.shadowBlur = 14;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            const sz = (tr.alpha * 5) + 2;
+            ctx.fillRect(-sz, -sz, sz * 2, sz * 2);
+            ctx.restore();
+        } else if (trailStyle === 'shadow_smoke') {
+            ctx.save();
+            ctx.fillStyle = '#475569';
+            ctx.shadowColor = '#1e1b4b';
+            ctx.shadowBlur = 12;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.7);
+            ctx.beginPath();
+            ctx.arc(tr.x + 8, tr.y + tr.h / 2, ((1 - tr.alpha) * 10) + 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        } else if (trailStyle === 'pixel_cube') {
+            ctx.save();
+            ctx.fillStyle = i % 2 === 0 ? '#ec4899' : '#06b6d4';
+            ctx.shadowColor = '#ec4899';
+            ctx.shadowBlur = 8;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            ctx.fillRect(tr.x + 4, tr.y + tr.h / 2 - 3, 6, 6);
+            ctx.restore();
+        } else if (trailStyle === 'aurora_wave') {
+            ctx.save();
+            const aHue = (Date.now() * 0.15 + i * 40) % 360;
+            ctx.strokeStyle = `hsl(${aHue}, 90%, 65%)`;
+            ctx.shadowColor = `hsl(${aHue}, 90%, 65%)`;
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.8);
+            ctx.beginPath();
+            ctx.moveTo(tr.x, tr.y + tr.h / 2 + Math.sin(tr.alpha * 8) * 8);
+            ctx.lineTo(tr.x + 14, tr.y + tr.h / 2 - Math.sin(tr.alpha * 8) * 8);
+            ctx.stroke();
+            ctx.restore();
+        } else if (trailStyle === 'heart_pulse') {
+            ctx.save();
+            ctx.translate(tr.x + 8, tr.y + tr.h / 2 - (1 - tr.alpha) * 8);
+            ctx.fillStyle = '#f43f5e';
+            ctx.shadowColor = '#fb7185';
+            ctx.shadowBlur = 10;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText('♥', -4, 4);
+            ctx.restore();
+        } else if (trailStyle === 'infernal_magma') {
+            ctx.save();
+            ctx.fillStyle = tr.alpha > 0.4 ? '#ea580c' : '#7f1d1d';
+            ctx.shadowColor = '#ea580c';
+            ctx.shadowBlur = 12;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            ctx.beginPath();
+            ctx.arc(tr.x + 6, tr.y + tr.h / 2 + (1 - tr.alpha) * 10, (tr.alpha * 4) + 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        } else if (trailStyle === 'chrono_gears') {
+            ctx.save();
+            ctx.translate(tr.x + 8, tr.y + tr.h / 2);
+            ctx.rotate(tr.alpha * 8);
+            ctx.strokeStyle = '#eab308';
+            ctx.shadowColor = '#fde047';
+            ctx.shadowBlur = 9;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.85);
+            ctx.strokeRect(-4, -4, 8, 8);
+            ctx.beginPath();
+            ctx.arc(0, 0, 3, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        } else if (trailStyle === 'music_notes') {
+            ctx.save();
+            ctx.fillStyle = '#d946ef';
+            ctx.shadowColor = '#f0abfc';
+            ctx.shadowBlur = 9;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            ctx.font = 'bold 12px monospace';
+            ctx.fillText(i % 2 === 0 ? '♪' : '♫', tr.x + 6, tr.y + tr.h / 2 - (1 - tr.alpha) * 10);
+            ctx.restore();
+        } else if (trailStyle === 'hyper_rings') {
+            ctx.save();
+            ctx.strokeStyle = '#06b6d4';
+            ctx.shadowColor = '#22d3ee';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.8);
+            ctx.beginPath();
+            ctx.arc(tr.x + 8, tr.y + tr.h / 2, ((1 - tr.alpha) * 12) + 3, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        } else if (trailStyle === 'vortex_rift') {
+            ctx.save();
+            ctx.translate(tr.x + 8, tr.y + tr.h / 2);
+            ctx.rotate(-tr.alpha * 9);
+            ctx.strokeStyle = '#8b5cf6';
+            ctx.shadowColor = '#c084fc';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.9);
+            ctx.beginPath();
+            ctx.arc(0, 0, (tr.alpha * 6) + 2, 0, Math.PI * 1.5);
+            ctx.stroke();
+            ctx.restore();
+        } else if (trailStyle === 'diamond_glitter') {
+            ctx.save();
+            ctx.translate(tr.x + 8, tr.y + tr.h / 2);
+            ctx.rotate(tr.alpha * 6);
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 16;
+            ctx.globalAlpha = Math.max(0, tr.alpha * 0.95);
+            const dSz = (tr.alpha * 4) + 1.5;
+            ctx.beginPath();
+            ctx.moveTo(0, -dSz); ctx.lineTo(dSz * 0.4, 0); ctx.lineTo(0, dSz); ctx.lineTo(-dSz * 0.4, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
         } else {
             // pulse_dash (default)
             ctx.fillStyle = tr.color;
@@ -13363,6 +13573,15 @@ function populateLockerModal() {
     const skinsGrid = document.getElementById('locker-skins-grid');
     const trailsGrid = document.getElementById('locker-trails-grid');
 
+    const tabSkins = document.getElementById('locker-tab-skins');
+    if (tabSkins) {
+        tabSkins.innerHTML = `<span>🦿</span> EXOSUITS (${SKINS.length})`;
+    }
+    const tabTrails = document.getElementById('locker-tab-trails');
+    if (tabTrails) {
+        tabTrails.innerHTML = `<span>✨</span> ENERGY TRAILS (${TRAILS.length})`;
+    }
+
     if (skinsGrid) {
         skinsGrid.innerHTML = '';
         SKINS.forEach(skin => {
@@ -13661,6 +13880,85 @@ function startLockerPreviewAnimation() {
                 pctx.beginPath();
                 pctx.arc(part.x, part.y - (1 - part.alpha) * 6, 3.5, 0, Math.PI * 2);
                 pctx.fill();
+            } else if (part.style === 'sakura_petals') {
+                pctx.fillStyle = '#ff77a9';
+                pctx.beginPath();
+                pctx.ellipse(part.x, part.y + Math.sin(i + part.alpha * 6) * 5, 4, 2, Math.PI / 4, 0, Math.PI * 2);
+                pctx.fill();
+            } else if (part.style === 'frost_blizzard') {
+                pctx.strokeStyle = '#a5f3fc';
+                pctx.lineWidth = 1.2;
+                pctx.beginPath();
+                pctx.moveTo(part.x - 3, part.y); pctx.lineTo(part.x + 3, part.y);
+                pctx.moveTo(part.x, part.y - 3); pctx.lineTo(part.x, part.y + 3);
+                pctx.stroke();
+            } else if (part.style === 'lightning_spark') {
+                pctx.strokeStyle = '#38bdf8';
+                pctx.lineWidth = 1.5;
+                pctx.beginPath();
+                pctx.moveTo(part.x, part.y);
+                pctx.lineTo(part.x - 4, part.y + (i % 2 === 0 ? -5 : 5));
+                pctx.lineTo(part.x - 8, part.y + (i % 2 === 0 ? 3 : -3));
+                pctx.stroke();
+            } else if (part.style === 'bubble_foam') {
+                pctx.strokeStyle = '#34d399';
+                pctx.fillStyle = 'rgba(52,211,153,0.3)';
+                pctx.lineWidth = 1;
+                pctx.beginPath();
+                pctx.arc(part.x, part.y - (1 - part.alpha) * 8, 4, 0, Math.PI * 2);
+                pctx.fill();
+                pctx.stroke();
+            } else if (part.style === 'supernova_burst') {
+                pctx.fillStyle = '#fde047';
+                pctx.fillRect(part.x - 2, part.y - 2, 5, 5);
+            } else if (part.style === 'shadow_smoke') {
+                pctx.fillStyle = '#475569';
+                pctx.beginPath();
+                pctx.arc(part.x, part.y, ((1 - part.alpha) * 8) + 3, 0, Math.PI * 2);
+                pctx.fill();
+            } else if (part.style === 'pixel_cube') {
+                pctx.fillStyle = i % 2 === 0 ? '#ec4899' : '#06b6d4';
+                pctx.fillRect(part.x, part.y, 5, 5);
+            } else if (part.style === 'aurora_wave') {
+                const aHue = (Date.now() * 0.2 + i * 40) % 360;
+                pctx.strokeStyle = `hsl(${aHue}, 90%, 65%)`;
+                pctx.lineWidth = 2.5;
+                pctx.beginPath();
+                pctx.moveTo(part.x, part.y - 4);
+                pctx.lineTo(part.x + 8, part.y + 4);
+                pctx.stroke();
+            } else if (part.style === 'heart_pulse') {
+                pctx.fillStyle = '#f43f5e';
+                pctx.font = 'bold 9px sans-serif';
+                pctx.fillText('♥', part.x, part.y);
+            } else if (part.style === 'infernal_magma') {
+                pctx.fillStyle = part.alpha > 0.4 ? '#ea580c' : '#7f1d1d';
+                pctx.beginPath();
+                pctx.arc(part.x, part.y + (1 - part.alpha) * 6, 3, 0, Math.PI * 2);
+                pctx.fill();
+            } else if (part.style === 'chrono_gears') {
+                pctx.strokeStyle = '#eab308';
+                pctx.lineWidth = 1.2;
+                pctx.strokeRect(part.x - 3, part.y - 3, 6, 6);
+            } else if (part.style === 'music_notes') {
+                pctx.fillStyle = '#d946ef';
+                pctx.font = 'bold 9px monospace';
+                pctx.fillText(i % 2 === 0 ? '♪' : '♫', part.x, part.y);
+            } else if (part.style === 'hyper_rings') {
+                pctx.strokeStyle = '#06b6d4';
+                pctx.lineWidth = 1.5;
+                pctx.beginPath();
+                pctx.arc(part.x, part.y, ((1 - part.alpha) * 8) + 2, 0, Math.PI * 2);
+                pctx.stroke();
+            } else if (part.style === 'vortex_rift') {
+                pctx.strokeStyle = '#8b5cf6';
+                pctx.lineWidth = 1.5;
+                pctx.beginPath();
+                pctx.arc(part.x, part.y, 4, 0, Math.PI * 1.5);
+                pctx.stroke();
+            } else if (part.style === 'diamond_glitter') {
+                pctx.fillStyle = '#ffffff';
+                pctx.fillRect(part.x - 1.5, part.y - 1.5, 3.5, 3.5);
             } else {
                 pctx.fillStyle = skinData.color;
                 pctx.fillRect(part.x, part.y, 10, 16);
