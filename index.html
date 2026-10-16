@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PeerJS WebRTC P2P Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=2.6">
+    <link rel="stylesheet" href="style.css?v=2.7">
 </head>
 <body class="w-screen h-screen flex flex-col items-center justify-center p-0 m-0 bg-neutral-950 text-neutral-100 select-none">
 
@@ -312,29 +312,40 @@
             <!-- Title Screen / Main Menu View Overlay -->
             <div id="screen-main-menu" class="absolute inset-0 z-30 bg-black/80 backdrop-blur-[2px] flex flex-col items-center justify-start gap-3 p-3 sm:p-5 overflow-y-auto">
                 <!-- Top Status Bar in Main Menu -->
-                <div class="w-full flex items-center justify-between max-w-4xl bg-neutral-950/70 border border-neutral-800/80 rounded-xl px-3 sm:px-4 py-2 shadow-lg backdrop-blur-md shrink-0">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-cyber text-neutral-400 flex items-center gap-1.5">
-                            <span class="text-cyan-400">👤</span> PILOT:
-                        </span>
-                        <input id="input-pilot-tag" type="text" maxlength="15" value="PULSE_PILOT" placeholder="USERNAME" class="text-xs font-cyber font-bold text-cyan-400 bg-neutral-900 border border-cyan-800/80 hover:border-cyan-400 focus:border-cyan-400 px-2.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-cyan-400 uppercase tracking-wider w-32 sm:w-36 text-center cursor-text transition shadow-inner" title="Click to edit your Pilot Username">
-                        <span id="main-pilot-display" class="hidden">PULSE_PILOT</span>
+                <div class="w-full flex items-center justify-between max-w-5xl bg-neutral-950/85 border border-neutral-800/90 rounded-2xl px-3 sm:px-4 py-2 shadow-2xl backdrop-blur-xl shrink-0">
+                    <div class="flex items-center gap-2.5">
+                        <!-- Pilot Callsign Card -->
+                        <div class="flex items-center gap-2 bg-neutral-900/90 border border-neutral-700/80 rounded-xl px-2.5 py-1 shadow-inner">
+                            <div class="relative flex items-center justify-center">
+                                <span class="text-sm">🪪</span>
+                                <span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-neutral-900 animate-pulse"></span>
+                            </div>
+                            <span class="text-[10px] font-cyber text-neutral-400 font-bold uppercase tracking-wider hidden sm:inline">PILOT</span>
+                            <input id="input-pilot-tag" type="text" maxlength="15" value="PULSE_PILOT" placeholder="USERNAME" class="text-xs font-cyber font-bold text-cyan-300 bg-neutral-950/80 border border-cyan-500/40 hover:border-cyan-400 focus:border-cyan-400 px-2.5 py-0.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-400 uppercase tracking-wider w-28 sm:w-36 text-center cursor-text transition shadow-inner" title="Click to edit your Pilot Username">
+                            <span id="main-pilot-display" class="hidden">PULSE_PILOT</span>
+                        </div>
+                        <!-- Cyber Credits Wallet Balance -->
+                        <div class="flex items-center gap-1.5 px-3 py-1 bg-amber-950/50 border border-amber-500/40 rounded-xl text-amber-300 font-mono text-xs font-bold shadow-[0_0_12px_rgba(245,158,11,0.2)]" title="Cyber Wallet Balance (Earn from Bounties &amp; Stages)">
+                            <span class="text-amber-400">🪙</span>
+                            <span id="main-credits-display">0</span>
+                            <span class="text-[9px] text-amber-400/80 font-cyber">CR</span>
+                        </div>
                     </div>
                     <div class="flex items-center gap-1.5 sm:gap-2">
-                        <button id="btn-menu-admin-badge" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-500 text-xs font-cyber text-neutral-400 hover:text-amber-300 rounded-lg inline-flex items-center gap-1 transition cursor-pointer" title="Admin Control Panel [Ctrl+Shift+A]">
+                        <button id="btn-menu-admin-badge" class="h-8 px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-500 text-xs font-cyber text-neutral-400 hover:text-amber-300 rounded-xl inline-flex items-center gap-1.5 transition cursor-pointer" title="Admin Control Panel [Ctrl+Shift+A]">
                             <span id="menu-admin-icon">🔒</span>
                             <span id="menu-admin-text" class="hidden sm:inline font-bold">ADMIN</span>
                         </button>
-                        <button id="btn-menu-audio" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-cyber text-cyan-400 rounded-lg flex items-center gap-1 transition cursor-pointer">
+                        <button id="btn-menu-audio" class="h-8 px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-xs font-cyber text-cyan-400 rounded-xl flex items-center gap-1.5 transition cursor-pointer">
                             <span id="menu-audio-icon">🔊</span>
-                            <span id="menu-audio-text" class="hidden sm:inline">AUDIO: ON</span>
+                            <span id="menu-audio-text" class="hidden sm:inline font-bold">AUDIO: ON</span>
                         </button>
-                        <button id="btn-menu-ghost" class="hidden md:flex px-2.5 py-1 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/70 text-xs font-cyber text-cyan-300 rounded-lg items-center gap-1 transition cursor-pointer shadow-[0_0_8px_rgba(6,182,212,0.3)]" title="Toggle Solo Hologram Ghost [H]">
+                        <button id="btn-menu-ghost" class="hidden md:flex h-8 px-2.5 py-1 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/70 text-xs font-cyber text-cyan-300 rounded-xl items-center gap-1.5 transition cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.25)]" title="Toggle Solo Hologram Ghost [H]">
                             <span>👻</span>
-                            <span id="menu-ghost-text">GHOST: ON</span>
+                            <span id="menu-ghost-text" class="font-bold">GHOST: ON</span>
                         </button>
-                        <button id="btn-menu-fullscreen" onclick="toggleFullscreen()" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-emerald-400 text-xs font-cyber text-emerald-400 rounded-lg flex items-center gap-1 transition cursor-pointer" title="Toggle Fullscreen [G]">
-                            <span>⛶</span> <span id="btn-menu-fullscreen-text" class="hidden sm:inline">FULLSCREEN</span>
+                        <button id="btn-menu-fullscreen" onclick="toggleFullscreen()" class="h-8 px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-emerald-400 text-xs font-cyber text-emerald-400 rounded-xl flex items-center gap-1.5 transition cursor-pointer" title="Toggle Fullscreen [G]">
+                            <span>⛶</span> <span id="btn-menu-fullscreen-text" class="hidden sm:inline font-bold">FULLSCREEN</span>
                         </button>
                     </div>
                 </div>
@@ -342,15 +353,16 @@
                 <!-- Center Content Hub: Header + 2-Column Grid -->
                 <div class="w-full max-w-5xl py-2 flex flex-col items-center shrink-0">
                     <!-- Hero Title & Subtitle -->
-                    <div class="text-center mb-4">
-                        <div class="inline-flex items-center gap-2 px-3 py-0.5 bg-cyan-950/60 border border-cyan-500/40 rounded-full text-[10px] font-cyber tracking-widest text-cyan-300 uppercase mb-2 shadow-[0_0_12px_rgba(6,182,212,0.2)]">
-                            <span>⚡</span> PRECISION SPEEDRUN &amp; MULTIVERSE EDITION
+                    <div class="text-center mb-3 sm:mb-4 flex flex-col items-center">
+                        <div class="inline-flex items-center gap-2 px-3.5 py-0.5 bg-gradient-to-r from-cyan-950/80 via-blue-950/90 to-purple-950/80 border border-cyan-500/50 rounded-full text-[10px] font-cyber tracking-widest text-cyan-300 uppercase mb-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] backdrop-blur-md">
+                            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                            <span>⚡ PRECISION SPEEDRUN &amp; MULTIVERSE EDITION</span>
                         </div>
-                        <h1 class="text-4xl sm:text-6xl font-cyber font-extrabold tracking-wider glow-cyan text-white drop-shadow-[0_0_25px_rgba(6,182,212,0.6)]">
+                        <h1 class="text-4xl sm:text-6xl font-cyber font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-cyan-300 drop-shadow-[0_0_35px_rgba(6,182,212,0.7)] select-none">
                             NEON PULSE
                         </h1>
-                        <p class="text-xs text-neutral-400 max-w-md mx-auto mt-1 font-mono">
-                            20 handcrafted campaign sectors • Procedural endless marathon • Community level builder
+                        <p class="text-xs text-neutral-400 max-w-lg mx-auto mt-1 font-mono tracking-wide">
+                            20 Handcrafted Campaign Sectors • Procedural Endless Marathon • Creative Pilot Workshop
                         </p>
                     </div>
 
@@ -359,31 +371,31 @@
                         <!-- LEFT PANEL: Hero Campaign & Quick Play (7 cols) -->
                         <div class="lg:col-span-7 flex flex-col gap-2.5">
                             <!-- Primary Campaign Card -->
-                            <div class="bg-neutral-900/90 border border-cyan-500/40 rounded-xl p-4 shadow-[0_0_25px_rgba(6,182,212,0.2)] backdrop-blur-sm flex flex-col gap-3">
+                            <div class="cyber-panel cyber-panel-cyan rounded-2xl p-4 flex flex-col gap-3">
                                 <div class="flex items-center justify-between border-b border-neutral-800/80 pb-2">
                                     <span class="text-xs font-cyber font-bold text-cyan-300 flex items-center gap-2 tracking-wider">
-                                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.8)]"></span>
                                         CAMPAIGN SPEEDRUN
                                     </span>
-                                    <span class="text-[10px] font-mono text-cyan-400/80 font-bold">20 SECTORS</span>
+                                    <span class="text-[10px] font-mono text-cyan-400/90 font-bold px-2 py-0.5 rounded-md bg-cyan-950/60 border border-cyan-500/30">20 SECTORS</span>
                                 </div>
                                 <!-- Big Hero Play Button -->
-                                <button id="btn-main-play" class="btn-shimmer w-full py-3.5 px-5 bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-black font-cyber font-extrabold text-sm tracking-wider rounded-xl shadow-[0_0_25px_rgba(6,182,212,0.6)] transition transform active:scale-95 flex items-center justify-start gap-3 cursor-pointer">
-                                    <span class="text-xl">▶</span>
+                                <button id="btn-main-play" class="cyber-btn-play w-full py-3.5 px-5 text-black font-cyber font-extrabold text-sm tracking-wider rounded-xl transition transform active:scale-95 flex items-center justify-start gap-3.5 cursor-pointer">
+                                    <span class="text-2xl filter drop-shadow">▶</span>
                                     <div class="text-left">
-                                        <div class="leading-tight">START GAME</div>
-                                        <div class="text-[10px] font-mono text-neutral-900 opacity-90 font-semibold">STAGE 01 // HIGHWAY ZERO</div>
+                                        <div class="leading-tight text-base font-black tracking-wide">START GAME</div>
+                                        <div class="text-[10px] font-mono text-neutral-900 opacity-90 font-bold tracking-wider">STAGE 01 // HIGHWAY ZERO • INSTANT SPRINT</div>
                                     </div>
                                 </button>
                                 <!-- Secondary Stage Selectors -->
-                                <div class="grid grid-cols-3 gap-2 pt-1">
-                                    <button id="btn-main-stages" class="py-2 px-2 bg-neutral-950 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-neutral-300 hover:text-cyan-300 font-cyber text-xs rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                <div class="grid grid-cols-3 gap-2 pt-0.5">
+                                    <button id="btn-main-stages" class="py-2.5 px-2 cyber-tile cyber-tile-cyan text-neutral-300 hover:text-cyan-300 font-cyber font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer">
                                         <span>☰</span> STAGES
                                     </button>
-                                    <button id="btn-main-dim2" class="py-2 px-2 bg-neutral-950 hover:bg-purple-950/60 border border-neutral-700 hover:border-purple-400 text-neutral-300 hover:text-purple-300 font-cyber text-xs rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <button id="btn-main-dim2" class="py-2.5 px-2 cyber-tile cyber-tile-purple text-neutral-300 hover:text-purple-300 font-cyber font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer">
                                         <span>🌀</span> DIM-β
                                     </button>
-                                    <button id="btn-main-random" onclick="if(window.playRandomStage)window.playRandomStage();" class="py-2 px-2 bg-neutral-950 hover:bg-amber-950/60 border border-neutral-700 hover:border-amber-400 text-neutral-300 hover:text-amber-300 font-cyber text-xs rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <button id="btn-main-random" onclick="if(window.playRandomStage)window.playRandomStage();" class="py-2.5 px-2 cyber-tile cyber-tile-amber text-neutral-300 hover:text-amber-300 font-cyber font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer">
                                         <span>🎲</span> RANDOM
                                     </button>
                                 </div>
@@ -391,17 +403,17 @@
 
                             <!-- Special Gamemodes (Endless & 1v1) -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                <button id="btn-main-endless" class="p-3 bg-neutral-900/90 hover:bg-neutral-800 border border-amber-500/50 hover:border-amber-400 text-amber-300 font-cyber font-bold text-xs tracking-wider rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.2)] transition transform active:scale-95 flex items-center justify-center gap-2.5 cursor-pointer">
-                                    <span class="text-lg">⚡</span>
+                                <button id="btn-main-endless" class="p-3.5 cyber-tile cyber-tile-amber text-amber-300 font-cyber font-bold text-xs tracking-wider rounded-2xl transition transform active:scale-95 flex items-center justify-start gap-3 cursor-pointer">
+                                    <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-lg text-amber-300 shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.3)]">⚡</div>
                                     <div class="text-left">
-                                        <div>ENDLESS MARATHON</div>
+                                        <div class="font-bold text-amber-300">ENDLESS MARATHON</div>
                                         <div class="text-[9px] font-mono text-neutral-400 font-normal">PROCEDURAL SPEED RUN</div>
                                     </div>
                                 </button>
-                                <button id="btn-main-multiplayer" class="p-3 bg-neutral-900/90 hover:bg-neutral-800 border border-rose-500/50 hover:border-rose-400 text-rose-300 font-cyber font-bold text-xs tracking-wider rounded-xl transition transform active:scale-95 flex items-center justify-center gap-2.5 shadow-[0_0_15px_rgba(244,63,94,0.2)] cursor-pointer">
-                                    <span class="text-lg">⚔️</span>
+                                <button id="btn-main-multiplayer" class="p-3.5 cyber-tile cyber-tile-pink text-rose-300 font-cyber font-bold text-xs tracking-wider rounded-2xl transition transform active:scale-95 flex items-center justify-start gap-3 cursor-pointer">
+                                    <div class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-lg text-rose-300 shrink-0 shadow-[0_0_12px_rgba(244,63,94,0.3)]">⚔️</div>
                                     <div class="text-left">
-                                        <div>ONLINE RACE &amp; GHOSTS</div>
+                                        <div class="font-bold text-rose-300">ONLINE RACE &amp; GHOSTS</div>
                                         <div class="text-[9px] font-mono text-neutral-400 font-normal">1V1 LIVE RIVALS</div>
                                     </div>
                                 </button>
@@ -411,15 +423,15 @@
                         <!-- RIGHT PANEL: Daily Seeded & Community/Hub (5 cols) -->
                         <div class="lg:col-span-5 flex flex-col gap-2.5">
                             <!-- Daily Seeded Speedrun Banner -->
-                            <div class="bg-neutral-900/80 border border-pink-500/40 rounded-xl p-3 flex items-center justify-between shadow-[0_0_15px_rgba(236,72,153,0.15)] relative overflow-hidden backdrop-blur-sm">
+                            <div class="cyber-tile cyber-tile-pink rounded-2xl p-3.5 flex items-center justify-between relative overflow-hidden">
                                 <div class="flex items-center gap-2.5">
-                                    <div class="w-9 h-9 rounded-lg bg-pink-500/20 border border-pink-400/50 flex items-center justify-center text-lg shadow-[0_0_10px_rgba(236,72,153,0.3)] shrink-0">
+                                    <div class="w-10 h-10 rounded-xl bg-pink-500/20 border border-pink-400/50 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(236,72,153,0.35)] shrink-0">
                                         📅
                                     </div>
                                     <div class="text-left">
                                         <div class="flex items-center gap-1.5">
                                             <span class="text-xs font-cyber font-bold text-pink-300">DAILY CHALLENGE</span>
-                                            <span id="daily-date-tag" class="text-[9px] px-1.5 py-0.2 rounded bg-pink-950/90 border border-pink-500/60 text-pink-300 font-mono font-bold">TODAY</span>
+                                            <span id="daily-date-tag" class="text-[9px] px-1.5 py-0.2 rounded-md bg-pink-950/90 border border-pink-500/60 text-pink-300 font-mono font-bold">TODAY</span>
                                         </div>
                                         <div class="text-[10px] text-neutral-400 flex items-center gap-2 mt-0.5 font-mono">
                                             <span>RESET: <strong id="daily-countdown-text" class="text-pink-400 font-bold">--:--:--</strong></span>
@@ -428,36 +440,36 @@
                                         </div>
                                     </div>
                                 </div>
-                                <button id="btn-main-play-daily" class="py-1.5 px-3 bg-pink-950 hover:bg-pink-900 border border-pink-500/70 hover:border-pink-400 text-pink-200 font-cyber font-bold text-xs tracking-wider rounded-lg transition transform active:scale-95 flex items-center gap-1 cursor-pointer shrink-0">
+                                <button id="btn-main-play-daily" class="py-2 px-3.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-cyber font-bold text-xs tracking-wider rounded-xl transition transform active:scale-95 flex items-center gap-1.5 cursor-pointer shrink-0 shadow-[0_0_15px_rgba(236,72,153,0.4)]">
                                     <span>⚡</span> PLAY
                                 </button>
                             </div>
 
                             <!-- Hub & Customization Cards (3x2 Grid) -->
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                <button id="btn-main-builder" class="p-2.5 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 hover:border-purple-400 text-neutral-300 hover:text-purple-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
-                                    <span class="text-base">🛠️</span>
+                                <button id="btn-main-builder" class="p-2.5 cyber-tile cyber-tile-purple text-neutral-300 hover:text-purple-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
+                                    <span class="text-lg">🛠️</span>
                                     <div class="text-left">
                                         <div>BUILDER</div>
                                         <div class="text-[9px] font-mono text-neutral-400 font-normal">CREATE &amp; SHARE</div>
                                     </div>
                                 </button>
-                                <button id="btn-main-locker" class="p-2.5 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-neutral-300 hover:text-cyan-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
-                                    <span class="text-base">🎨</span>
+                                <button id="btn-main-locker" class="p-2.5 cyber-tile cyber-tile-cyan text-neutral-300 hover:text-cyan-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
+                                    <span class="text-lg">🎨</span>
                                     <div class="text-left">
                                         <div>LOCKER</div>
                                         <div class="text-[9px] font-mono text-neutral-400 font-normal">SKINS &amp; TRAILS</div>
                                     </div>
                                 </button>
-                                <button id="btn-main-achievements" class="p-2.5 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-neutral-300 hover:text-amber-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
-                                    <span class="text-base">⭐</span>
+                                <button id="btn-main-achievements" class="p-2.5 cyber-tile cyber-tile-amber text-neutral-300 hover:text-amber-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
+                                    <span class="text-lg">⭐</span>
                                     <div class="text-left">
                                         <div>AWARDS</div>
                                         <div class="text-[9px] font-mono text-neutral-400 font-normal">ACHIEVEMENTS</div>
                                     </div>
                                 </button>
-                                <button id="btn-main-daily" class="relative p-2.5 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-neutral-300 hover:text-amber-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
-                                    <span class="text-base">🎁</span>
+                                <button id="btn-main-daily" class="relative p-2.5 cyber-tile cyber-tile-pink text-neutral-300 hover:text-pink-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
+                                    <span class="text-lg">🎁</span>
                                     <div class="text-left">
                                         <div class="flex items-center gap-1">
                                             BOUNTIES
@@ -466,15 +478,15 @@
                                         <div class="text-[9px] font-mono text-neutral-400 font-normal">DAILY REWARDS</div>
                                     </div>
                                 </button>
-                                <button id="btn-main-ranks" class="p-2.5 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-neutral-300 hover:text-amber-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
-                                    <span class="text-base">🏆</span>
+                                <button id="btn-main-ranks" class="p-2.5 cyber-tile cyber-tile-gold text-neutral-300 hover:text-amber-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
+                                    <span class="text-lg">🏆</span>
                                     <div class="text-left">
                                         <div>RANKS</div>
                                         <div class="text-[9px] font-mono text-neutral-400 font-normal">LEADERBOARDS</div>
                                     </div>
                                 </button>
-                                <button id="btn-main-settings" class="p-2.5 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-neutral-300 hover:text-cyan-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
-                                    <span class="text-base">⚙️</span>
+                                <button id="btn-main-settings" class="p-2.5 cyber-tile cyber-tile-cyan text-neutral-300 hover:text-cyan-300 font-cyber font-bold text-xs rounded-xl transition flex items-center gap-2 cursor-pointer">
+                                    <span class="text-lg">⚙️</span>
                                     <div class="text-left">
                                         <div>SETTINGS</div>
                                         <div class="text-[9px] font-mono text-neutral-400 font-normal">PREFERENCES</div>
@@ -482,10 +494,13 @@
                                 </button>
                             </div>
 
-                            <!-- Help Bar -->
-                            <div class="flex items-center gap-2">
-                                <button id="btn-main-howtoplay" class="w-full py-2 px-3 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 hover:border-neutral-500 text-neutral-300 font-cyber text-xs rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <!-- Help Bar & Roll Credits Shortcut -->
+                            <div class="grid grid-cols-2 gap-2">
+                                <button id="btn-main-howtoplay" class="py-2.5 px-3 cyber-tile text-neutral-300 hover:text-white font-cyber font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-md">
                                     <span>❓</span> HOW TO PLAY
+                                </button>
+                                <button id="btn-main-credits" onclick="if(window.startEndCredits)window.startEndCredits(false);" class="py-2.5 px-3 cyber-tile cyber-tile-amber text-amber-300 hover:text-amber-200 font-cyber font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+                                    <span>🎬</span> ROLL CREDITS
                                 </button>
                             </div>
                         </div>
@@ -1202,13 +1217,17 @@
         </div>
 
         <!-- MODAL: Cinematic End Credits (Multiverse Grand Finale) -->
-        <div id="modal-credits" class="hidden modal-backdrop absolute inset-0 z-40 bg-gradient-to-b from-black/85 via-black/55 to-black/90 backdrop-blur-[1px] flex flex-col justify-between p-3 sm:p-5 overflow-hidden" style="display:none">
+        <div id="modal-credits" class="hidden modal-backdrop absolute inset-0 z-40 bg-gradient-to-b from-black/85 via-black/55 to-black/90 backdrop-blur-[2px] flex flex-col justify-between p-3 sm:p-5 overflow-hidden" style="display:none">
             <!-- Top Controls Bar -->
-            <div class="w-full flex items-center justify-between max-w-4xl mx-auto bg-neutral-950/85 border border-neutral-800/80 rounded-xl px-4 py-2 shadow-lg backdrop-blur-md z-10 shrink-0">
-                <div class="flex items-center gap-2">
-                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+            <div class="w-full flex items-center justify-between max-w-4xl mx-auto bg-neutral-950/90 border border-neutral-800/90 rounded-xl px-4 py-2 shadow-2xl backdrop-blur-md z-10 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.8)]"></span>
                     <span class="text-xs font-cyber font-bold text-amber-300 tracking-wider">
                         MULTIVERSE CONQUERED // END CREDITS
+                    </span>
+                    <span class="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-[9px] font-cyber text-cyan-300 font-bold uppercase tracking-widest shadow-[0_0_8px_rgba(6,182,212,0.3)]">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                        CONTINUOUS LOOP
                     </span>
                 </div>
                 <div class="flex items-center gap-2">
@@ -1217,16 +1236,17 @@
                         <span id="credits-speed-text">1X NORMAL</span>
                     </button>
                     <button id="btn-credits-skip" onclick="if(window.closeEndCredits)window.closeEndCredits();" class="px-2.5 py-1 bg-neutral-900 hover:bg-rose-950 border border-neutral-700 hover:border-rose-500 text-xs font-cyber text-neutral-300 hover:text-rose-300 rounded-lg flex items-center gap-1 transition cursor-pointer" title="Skip Credits [ESC]">
-                        <span>✕</span> SKIP
+                        <span>✕</span> SKIP [ESC]
                     </button>
                 </div>
             </div>
 
-            <!-- Central Scrolling Credits Viewport -->
-            <div id="credits-viewport" class="relative flex-1 w-full max-w-3xl mx-auto overflow-y-auto my-2 py-4 px-3 flex flex-col items-center text-center scrollbar-none" style="scrollbar-width: none; -ms-overflow-style: none;">
-                <div id="credits-content" class="w-full flex flex-col items-center gap-8 py-10">
-                    <!-- Title & Victory Banner -->
-                    <div class="flex flex-col items-center gap-2">
+            <!-- Central Scrolling Credits Viewport with continuous mask -->
+            <div id="credits-viewport" class="relative flex-1 w-full max-w-3xl mx-auto overflow-y-auto my-2 py-4 px-3 flex flex-col items-center text-center scrollbar-none credits-mask" style="scrollbar-width: none; -ms-overflow-style: none;">
+                <div id="credits-loop-wrapper" class="w-full flex flex-col items-center">
+                    <div id="credits-content" class="w-full flex flex-col items-center gap-8 py-10">
+                        <!-- Title & Victory Banner -->
+                        <div class="flex flex-col items-center gap-2">
                         <div class="px-3 py-1 bg-amber-950/80 border border-amber-500/80 rounded-full text-[10px] font-cyber font-bold tracking-widest text-amber-300 uppercase shadow-[0_0_20px_rgba(245,158,11,0.4)]">
                             👑 CAMPAIGN SPEEDRUN COMPLETE 👑
                         </div>
@@ -1350,6 +1370,16 @@
                                 NEON PULSE SPEEDRUN EDITION // COMPLETED
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Seamless Continuous Loop Divider -->
+                    <div id="credits-loop-divider" class="py-14 flex flex-col items-center gap-3 w-full opacity-90 my-2 shrink-0">
+                        <div class="w-56 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent"></div>
+                        <div class="px-4 py-1.5 rounded-full bg-cyan-950/90 border border-cyan-500/60 text-[11px] font-cyber text-cyan-300 tracking-widest uppercase shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                            <span>♾️ MULTIVERSE RUNNER // CONTINUOUS CREDITS LOOP</span>
+                        </div>
+                        <div class="w-56 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent"></div>
                     </div>
                 </div>
             </div>
@@ -2166,6 +2196,6 @@
     <!-- Steamworks & Desktop Bridge -->
     <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=7.5"></script>
+    <script src="game.js?v=7.6"></script>
 </body>
 </html>

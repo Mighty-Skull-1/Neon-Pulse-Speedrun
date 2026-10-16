@@ -262,3 +262,81 @@ body.gamepad-active :focus-visible {
     outline: none;
 }
 
+/* Cinematic Credits Continuous Mask */
+.credits-mask {
+    mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+}
+
+/* Cyber UI Panel & Cards */
+.cyber-panel {
+    background: rgba(8, 12, 22, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cyber-panel-cyan:hover {
+    border-color: rgba(6, 182, 212, 0.5);
+    box-shadow: 0 12px 35px -8px rgba(6, 182, 212, 0.3);
+}
+
+.cyber-tile {
+    background: rgba(13, 20, 36, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(10px);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cyber-tile:hover {
+    transform: translateY(-2px);
+    background: rgba(15, 23, 42, 0.95);
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.6);
+}
+
+.cyber-tile-cyan:hover {
+    border-color: rgba(6, 182, 212, 0.6);
+    box-shadow: 0 8px 24px -4px rgba(6, 182, 212, 0.35);
+}
+
+.cyber-tile-purple:hover {
+    border-color: rgba(168, 85, 247, 0.6);
+    box-shadow: 0 8px 24px -4px rgba(168, 85, 247, 0.35);
+}
+
+.cyber-tile-amber:hover {
+    border-color: rgba(245, 158, 11, 0.6);
+    box-shadow: 0 8px 24px -4px rgba(245, 158, 11, 0.35);
+}
+
+.cyber-tile-pink:hover {
+    border-color: rgba(236, 72, 153, 0.6);
+    box-shadow: 0 8px 24px -4px rgba(236, 72, 153, 0.35);
+}
+
+.cyber-tile-gold:hover {
+    border-color: rgba(234, 179, 8, 0.6);
+    box-shadow: 0 8px 24px -4px rgba(234, 179, 8, 0.35);
+}
+
+.cyber-btn-play {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #06b6d4 0%, #0284c7 60%, #2563eb 100%);
+    box-shadow: 0 0 25px rgba(6, 182, 212, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cyber-btn-play:hover {
+    background: linear-gradient(135deg, #22d3ee 0%, #0ea5e9 60%, #3b82f6 100%);
+    box-shadow: 0 0 35px rgba(6, 182, 212, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+    transform: translateY(-1px) scale(1.005);
+}
+
+.cyber-btn-play:active {
+    transform: scale(0.985);
+}
+
+

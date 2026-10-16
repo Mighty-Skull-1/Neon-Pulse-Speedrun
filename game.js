@@ -2370,6 +2370,8 @@ const dailySystem = {
         if (el) el.innerText = this.credits.toLocaleString();
         const lockerEl = document.getElementById('locker-credits-display');
         if (lockerEl) lockerEl.innerText = this.credits.toLocaleString();
+        const mainEl = document.getElementById('main-credits-display');
+        if (mainEl) mainEl.innerText = this.credits.toLocaleString();
     },
 
     getTodayIndex() {
@@ -15158,7 +15160,7 @@ function startEndCredits(fromStage20 = false) {
         }
     } catch(e) {}
 
-    // 5. Reveal Credits Modal & start smooth autoscroll
+    // 5. Setup Infinite Scrolling Reel Loop
     const credModal = document.getElementById('modal-credits');
     if (credModal) {
         credModal.classList.remove('hidden');
@@ -15166,6 +15168,20 @@ function startEndCredits(fromStage20 = false) {
     }
 
     const viewport = document.getElementById('credits-viewport');
+    const content = document.getElementById('credits-content');
+    const loopWrapper = document.getElementById('credits-loop-wrapper');
+    let clone = document.getElementById('credits-content-clone');
+
+    if (content && loopWrapper) {
+        if (!clone) {
+            clone = document.createElement('div');
+            clone.id = 'credits-content-clone';
+            clone.className = content.className;
+            loopWrapper.appendChild(clone);
+        }
+        clone.innerHTML = content.innerHTML;
+    }
+
     if (viewport) {
         viewport.scrollTop = 0;
     }
@@ -15185,8 +15201,20 @@ function startEndCredits(fromStage20 = false) {
         lastScrollTs = ts;
 
         const vp = document.getElementById('credits-viewport');
-        if (vp) {
-            vp.scrollTop += (48 * creditsSpeedMultiplier) * dt;
+        const origContent = document.getElementById('credits-content');
+        const divider = document.getElementById('credits-loop-divider');
+
+        if (vp && origContent) {
+            vp.scrollTop += (50 * creditsSpeedMultiplier) * dt;
+
+            // One complete loop cycle consists of original content plus the divider
+            const dividerHeight = divider ? divider.offsetHeight : 120;
+            const singleCycleHeight = origContent.offsetHeight + dividerHeight;
+
+            // Seamless wrap-around: rolls infinitely until user skips with ESC
+            if (singleCycleHeight > 150 && vp.scrollTop >= singleCycleHeight) {
+                vp.scrollTop -= singleCycleHeight;
+            }
         }
 
         creditsAnimFrame = requestAnimationFrame(scrollStep);
@@ -16685,6 +16713,10 @@ bindClick('btn-ach-roll-credits', () => {
         modalAch.classList.add('hidden');
         modalAch.style.display = 'none';
     }
+    startEndCredits(false);
+});
+
+bindClick('btn-main-credits', () => {
     startEndCredits(false);
 });
 
