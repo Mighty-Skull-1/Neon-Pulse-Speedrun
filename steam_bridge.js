@@ -70,6 +70,7 @@
 
         unlockAchievement(achId) {
             if (!achId) return false;
+            if (typeof global.game !== 'undefined' && global.game && global.game.isCreditsRoll) return false;
             console.log(`[SteamBridge] Achievement Triggered: ${achId}`);
 
             if (this.isAvailable && this.client) {

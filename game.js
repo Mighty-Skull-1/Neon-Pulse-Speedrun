@@ -1447,6 +1447,7 @@ const ACHIEVEMENTS = [
 ];
 
 function showAchievementToast(ach) {
+    if (typeof game !== 'undefined' && game && game.isCreditsRoll) return;
     const toast = document.getElementById('toast-achievement');
     if (!toast) return;
     const icon = document.getElementById('toast-ach-icon');
@@ -1561,6 +1562,7 @@ const achievementSystem = {
     },
 
     unlock(id, notify = true) {
+        if (typeof game !== 'undefined' && game && game.isCreditsRoll) return;
         if (this.unlocked.has(id)) return;
         const ach = ACHIEVEMENTS.find(a => a.id === id);
         if (!ach) return;
@@ -2458,6 +2460,7 @@ const dailySystem = {
     },
 
     updateBountyProgress(type, amount) {
+        if (typeof game !== 'undefined' && game && game.isCreditsRoll) return;
         if (!this.bounties || this.bounties.length === 0) return;
         let changed = false;
 
@@ -7155,6 +7158,7 @@ function updateAbilityHUD() {
 }
 
 function showNotification(text, forceOnMenu = false) {
+    if (typeof game !== 'undefined' && game && game.isCreditsRoll) return;
     if (!forceOnMenu && typeof game !== 'undefined' && game && game.inMainMenu) return;
     const toast = document.getElementById('toast-banner');
     if (!toast) return;
@@ -11226,22 +11230,24 @@ function updateEndlessMode(dt) {
     const p = game.player;
     game.endlessDistance = Math.max(0, Math.floor(p.x / 10));
 
-    if (game.endlessDistance > game.endlessBestDistance) {
-        game.endlessBestDistance = game.endlessDistance;
-        try {
-            localStorage.setItem('neon_pulse_endless_best', game.endlessBestDistance);
-        } catch(e) {}
-    }
+    if (!game.isCreditsRoll) {
+        if (game.endlessDistance > game.endlessBestDistance) {
+            game.endlessBestDistance = game.endlessDistance;
+            try {
+                localStorage.setItem('neon_pulse_endless_best', game.endlessBestDistance);
+            } catch(e) {}
+        }
 
-    if (typeof achievementSystem !== 'undefined') {
-        if (game.endlessDistance >= 1000) achievementSystem.unlock('endless_1000m');
-        if (game.endlessDistance >= 2500) achievementSystem.unlock('endless_2500m');
-        if (game.endlessDistance >= 10000) achievementSystem.unlock('endless_10000m');
-        if (game.endlessDistance >= 25000) achievementSystem.unlock('endless_25000m');
-        if (game.endlessDistance >= 50000) achievementSystem.unlock('endless_50000m');
-    }
-    if (typeof dailySystem !== 'undefined') {
-        dailySystem.updateBountyProgress('endless_dist', game.endlessDistance);
+        if (typeof achievementSystem !== 'undefined') {
+            if (game.endlessDistance >= 1000) achievementSystem.unlock('endless_1000m');
+            if (game.endlessDistance >= 2500) achievementSystem.unlock('endless_2500m');
+            if (game.endlessDistance >= 10000) achievementSystem.unlock('endless_10000m');
+            if (game.endlessDistance >= 25000) achievementSystem.unlock('endless_25000m');
+            if (game.endlessDistance >= 50000) achievementSystem.unlock('endless_50000m');
+        }
+        if (typeof dailySystem !== 'undefined') {
+            dailySystem.updateBountyProgress('endless_dist', game.endlessDistance);
+        }
     }
 
     p.vx = endlessBaseSpeed(game.endlessDistance);
