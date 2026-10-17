@@ -11921,8 +11921,8 @@ const MP = {
                 this.lastRivalSeen = Date.now();
                 return;
             }
-            if (Date.now() - this.lastRivalSeen > 15000) {
-                console.warn("[MP] Heartbeat timeout (15s) — rival connection lost or cancelled");
+            if (Date.now() - this.lastRivalSeen > 25000) {
+                console.warn("[MP] Heartbeat timeout (25s) — rival connection lost or cancelled");
                 this.rivalGone('RIVAL DISCONNECTED / TIMED OUT');
                 return;
             }
@@ -11937,10 +11937,14 @@ const MP = {
         }
     },
 
-    expireSession(reason = "RIVAL LEFT / CANCELLED") {
+    expireSession(reason = "RIVAL LEFT / CANCELLED", notify = true) {
         if (this.hideChoiceModal) this.hideChoiceModal();
         this.sessionExpired = true;
         this.stopHeartbeat();
+        if (this.joinRetryTimer) {
+            clearTimeout(this.joinRetryTimer);
+            this.joinRetryTimer = null;
+        }
         if (this.rematch && this.rematch.decisionTimer) {
             clearTimeout(this.rematch.decisionTimer);
             this.rematch.decisionTimer = null;
@@ -11968,20 +11972,19 @@ const MP = {
         game.mpRival = null;
         this.roomCode = '';
 
-        setTimeout(() => {
-            if (this.conn) {
-                try { this.conn.close(); } catch(e) {}
-                this.conn = null;
-            }
-            if (this.peer) {
-                try { this.peer.destroy(); } catch(e) {}
-                this.peer = null;
-            }
-            if (this.channel) {
-                try { this.channel.close(); } catch(e) {}
-                this.channel = null;
-            }
-        }, 80);
+        // Immediate synchronous teardown — never use delayed timers that kill new peers!
+        if (this.conn) {
+            try { this.conn.close(); } catch(e) {}
+            this.conn = null;
+        }
+        if (this.peer) {
+            try { this.peer.destroy(); } catch(e) {}
+            this.peer = null;
+        }
+        if (this.channel) {
+            try { this.channel.close(); } catch(e) {}
+            this.channel = null;
+        }
 
         // Update Host Lobby Elements
         const codeDisplay = document.getElementById('mp-room-code');
@@ -12004,7 +12007,7 @@ const MP = {
         if (rivalTrack) {
             rivalTrack.innerText = "NONE (SESSION EXPIRED)";
         }
-        if (expiryBanner) {
+        if (expiryBanner && notify) {
             expiryBanner.classList.remove('hidden');
             expiryBanner.innerText = `⚠️ MATCH SESSION EXPIRED: ${reason}`;
         }
@@ -12013,16 +12016,14 @@ const MP = {
         const joinStatus = document.getElementById('mp-join-status');
         const joinBanner = document.getElementById('mp-join-expiry-banner');
         const guestLobby = document.getElementById('mp-guest-lobby-view');
-        const joinInput = document.getElementById('input-room-code');
-        if (joinStatus) {
+        if (joinStatus && notify) {
             joinStatus.innerHTML = `<span class="text-rose-400 font-bold">⚠️ SESSION EXPIRED — ${reason}</span>`;
         }
-        if (joinBanner) {
+        if (joinBanner && notify) {
             joinBanner.classList.remove('hidden');
             joinBanner.innerText = `⚠️ SESSION EXPIRED: ${reason}`;
         }
         if (guestLobby) guestLobby.classList.add('hidden');
-        if (joinInput) joinInput.value = '';
 
         // Rematch panel update
         const rivalRematchStatus = document.getElementById('rematch-rival-status');
@@ -12030,7 +12031,7 @@ const MP = {
         if (rivalRematchStatus) {
             rivalRematchStatus.innerHTML = `<span class="text-rose-400 font-bold">✗ CANCELLED / EXPIRED</span>`;
         }
-        if (feedback) {
+        if (feedback && notify) {
             feedback.classList.remove('hidden');
             feedback.className = "text-xs font-cyber font-bold text-rose-400 text-center py-1 bg-rose-950/60 border border-rose-500/50 rounded animate-pulse";
             feedback.innerText = `❌ SESSION EXPIRED — ${reason}`;
@@ -12039,7 +12040,9 @@ const MP = {
         this.resetSeries();
         this.resetMatch();
         this.updateHUDSeriesBadge();
-        showNotification(`⚠️ SESSION EXPIRED: ${reason}`);
+        if (notify) {
+            showNotification(`⚠️ SESSION EXPIRED: ${reason}`);
+        }
     },
 
     // Called when the OTHER player drops. Ends the session and, if we were mid-match
@@ -12064,11 +12067,58 @@ const MP = {
         }
     },
 
-    disconnectSession(notify = true) {
-        this.expireSession(notify ? "SESSION DISCONNECTED" : "ROOM RESET");
+    disconnectSession(notify = false) {
+        if (notify) {
+            this.expireSession("SESSION DISCONNECTED", true);
+        } else {
+            this.stopHeartbeat();
+            if (this.joinRetryTimer) {
+                clearTimeout(this.joinRetryTimer);
+                this.joinRetryTimer = null;
+            }
+            if (this.hideChoiceModal) this.hideChoiceModal();
+            if (this.rematch && this.rematch.decisionTimer) {
+                clearTimeout(this.rematch.decisionTimer);
+                this.rematch.decisionTimer = null;
+            }
+            if (this.rematch && this.rematch.expiryTimer) {
+                clearTimeout(this.rematch.expiryTimer);
+                this.rematch.expiryTimer = null;
+            }
+            if (this.finishTimeout) {
+                clearTimeout(this.finishTimeout);
+                this.finishTimeout = null;
+            }
+
+            if (this.connected && (!game.mpRival || !game.mpRival.isAI)) {
+                try {
+                    this.sendMsg({ type: 'PLAYER_LEFT', reason: 'RESET', tag: game.pilotTag });
+                } catch(e) {}
+            }
+
+            this.connected = false;
+            game.isMultiplayer = false;
+            this.rivalData = null;
+            game.mpRival = null;
+            this.roomCode = '';
+
+            if (this.conn) {
+                try { this.conn.close(); } catch(e) {}
+                this.conn = null;
+            }
+            if (this.peer) {
+                try { this.peer.destroy(); } catch(e) {}
+                this.peer = null;
+            }
+            if (this.channel) {
+                try { this.channel.close(); } catch(e) {}
+                this.channel = null;
+            }
+            this.resetLobbyUI(false);
+        }
     },
 
-    resetLobbyUI() {
+    resetLobbyUI(clearInput = false) {
         // Reset Host box elements
         const codeDisplay = document.getElementById('mp-room-code');
         const hostStatus = document.getElementById('mp-opponent-status');
@@ -12094,10 +12144,14 @@ const MP = {
         const guestLobby = document.getElementById('mp-guest-lobby-view');
         const guestHostTrackDisplay = document.getElementById('mp-guest-host-track-display');
         const joinBanner = document.getElementById('mp-join-expiry-banner');
-        if (joinInput) joinInput.value = '';
+        if (joinInput && clearInput) joinInput.value = '';
         if (joinStatus) joinStatus.innerText = 'Ready to connect to host room.';
         if (guestLobby) guestLobby.classList.add('hidden');
         if (guestHostTrackDisplay) guestHostTrackDisplay.innerText = '🎲 RANDOM (ALL 20 MODES)';
+        if (joinBanner) {
+            joinBanner.classList.add('hidden');
+            joinBanner.innerText = '';
+        }
         if (joinBanner) {
             joinBanner.classList.add('hidden');
             joinBanner.innerText = '';
@@ -12379,9 +12433,24 @@ const MP = {
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' }
-            ]
+                { urls: 'stun:stun.cloudflare.com:3478' },
+                {
+                    urls: 'turn:openrelay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                }
+            ],
+            iceCandidatePoolSize: 10
         }
     },
 
@@ -12468,6 +12537,10 @@ const MP = {
             }
             showNotification(`⚔️ ${data.tag || 'RIVAL'} JOINED YOUR ROOM!`);
         } else if (data.type === 'JOIN_ACCEPT' && !this.isHost) {
+            if (this.joinRetryTimer) {
+                clearTimeout(this.joinRetryTimer);
+                this.joinRetryTimer = null;
+            }
             this.connected = true;
             this.sessionExpired = false;
             game.isMultiplayer = true;
@@ -12535,6 +12608,10 @@ const MP = {
     createRoom(forceFresh = false) {
         this.sessionExpired = false;
         this.stopHeartbeat();
+        if (this.joinRetryTimer) {
+            clearTimeout(this.joinRetryTimer);
+            this.joinRetryTimer = null;
+        }
         if (this.conn || this.connected || this.rivalData || forceFresh) {
             if (this.conn) { try { this.conn.close(); } catch(e) {} this.conn = null; }
             if (this.peer) { try { this.peer.destroy(); } catch(e) {} this.peer = null; }
@@ -12580,20 +12657,26 @@ const MP = {
         if (typeof Peer !== 'undefined') {
             if (this.peer) {
                 try { this.peer.destroy(); } catch(e) {}
+                this.peer = null;
             }
 
-            const peerId = `NEON-${this.roomCode}`;
+            const roomCode = this.roomCode;
+            const peerId = `NEON-${roomCode}`;
             try {
-                this.peer = new Peer(peerId, this.peerConfig);
-                this.peer.on('open', (id) => {
-                    if (codeDisplay) codeDisplay.innerText = this.roomCode;
+                const currentPeer = new Peer(peerId, this.peerConfig);
+                this.peer = currentPeer;
+
+                currentPeer.on('open', (id) => {
+                    if (this.peer !== currentPeer) return;
+                    if (codeDisplay) codeDisplay.innerText = roomCode;
                     const netStatus = document.getElementById('mp-network-status');
                     if (netStatus) {
-                        netStatus.innerHTML = `<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>ROOM ONLINE: ${this.roomCode}</span></span><span class="text-neutral-500">WebRTC + Local Relay</span>`;
+                        netStatus.innerHTML = `<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>ROOM ONLINE: ${roomCode}</span></span><span class="text-neutral-500">WebRTC + TURN Relay Ready</span>`;
                     }
                 });
 
-                this.peer.on('connection', (c) => {
+                currentPeer.on('connection', (c) => {
+                    if (this.peer !== currentPeer) return;
                     this.conn = c;
                     this.sessionExpired = false;
                     this.setupConnection();
@@ -12613,11 +12696,12 @@ const MP = {
                     showNotification("⚔️ RIVAL JOINED YOUR ROOM!");
                 });
 
-                this.peer.on('error', (err) => {
+                currentPeer.on('error', (err) => {
+                    if (this.peer !== currentPeer) return;
                     if (err.type === 'unavailable-id') {
                         this.createRoom(true);
                     } else if (hostStatus && !this.connected) {
-                        hostStatus.innerText = `Room active (${this.roomCode}). Ready for rival...`;
+                        hostStatus.innerText = `Room active (${roomCode}). Ready for rival...`;
                     }
                 });
             } catch(e) {
@@ -12626,23 +12710,14 @@ const MP = {
         }
     },
 
-    joinRoom(code) {
+    joinRoom(code, attempt = 1) {
         if (!code) {
             showNotification("⚠️ ENTER A ROOM CODE");
             return;
         }
-        if (this.conn || this.connected || this.rivalData) {
-            this.disconnectSession(false);
-        }
-        this.sessionExpired = false;
-        this.isHost = false;
-        this.resetSeries();
-        this.resetMatch();
-        const joinStatus = document.getElementById('mp-join-status');
-        const joinBanner = document.getElementById('mp-join-expiry-banner');
-        if (joinBanner) {
-            joinBanner.classList.add('hidden');
-            joinBanner.innerText = '';
+        if (this.joinRetryTimer) {
+            clearTimeout(this.joinRetryTimer);
+            this.joinRetryTimer = null;
         }
 
         let cleanCode = code.trim();
@@ -12651,9 +12726,28 @@ const MP = {
             if (m && m[1]) cleanCode = m[1];
         }
         cleanCode = cleanCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-        this.roomCode = cleanCode;
+        if (!cleanCode) {
+            showNotification("⚠️ INVALID ROOM CODE");
+            return;
+        }
 
-        if (joinStatus) joinStatus.innerText = `Connecting to Room ${cleanCode}...`;
+        this.disconnectSession(false);
+        this.sessionExpired = false;
+        this.isHost = false;
+        this.roomCode = cleanCode;
+        this.resetSeries();
+        this.resetMatch();
+
+        const joinStatus = document.getElementById('mp-join-status');
+        const joinBanner = document.getElementById('mp-join-expiry-banner');
+        if (joinBanner) {
+            joinBanner.classList.add('hidden');
+            joinBanner.innerText = '';
+        }
+
+        if (joinStatus) {
+            joinStatus.innerHTML = `<span class="text-amber-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>Connecting to Room ${cleanCode}... (Attempt ${attempt}/5)</span>`;
+        }
 
         const guestSelect = document.getElementById('mp-guest-stage-select');
         if (guestSelect) this.series.guestTrack = guestSelect.value || 'RANDOM_ALL';
@@ -12673,17 +12767,38 @@ const MP = {
         if (typeof Peer !== 'undefined') {
             if (this.peer) {
                 try { this.peer.destroy(); } catch(e) {}
+                this.peer = null;
             }
             try {
-                this.peer = new Peer(this.peerConfig);
-                this.peer.on('open', () => {
-                    const conn = this.peer.connect(`NEON-${cleanCode}`, { reliable: true });
+                const currentPeer = new Peer(this.peerConfig);
+                this.peer = currentPeer;
+
+                currentPeer.on('open', () => {
+                    if (this.peer !== currentPeer) return;
+                    const conn = currentPeer.connect(`NEON-${cleanCode}`, { reliable: true });
                     this.conn = conn;
                     this.setupConnection();
                 });
-                this.peer.on('error', (err) => {
-                    if (!this.connected && joinStatus) {
-                        joinStatus.innerText = `Searching relay & WebRTC... (${err.type || 'Retrying'})`;
+
+                currentPeer.on('error', (err) => {
+                    if (this.peer !== currentPeer) return;
+                    console.warn('[MP Guest] Peer error:', err);
+                    if (!this.connected) {
+                        if (attempt < 5) {
+                            if (joinStatus) {
+                                joinStatus.innerHTML = `<span class="text-amber-400">Host registering, retrying... (${attempt}/5)</span>`;
+                            }
+                            this.joinRetryTimer = setTimeout(() => {
+                                if (!this.connected && !this.sessionExpired) {
+                                    this.joinRoom(cleanCode, attempt + 1);
+                                }
+                            }, 1200);
+                        } else {
+                            if (joinStatus) {
+                                joinStatus.innerHTML = `<span class="text-rose-400 font-bold">⚠️ Room ${cleanCode} not found. Ensure host is in lobby or retry.</span>`;
+                            }
+                            showNotification(`⚠️ COULD NOT FIND ROOM ${cleanCode}`);
+                        }
                     }
                 });
             } catch(e) {
@@ -12694,8 +12809,14 @@ const MP = {
 
     setupConnection() {
         if (!this.conn) return;
+        const currentConn = this.conn;
 
-        this.conn.on('open', () => {
+        currentConn.on('open', () => {
+            if (this.conn !== currentConn) return;
+            if (this.joinRetryTimer) {
+                clearTimeout(this.joinRetryTimer);
+                this.joinRetryTimer = null;
+            }
             this.connected = true;
             this.sessionExpired = false;
             game.isMultiplayer = true;
@@ -12716,7 +12837,7 @@ const MP = {
             const guestSelect = document.getElementById('mp-guest-stage-select');
             if (guestSelect) this.series.guestTrack = guestSelect.value || 'RANDOM_ALL';
 
-            this.conn.send({
+            currentConn.send({
                 type: 'HANDSHAKE',
                 tag: game.pilotTag,
                 skin: dailySystem.activeSkin,
@@ -12725,15 +12846,17 @@ const MP = {
             });
         });
 
-        this.conn.on('data', (data) => {
+        currentConn.on('data', (data) => {
+            if (this.conn !== currentConn) return;
             this.handleMessage(data);
         });
 
-        this.conn.on('error', (err) => {
+        currentConn.on('error', (err) => {
             console.warn('[MP] Connection error:', err);
         });
 
-        this.conn.on('close', () => {
+        currentConn.on('close', () => {
+            if (this.conn !== currentConn) return;
             // Only expire if the connection was actually established
             if (this.connected && !this.sessionExpired) {
                 this.rivalGone('RIVAL DISCONNECTED');
@@ -14721,7 +14844,7 @@ function returnToMainMenu() {
     game.victory = false;
     game.openedLeaderboardFrom = null;
     game.mpRival = null;
-    if (typeof MP !== 'undefined') {
+    if (typeof MP !== 'undefined' && (game.isMultiplayer || MP.connected)) {
         MP.expireSession('RETURNED TO MENU');
     }
     audio.stopMusic();
@@ -16421,7 +16544,7 @@ bindClick('dim-tab-endless', () => {
     startEndlessMode();
 });
 
-const openMultiplayerModal = () => {
+const openMultiplayerModal = (asHost = true) => {
     setPause(true, false);
     const pauseModal = document.getElementById('modal-pause');
     if (pauseModal) {
@@ -16439,7 +16562,7 @@ const openMultiplayerModal = () => {
         mpModal.classList.remove('hidden');
         mpModal.style.display = '';
     }
-    if (typeof MP !== 'undefined') {
+    if (asHost && typeof MP !== 'undefined') {
         if (MP.sessionExpired || !MP.connected || !MP.roomCode || !MP.peer) {
             MP.createRoom(true);
         }
@@ -16506,11 +16629,8 @@ bindClick('btn-mp-join-mode', () => {
     if (btnHost) btnHost.className = "py-2 px-3 bg-neutral-950 border border-neutral-800 text-neutral-400 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5";
     if (boxHost) boxHost.classList.add('hidden');
     if (boxJoin) boxJoin.classList.remove('hidden');
-    if (typeof MP !== 'undefined') {
-        if (MP.isHost || MP.connected) {
-            MP.disconnectSession(false);
-        }
-    }
+    const input = document.getElementById('input-room-code');
+    if (input) input.focus();
 });
 
 bindClick('btn-copy-room-code', () => {
@@ -16571,6 +16691,18 @@ bindClick('btn-mp-connect', () => {
         MP.joinRoom(input.value);
     }
 });
+
+const mpCodeInput = document.getElementById('input-room-code');
+if (mpCodeInput) {
+    mpCodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (typeof MP !== 'undefined') {
+                MP.joinRoom(mpCodeInput.value);
+            }
+        }
+    });
+}
 
 bindClick('btn-mp-leave-room', () => {
     if (typeof MP !== 'undefined') {
@@ -16875,22 +17007,34 @@ window.onload = function() {
         }, 600);
     }
 
-    if (typeof window !== 'undefined' && window.location && window.location.hash) {
+    function handleLocationHash() {
+        if (typeof window === 'undefined' || !window.location || !window.location.hash) return;
         if (window.location.hash.includes('challenge=')) {
             loadGhostChallenge(window.location.hash);
         } else if (window.location.hash.includes('race=') || window.location.hash.includes('room=')) {
             const match = window.location.hash.match(/(?:race|room)=([A-Za-z0-9]+)/i);
             if (match && match[1]) {
-                openMultiplayerModal();
+                const targetCode = match[1].toUpperCase();
+                openMultiplayerModal(false);
+                const btnHost = document.getElementById('btn-mp-host-mode');
                 const btnJoin = document.getElementById('btn-mp-join-mode');
-                if (btnJoin) btnJoin.click();
+                const boxHost = document.getElementById('mp-host-box');
+                const boxJoin = document.getElementById('mp-join-box');
+                if (btnJoin) btnJoin.className = "py-2 px-3 bg-neutral-950 border border-rose-500 text-rose-300 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5";
+                if (btnHost) btnHost.className = "py-2 px-3 bg-neutral-950 border border-neutral-800 text-neutral-400 font-cyber font-bold text-xs rounded transition flex items-center justify-center gap-1.5";
+                if (boxHost) boxHost.classList.add('hidden');
+                if (boxJoin) boxJoin.classList.remove('hidden');
                 const input = document.getElementById('input-room-code');
-                if (input) input.value = match[1];
+                if (input) input.value = targetCode;
                 setTimeout(() => {
-                    if (typeof MP !== 'undefined') MP.joinRoom(match[1]);
-                }, 400);
+                    if (typeof MP !== 'undefined') MP.joinRoom(targetCode);
+                }, 150);
             }
         }
+    }
+    handleLocationHash();
+    if (typeof window !== 'undefined') {
+        window.addEventListener('hashchange', handleLocationHash);
     }
 
     requestAnimationFrame(mainLoop);
