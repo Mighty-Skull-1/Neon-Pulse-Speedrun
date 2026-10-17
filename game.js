@@ -16545,6 +16545,7 @@ bindClick('dim-tab-endless', () => {
 });
 
 const openMultiplayerModal = (asHost = true) => {
+    if (typeof asHost !== 'boolean') asHost = true;
     setPause(true, false);
     const pauseModal = document.getElementById('modal-pause');
     if (pauseModal) {
@@ -16552,34 +16553,72 @@ const openMultiplayerModal = (asHost = true) => {
         pauseModal.style.display = 'none';
     }
     if (typeof populateMultiplayerStageSelect === 'function') {
-        populateMultiplayerStageSelect();
+        try {
+            populateMultiplayerStageSelect();
+        } catch(e) {
+            console.warn('[MP] populate stage select error:', e);
+        }
     }
     const mpTagInput = document.getElementById('mp-input-pilot-tag');
-    if (mpTagInput) mpTagInput.value = game.pilotTag;
+    if (mpTagInput) mpTagInput.value = game.pilotTag || 'PULSE_PILOT';
 
     const mpModal = document.getElementById('modal-multiplayer');
     if (mpModal) {
         mpModal.classList.remove('hidden');
-        mpModal.style.display = '';
+        mpModal.style.display = 'flex';
     }
     if (asHost && typeof MP !== 'undefined') {
-        if (MP.sessionExpired || !MP.connected || !MP.roomCode || !MP.peer) {
-            MP.createRoom(true);
+        try {
+            if (MP.sessionExpired || !MP.connected || !MP.roomCode || !MP.peer) {
+                MP.createRoom(true);
+            }
+        } catch(e) {
+            console.warn('[MP] create room error:', e);
         }
     }
 };
+window.openMultiplayerModal = openMultiplayerModal;
 
-bindClick('btn-main-multiplayer', openMultiplayerModal);
-bindClick('btn-multiplayer-open', openMultiplayerModal);
-
-bindClick('btn-close-multiplayer', () => {
+function closeMultiplayerModal() {
     const mpModal = document.getElementById('modal-multiplayer');
     if (mpModal) {
         mpModal.classList.add('hidden');
         mpModal.style.display = 'none';
     }
     if (!game.inMainMenu) setPause(false);
-});
+}
+window.closeMultiplayerModal = closeMultiplayerModal;
+
+bindClick('btn-main-multiplayer', () => openMultiplayerModal(true));
+bindClick('btn-multiplayer-open', () => openMultiplayerModal(true));
+
+const mainMpBtn = document.getElementById('btn-main-multiplayer');
+if (mainMpBtn) {
+    mainMpBtn.addEventListener('click', (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        openMultiplayerModal(true);
+    });
+}
+const headerMpBtn = document.getElementById('btn-multiplayer-open');
+if (headerMpBtn) {
+    headerMpBtn.addEventListener('click', (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        openMultiplayerModal(true);
+    });
+}
+
+bindClick('btn-close-multiplayer', closeMultiplayerModal);
+const closeMpBtn = document.getElementById('btn-close-multiplayer');
+if (closeMpBtn) {
+    closeMpBtn.addEventListener('click', closeMultiplayerModal);
+}
+
+const mpModalBackdrop = document.getElementById('modal-multiplayer');
+if (mpModalBackdrop) {
+    mpModalBackdrop.addEventListener('click', (e) => {
+        if (e.target === mpModalBackdrop) closeMultiplayerModal();
+    });
+}
 
 bindClick('mp-tab-live', () => {
     const tabLive = document.getElementById('mp-tab-live');
