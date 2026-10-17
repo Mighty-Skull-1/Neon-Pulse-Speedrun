@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PeerJS WebRTC P2P Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=2.7">
+    <link rel="stylesheet" href="style.css?v=2.8">
 </head>
 <body class="w-screen h-screen flex flex-col items-center justify-center p-0 m-0 bg-neutral-950 text-neutral-100 select-none">
 
@@ -21,7 +21,7 @@
                 <button id="btn-menu" class="px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-cyan-400 text-xs font-cyber tracking-wider text-cyan-300 rounded transition flex items-center gap-1.5" title="Open Stage Matrix [M]">
                     <span>☰</span> <span class="hidden sm:inline">STAGES</span>
                 </button>
-                <button id="btn-multiplayer-open" onclick="if(window.openMultiplayerModal)window.openMultiplayerModal();" class="hidden xl:flex px-2 py-1 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-500/70 hover:border-rose-400 text-xs font-cyber tracking-wider text-rose-300 rounded transition items-center gap-1 cursor-pointer" title="Online Race / Ghost Challenges">
+                <button id="btn-multiplayer-open" onclick="const m=document.getElementById('modal-multiplayer');if(m){m.classList.remove('hidden');m.style.display='flex';}if(window.openMultiplayerModal)window.openMultiplayerModal();" class="hidden xl:flex px-2 py-1 bg-rose-950/60 hover:bg-rose-900/70 border border-rose-500/70 hover:border-rose-400 text-xs font-cyber tracking-wider text-rose-300 rounded transition items-center gap-1 cursor-pointer" title="Online Race / Ghost Challenges">
                     <span>⚔️</span> <span class="hidden md:inline">RACE</span>
                 </button>
                 <button id="btn-daily-open" class="hidden xl:flex relative px-2 py-1 bg-amber-950/60 hover:bg-amber-900/70 border border-amber-500/70 hover:border-amber-400 text-xs font-cyber tracking-wider text-amber-300 rounded transition items-center gap-1" title="Daily Rewards">
@@ -410,9 +410,9 @@
                                         <div class="text-[9px] font-mono text-neutral-400 font-normal">PROCEDURAL SPEED RUN</div>
                                     </div>
                                 </button>
-                                <button id="btn-main-multiplayer" onclick="if(window.openMultiplayerModal)window.openMultiplayerModal();" class="p-3.5 cyber-tile cyber-tile-pink text-rose-300 font-cyber font-bold text-xs tracking-wider rounded-2xl transition transform active:scale-95 flex items-center justify-start gap-3 cursor-pointer">
-                                    <div class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-lg text-rose-300 shrink-0 shadow-[0_0_12px_rgba(244,63,94,0.3)]">⚔️</div>
-                                    <div class="text-left">
+                                <button id="btn-main-multiplayer" onclick="const m=document.getElementById('modal-multiplayer');if(m){m.classList.remove('hidden');m.style.display='flex';}if(window.openMultiplayerModal)window.openMultiplayerModal();" class="p-3.5 cyber-tile cyber-tile-pink text-rose-300 font-cyber font-bold text-xs tracking-wider rounded-2xl transition transform active:scale-95 flex items-center justify-start gap-3 cursor-pointer">
+                                    <div class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-lg text-rose-300 shrink-0 shadow-[0_0_12px_rgba(244,63,94,0.3)] pointer-events-none">⚔️</div>
+                                    <div class="text-left pointer-events-none">
                                         <div class="font-bold text-rose-300">ONLINE RACE &amp; GHOSTS</div>
                                         <div class="text-[9px] font-mono text-neutral-400 font-normal">1V1 LIVE RIVALS</div>
                                     </div>
@@ -1371,6 +1371,7 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
                     <!-- Seamless Continuous Loop Divider -->
                     <div id="credits-loop-divider" class="py-14 flex flex-col items-center gap-3 w-full opacity-90 my-2 shrink-0">
@@ -2196,6 +2197,6 @@
     <!-- Steamworks & Desktop Bridge -->
     <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=7.9"></script>
+    <script src="game.js?v=8.0"></script>
 </body>
 </html>
