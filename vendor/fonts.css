@@ -1,0 +1,8 @@
+/* Bundled fonts so the desktop build works fully offline (both SIL Open Font License 1.1 — see vendor/fonts/OFL-*.txt) */
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/ChakraPetch-Regular.ttf') format('truetype'); }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/ChakraPetch-SemiBold.ttf') format('truetype'); }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 700 900; font-display: swap; src: url('fonts/ChakraPetch-Bold.ttf') format('truetype'); }
+@font-face { font-family: 'Chakra Petch'; font-style: italic; font-weight: 700 900; font-display: swap; src: url('fonts/ChakraPetch-BoldItalic.ttf') format('truetype'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/JetBrainsMono-Regular.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 700 900; font-display: swap; src: url('fonts/JetBrainsMono-Bold.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: italic; font-weight: 400; font-display: swap; src: url('fonts/JetBrainsMono-Italic.woff2') format('woff2'); }

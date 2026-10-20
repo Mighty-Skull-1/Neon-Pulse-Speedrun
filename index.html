@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Pulse: 20-Stage Multiverse Speedrun Edition</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- PeerJS WebRTC P2P Multiplayer -->
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=2.8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: http://dreamlo.com https://dreamlo.com; connect-src 'self' https: wss: http://dreamlo.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'">
+    <title>Neon Pulse Speedrun</title>
+    <!-- Bundled fonts + prebuilt Tailwind utilities (no CDN needed, works offline on Steam) -->
+    <link rel="stylesheet" href="vendor/fonts.css">
+    <link rel="stylesheet" href="style.css?v=2.9">
+    <link rel="stylesheet" href="vendor/tailwind.css?v=2.9">
+    <!-- PeerJS (WebRTC multiplayer) is loaded on demand by game.js when the online lobby opens -->
 </head>
 <body class="w-screen h-screen flex flex-col items-center justify-center p-0 m-0 bg-neutral-950 text-neutral-100 select-none">
 
@@ -43,7 +44,7 @@
                 <button id="btn-pause" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-amber-400 text-xs font-cyber tracking-wider text-neutral-300 rounded transition cursor-pointer" title="Pause [ESC / P]">
                     <span>⏸</span>
                 </button>
-                <button id="btn-fullscreen" onclick="toggleFullscreen()" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-green-400 text-xs font-cyber tracking-wider text-green-300 rounded transition flex items-center gap-1 cursor-pointer" title="Fullscreen [G]">
+                <button id="btn-fullscreen" class="px-2 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-green-400 text-xs font-cyber tracking-wider text-green-300 rounded transition flex items-center gap-1 cursor-pointer" title="Fullscreen [G]">
                     <span>⛶</span> <span class="hidden sm:inline">FULLSCREEN</span>
                 </button>
             </div>
@@ -344,8 +345,11 @@
                             <span>👻</span>
                             <span id="menu-ghost-text" class="font-bold">GHOST: ON</span>
                         </button>
-                        <button id="btn-menu-fullscreen" onclick="toggleFullscreen()" class="h-8 px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-emerald-400 text-xs font-cyber text-emerald-400 rounded-xl flex items-center gap-1.5 transition cursor-pointer" title="Toggle Fullscreen [G]">
+                        <button id="btn-menu-fullscreen" class="h-8 px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-emerald-400 text-xs font-cyber text-emerald-400 rounded-xl flex items-center gap-1.5 transition cursor-pointer" title="Toggle Fullscreen [G]">
                             <span>⛶</span> <span id="btn-menu-fullscreen-text" class="hidden sm:inline font-bold">FULLSCREEN</span>
+                        </button>
+                        <button id="btn-menu-quit" class="desktop-only h-8 px-2.5 py-1 bg-neutral-900 hover:bg-rose-950 border border-neutral-700 hover:border-rose-500 text-xs font-cyber text-rose-300 rounded-xl items-center gap-1.5 transition cursor-pointer" title="Quit to Desktop">
+                            <span>⏻</span> <span class="hidden sm:inline font-bold">QUIT</span>
                         </button>
                     </div>
                 </div>
@@ -1805,6 +1809,19 @@
                             ROLL CREDITS
                         </button>
                     </div>
+
+                    <!-- Player Save Data Reset -->
+                    <div class="bg-neutral-950 p-2.5 rounded-lg border border-rose-900/50 flex items-center justify-between">
+                        <div>
+                            <div class="font-cyber font-bold text-rose-300 text-[11px] flex items-center gap-1.5">
+                                <span>⚠️</span> RESET SAVE DATA
+                            </div>
+                            <div class="text-[9px] text-neutral-400 font-mono">Erase personal bests, medals, unlocks &amp; credits (settings are kept)</div>
+                        </div>
+                        <button id="btn-settings-reset-progress" class="px-3 py-1 bg-rose-950/80 hover:bg-rose-900 border border-rose-500/80 text-rose-300 font-cyber text-[10px] rounded font-bold transition cursor-pointer">
+                            RESET
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Tab 2: Custom Key Rebinding -->
@@ -2197,6 +2214,6 @@
     <!-- Steamworks & Desktop Bridge -->
     <script src="steam_bridge.js"></script>
     <!-- Core Game Logic Script -->
-    <script src="game.js?v=8.0"></script>
+    <script src="game.js?v=8.1"></script>
 </body>
 </html>

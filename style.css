@@ -1,6 +1,6 @@
 /* Neon Pulse Speedrun Edition - Core Stylesheet */
 
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+/* Fonts are bundled locally in vendor/fonts.css (offline-safe desktop build) */
 
 * {
     user-select: none;
@@ -340,3 +340,20 @@ body.gamepad-active :focus-visible {
 }
 
 
+
+/* ------------------------------------------------------------------
+   Desktop (Electron / Steam) build
+   The window is scaled as a whole by the main process (UI zoom), so the
+   game viewport simply fills the window instead of a capped 1280x720 box.
+   ------------------------------------------------------------------ */
+.desktop-only { display: none !important; }
+html.desktop-build .desktop-only { display: inline-flex !important; }
+html.desktop-build #game-wrapper {
+    max-width: none !important;
+    max-height: none !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    aspect-ratio: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+}

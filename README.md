@@ -197,26 +197,39 @@ Build, playtest, and share custom obstacle courses directly in-game:
 
 ---
 
-## 🚀 Steam & Desktop Executable Packaging
-Neon Pulse is 100% Steam-ready with native desktop packaging support:
-- **Steamworks SDK Bridge (`steam_bridge.js`)**: Automatically syncs the 35 in-game achievements (including 50,000m Apex Transcendence and Grandmaster Perfection) with the Steam overlay, provides Steam Cloud sync hooks, and reports Rich Presence.
-- **Standalone Desktop Build (Electron / Tauri)**:
-  ```bash
-  # Install desktop packaging dependencies
-  npm install
+## 🚀 Steam & Desktop Build (Electron)
 
-  # Launch desktop window
-  npm start
+The desktop build is a locked-down Electron app (`main.js` + `preload.js`):
+- The game page runs **sandboxed** (`contextIsolation` on, `nodeIntegration` off). It reaches Steam only through the tiny `window.neonDesktop` API in `preload.js`.
+- **Steamworks** (`steamworks.js`) is initialised once in the main process, with the **Steam overlay enabled**. All 35 achievements are mirrored to Steam using the exact IDs in `game.js` → `ACHIEVEMENTS` (e.g. `first_steps`, `mach_500`) and re-synced on every launch.
+- **Works fully offline**: Tailwind is prebuilt into `vendor/tailwind.css` and fonts are bundled in `vendor/fonts/`. PeerJS is only loaded when you open the online lobby.
+- UI scales with the window (1080p / 1440p / 4K / Steam Deck), canvas renders at native resolution, and fullscreen is real window fullscreen (`[G]`). Main menu has a **QUIT** button.
+- Developer admin panel is only available in dev builds (`npm start`) or on `localhost`, never in shipped builds.
 
-  # Build standalone Windows installer / executable (.exe)
-  npm run build:win
-  ```
+```bash
+npm install              # electron, electron-builder, peerjs, steamworks.js
+npm start                # run the desktop build (dev mode)
+npm run build:steam      # Windows folder build for the Steam depot  -> dist/win-unpacked
+npm run build:win        # Windows installer (itch.io / direct download)
+npm run build:css        # only needed after adding new Tailwind classes
+```
+
+Set your Steam App ID in `package.json` → `"steamAppId"` (or a `steam_appid.txt` next to the game while testing). When launched from Steam the App ID is provided automatically.
+
+### ✅ Steam release checklist (things only you can do)
+1. **Steamworks app**: create the app, put the App ID in `package.json`.
+2. **Achievements**: create all 35 achievements in Steamworks with API names that match `ACHIEVEMENTS` ids in `game.js` exactly (case-sensitive), then publish them.
+3. **Depot**: upload the contents of `dist/win-unpacked` (launch option: `Neon Pulse Speedrun.exe`). Add a Linux depot (`npm run build:linux`) if you want native Steam Deck support; otherwise Proton runs the Windows build.
+4. **Steam Cloud** (optional): saves live in `%APPDATA%/Neon Pulse Speedrun/Local Storage` — enable Auto-Cloud for that folder if you want cloud saves.
+5. **Online leaderboard**: the Dreamlo board uses a public write key in the client (anyone can post or wipe it) and plain HTTP. For launch, consider moving to Steam Leaderboards or your own server.
+6. **Online races**: use the free PeerJS cloud server + public STUN/TURN. For reliable matchmaking at scale, host your own PeerJS server and TURN relay.
+7. Store page assets (capsules, screenshots, trailer), age rating questionnaire, and a final playtest on a Steam Deck.
 
 ---
 
-## 🚀 Quick Start / Local Play
+## 🚀 Quick Start / Web Play
 
-Neon Pulse requires **zero build steps** and **zero external npm dependencies**. It runs natively in any modern web browser.
+The web build has **no build step**: serve the folder and open it in a modern browser.
 
 1. **Clone the repository**:
    ```bash
@@ -235,12 +248,13 @@ Neon Pulse requires **zero build steps** and **zero external npm dependencies**.
 
 ## 🧪 Architecture & Tech Stack
 
-- **Graphics**: Hardware-accelerated HTML5 2D Canvas with sub-frame render state interpolation (`renderX`, `renderY`) and adaptive DPR scaling.
-- **Physics**: Fixed-timestep Euler integrator (120Hz) with 120ms coyote time, 160ms jump buffering, and +15% slide-hop velocity chaining.
+- **Graphics**: Hardware-accelerated HTML5 2D Canvas with sub-frame render interpolation (`renderX`, `renderY`) and device-pixel-ratio scaling for crisp output on high-DPI screens.
+- **Physics**: Fixed-timestep integrator (120Hz) with 120ms coyote time, 160ms jump buffering, and +15% slide-hop velocity chaining. The main loop recovers from frame errors instead of freezing.
 - **Audio Engine**: Pure Web Audio API master bus architecture with independent `musicGainNode` and `sfxGainNode` routing.
-- **Networking**: WebRTC DataChannels via PeerJS for peer-to-peer telemetry and sub-millisecond racing inputs.
-- **UI & Styling**: Tailwind CSS CDN + custom neon glassmorphic CSS backdrops and cyber glow filters.
-- **Storage**: Clean `localStorage` schema with versioned migrations, progress resets, and setting persistence.
+- **Networking**: WebRTC DataChannels via PeerJS (loaded on demand). All incoming messages are validated and sanitised.
+- **UI & Styling**: Prebuilt Tailwind CSS (`vendor/tailwind.css`) + custom neon glassmorphic CSS; bundled Chakra Petch & JetBrains Mono fonts (SIL OFL).
+- **Storage**: `localStorage` schema with versioned save stamp, player-facing *Reset Save Data* in Settings, and setting persistence.
+- **Medals**: Bronze/Silver/Gold/Author targets are derived from each stage's no-boost "natural" time (Gold ≈ 86%, Author ≈ 80% + all 3 shards).
 
 ---
 
