@@ -54,6 +54,111 @@
 })();
 
 // ============================================================================
+// 00.5 SAFE TEXT HELPERS — anything that came from the network or another
+// player must go through these before it touches innerHTML.
+// ============================================================================
+function escapeHTML(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function cleanPilotTag(value, fallback = 'RIVAL') {
+    const t = String(value == null ? '' : value).toUpperCase().replace(/[^A-Z0-9_\- ]/g, '').trim().slice(0, 15);
+    return t || fallback;
+}
+function cleanShortText(value, fallback = '') {
+    const t = String(value == null ? '' : value).toUpperCase().replace(/[^A-Z0-9_\-/ .!']/g, '').trim().slice(0, 40);
+    return t || fallback;
+}
+window.escapeHTML = escapeHTML;
+
+// Clipboard that works in browsers and in the Electron build
+function copyTextToClipboard(text) {
+    if (window.SteamBridge && typeof window.SteamBridge.copyText === 'function') return window.SteamBridge.copyText(text);
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(String(text)).then(() => true).catch(() => false);
+    return Promise.resolve(false);
+}
+
+// In-game replacement for window.prompt() (not supported in Electron)
+function showTextPrompt(title, initial = '', opts = {}) {
+    return new Promise((resolve) => {
+        const host = document.getElementById('game-wrapper') || document.body;
+        const wrap = document.createElement('div');
+        wrap.className = 'absolute inset-0 z-[80] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4';
+        wrap.innerHTML = `
+            <div class="w-full max-w-lg bg-neutral-900 border border-cyan-500/60 rounded-xl p-4 flex flex-col gap-3 shadow-2xl">
+                <div data-role="title" class="text-sm font-cyber font-bold text-cyan-300 tracking-wider"></div>
+                <textarea data-role="input" spellcheck="false" class="w-full h-28 bg-neutral-950 border border-neutral-700 rounded-lg p-2 text-[11px] font-mono text-neutral-200 focus:outline-none focus:border-cyan-400 select-text"></textarea>
+                <div class="flex gap-2 justify-end">
+                    <button data-role="cancel" class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 font-cyber text-xs rounded-lg cursor-pointer">CANCEL</button>
+                    <button data-role="ok" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-black font-cyber font-bold text-xs rounded-lg cursor-pointer">OK</button>
+                </div>
+            </div>`;
+        const titleEl = wrap.querySelector('[data-role="title"]');
+        const input = wrap.querySelector('[data-role="input"]');
+        const okBtn = wrap.querySelector('[data-role="ok"]');
+        const cancelBtn = wrap.querySelector('[data-role="cancel"]');
+        titleEl.textContent = title;
+        input.value = initial || '';
+        input.style.userSelect = 'text';
+        if (opts.readOnly) {
+            input.readOnly = true;
+            okBtn.textContent = 'DONE';
+            cancelBtn.style.display = 'none';
+        }
+        let finished = false;
+        const finish = (val) => {
+            if (finished) return;
+            finished = true;
+            if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+            resolve(val);
+        };
+        okBtn.addEventListener('click', (e) => { e.stopPropagation(); finish(opts.readOnly ? null : input.value); });
+        cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); finish(null); });
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Escape') { e.preventDefault(); finish(null); }
+            else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(opts.readOnly ? null : input.value); }
+        });
+        host.appendChild(wrap);
+        setTimeout(() => { input.focus(); if (opts.readOnly) input.select(); }, 30);
+    });
+}
+window.showTextPrompt = showTextPrompt;
+
+// PeerJS is only needed for online races, so it is loaded on demand (local copy first, then CDN).
+// The rest of the game never waits on the network.
+let _peerJsPromise = null;
+function ensurePeerJS() {
+    if (typeof Peer !== 'undefined') return Promise.resolve(true);
+    if (_peerJsPromise) return _peerJsPromise;
+    const sources = window.neonDesktop
+        ? ['node_modules/peerjs/dist/peerjs.min.js', 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js']
+        : ['https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js', 'node_modules/peerjs/dist/peerjs.min.js'];
+    _peerJsPromise = new Promise((resolve) => {
+        const tryNext = (i) => {
+            if (typeof Peer !== 'undefined') { resolve(true); return; }
+            if (i >= sources.length) { _peerJsPromise = null; resolve(false); return; }
+            const sc = document.createElement('script');
+            sc.src = sources[i];
+            sc.async = true;
+            const timer = setTimeout(() => { sc.onload = sc.onerror = null; tryNext(i + 1); }, 8000);
+            sc.onload = () => { clearTimeout(timer); if (typeof Peer !== 'undefined') resolve(true); else tryNext(i + 1); };
+            sc.onerror = () => { clearTimeout(timer); if (sc.parentNode) sc.parentNode.removeChild(sc); tryNext(i + 1); };
+            document.head.appendChild(sc);
+        };
+        tryNext(0);
+    });
+    return _peerJsPromise;
+}
+window.ensurePeerJS = ensurePeerJS;
+
+// Share links only make sense for the web build; desktop players share the raw code
+function isWebShareable() {
+    return !window.neonDesktop && typeof location !== 'undefined' && /^https?:$/.test(location.protocol);
+}
+
+// ============================================================================
 // 0. ADMIN SECURITY & CRYPTOGRAPHIC ACCESS CONTROL (SALTED SHA-256)
 // Note: Plaintext passwords are NEVER stored in this repository.
 // Authentication is strictly verified against an irreversible cryptographic hash.
@@ -61,6 +166,16 @@
 const ADMIN_HASH_SALT = 'NeonPulse_AdminSalt_v1';
 const ADMIN_TARGET_HASH = '9c52122c87bba11fa64924155ed101ab6d8c01219c1d3ac136aee105c8632c2c';
 const ADMIN_STORAGE_KEY = 'neon_pulse_admin_token';
+// Developer tools only exist in dev builds: unpackaged Electron (npm start) or a local web server.
+// Shipped Steam builds and the public web build never show the admin panel.
+const ADMIN_ENABLED = (function() {
+    try {
+        if (typeof window === 'undefined') return false;
+        if (window.neonDesktop && window.neonDesktop.steamInfo) return !!(window.neonDesktop.steamInfo() || {}).isDev;
+        const h = (window.location && window.location.hostname) || '';
+        return h === 'localhost' || h === '127.0.0.1';
+    } catch (e) { return false; }
+})();
 
 function sha256PureSync(ascii) {
     function rightRotate(value, amount) {
@@ -162,6 +277,11 @@ class AdminSecuritySystem {
     }
 
     init() {
+        if (!ADMIN_ENABLED) {
+            this.authenticated = false;
+            this.updateUI();
+            return;
+        }
         try {
             const storedToken = localStorage.getItem(ADMIN_STORAGE_KEY);
             if (storedToken && storedToken === ADMIN_TARGET_HASH) {
@@ -334,6 +454,7 @@ class AdminSecuritySystem {
     }
 
     openAuthModal() {
+        if (!ADMIN_ENABLED) return;
         const modal = document.getElementById('modal-admin-auth');
         const loginView = document.getElementById('admin-login-view');
         const panelView = document.getElementById('admin-panel-view');
@@ -427,7 +548,7 @@ class AdminSecuritySystem {
     }
 
     isAdmin() {
-        return this.authenticated;
+        return ADMIN_ENABLED && this.authenticated;
     }
 
     updateUI() {
@@ -435,7 +556,10 @@ class AdminSecuritySystem {
         const menuAdminBtn = document.getElementById('btn-menu-admin-badge');
         const adminIcon = document.getElementById('menu-admin-icon');
         const adminText = document.getElementById('menu-admin-text');
-        if (menuAdminBtn) {
+        if (menuAdminBtn && !ADMIN_ENABLED) {
+            menuAdminBtn.classList.add('hidden');
+            menuAdminBtn.style.display = 'none';
+        } else if (menuAdminBtn) {
             menuAdminBtn.classList.remove('hidden');
             menuAdminBtn.style.display = 'inline-flex';
             if (this.authenticated) {
@@ -504,25 +628,32 @@ window.adminLogout = () => adminSystem.logout();
 // ============================================================================
 const CURRENT_SAVE_VERSION = "2026_09_FRESH_START_V2";
 function executeGlobalProgressReset(force = false) {
-    if (force && typeof adminSystem !== 'undefined' && !adminSystem.isAdmin()) {
-        console.warn('[NeonPulse] Global progress reset blocked: Admin authorization required.');
-        if (typeof showNotification === 'function') {
-            showNotification("🔒 ACCESS DENIED: Requires Admin Authorization.");
-        }
-        if (typeof adminSystem !== 'undefined') adminSystem.openAuthModal();
-        return false;
-    }
     try {
         if (typeof localStorage === 'undefined') return false;
         const storedVersion = localStorage.getItem('neon_pulse_save_version');
+        // Brand-new install: just stamp the save version (no "progress reset" message for new players)
+        if (!force && storedVersion === null) {
+            let hasOldData = false;
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && (k.startsWith('neon_pulse_') || k.startsWith('neon_runner_'))) { hasOldData = true; break; }
+            }
+            if (!hasOldData) {
+                localStorage.setItem('neon_pulse_save_version', CURRENT_SAVE_VERSION);
+                return false;
+            }
+        }
+        // NOTE: changing CURRENT_SAVE_VERSION after release wipes every player's progress. Don't.
         if (force || storedVersion !== CURRENT_SAVE_VERSION) {
             console.log('[NeonPulse] Global progress reset initiated: New fresh season starting.');
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key && (key.startsWith('neon_pulse_') || key.startsWith('neon_runner_'))) {
-                    // Retain audio preferences, ghost setting, and admin authorization token
-                    if (key !== 'neon_pulse_vol_music' && key !== 'neon_pulse_vol_sfx' && key !== 'neon_pulse_setting_ghost' && key !== 'neon_pulse_admin_token') {
+                    // Retain audio/settings preferences, keybinds and admin authorization token
+                    const KEEP = ['neon_pulse_vol_music', 'neon_pulse_vol_sfx', 'neon_pulse_setting_ghost', 'neon_pulse_admin_token',
+                        'neon_pulse_keybinds', 'neon_pulse_gamepad_binds', 'neon_pulse_settings', 'neon_pulse_pilot_tag'];
+                    if (!KEEP.includes(key) && !key.startsWith('neon_pulse_setting')) {
                         keysToRemove.push(key);
                     }
                 }
@@ -571,13 +702,6 @@ function executeGlobalProgressReset(force = false) {
 const wasResetOnLoad = executeGlobalProgressReset(false);
 window.executeGlobalProgressReset = executeGlobalProgressReset;
 window.resetAllProgress = () => {
-    if (typeof adminSystem !== 'undefined' && !adminSystem.isAdmin()) {
-        if (typeof showNotification === 'function') {
-            showNotification("🔒 ACCESS DENIED: Requires Admin Authorization.");
-        }
-        if (typeof adminSystem !== 'undefined') adminSystem.openAuthModal();
-        return;
-    }
     executeGlobalProgressReset(true);
     if (typeof location !== 'undefined' && location.reload) {
         location.reload();
@@ -1310,11 +1434,11 @@ const SKINS = [
 
 const TRAILS = [
     // --- STARTER & ACHIEVEMENT / PROGRESSION TRAILS (Unlocked via feats) ---
-    { id: "pulse_dash", name: "PULSE DASH", desc: "Classic after-image exosuit ghost frames", color: "#06b6d4", icon: "⚡", unlockDesc: "Default unlocked" },
-    { id: "laser_ribbon", name: "LASER RIBBON", desc: "Continuous luminous neon laser streamer line", color: "#38bdf8", icon: "🎗️", unlockDesc: "Clear Stage 03" },
+    { id: "pulse_dash", name: "PULSE DASH", desc: "Cyan, violet and pink neon light ribbon", color: "#06b6d4", icon: "⚡", unlockDesc: "Default unlocked" },
+    { id: "laser_ribbon", name: "LASER RIBBON", desc: "Single luminous streamer in your suit colour", color: "#38bdf8", icon: "🎗️", unlockDesc: "Clear Stage 03" },
     { id: "stardust", name: "STARDUST SPARKLES", desc: "Glittering diamond star sparkles & trail", color: "#fef08a", icon: "✨", unlockDesc: "Collect 20 total shards" },
     { id: "fire_ember", name: "AFTERBURNER EMBER", desc: "Blazing rocket flame exhaust & ember sparks", color: "#f97316", icon: "🔥", unlockDesc: "Reach 350+ km/h speed" },
-    { id: "rainbow_hyper", name: "HYPERDRIVE RAINBOW", desc: "Prismatic RGB chroma cycle stream", color: "#a855f7", icon: "🌈", unlockDesc: "Earn 5 Gold Medals" },
+    { id: "rainbow_hyper", name: "HYPERDRIVE RAINBOW", desc: "Five-band prismatic light ribbon", color: "#a855f7", icon: "🌈", unlockDesc: "Earn 5 Gold Medals" },
     { id: "matrix_rain", name: "MATRIX BINARY RAIN", desc: "Cascading digital binary code glyphs", color: "#22c55e", icon: "👾", unlockDesc: "Clear today's Daily Challenge" },
     { id: "plasma_flame", name: "PLASMA FLAME", desc: "Intense searing white-hot plasma fire", color: "#ffffff", icon: "🔥", unlockDesc: "Rotating Supply Drop or Mach 400" },
     { id: "quantum_dust", name: "QUANTUM DUST", desc: "Swirling luminous golden antimatter particles", color: "#f59e0b", icon: "✨", unlockDesc: "Rotating Supply Drop or 5 Author Medals" },
@@ -1381,27 +1505,17 @@ const DAILY_REWARDS_DATA = ROTATING_SUPPLY_POOL; // Legacy alias
 // ============================================================================
 // STEAMWORKS BRIDGE (READY FOR DESKTOP / STEAM DECK WRAPPER)
 // ============================================================================
+// Thin alias: the real Steam integration lives in steam_bridge.js (window.SteamBridge).
+// (This used to be a separate stub that shadowed the real bridge, so no achievement ever reached Steam.)
 const SteamBridge = {
-    isAvailable: false,
+    get isAvailable() { return !!(window.SteamBridge && window.SteamBridge !== SteamBridge && window.SteamBridge.isAvailable); },
     init() {
-        if (typeof window !== 'undefined' && (window.Steamworks || window.steamAPI || window.steamworks)) {
-            this.isAvailable = true;
-            console.log('[SteamBridge] Steamworks API detected and connected!');
-        }
+        if (window.SteamBridge && window.SteamBridge !== SteamBridge && window.SteamBridge.init) return window.SteamBridge.init();
+        return false;
     },
     unlockAchievement(id) {
-        if (!this.isAvailable) return;
-        try {
-            if (window.steamAPI && window.steamAPI.unlockAchievement) {
-                window.steamAPI.unlockAchievement(id);
-            } else if (window.Steamworks && window.Steamworks.activateAchievement) {
-                window.Steamworks.activateAchievement(id);
-            } else if (window.steamworks && window.steamworks.achievement) {
-                window.steamworks.achievement.activate(id);
-            }
-        } catch(e) {
-            console.warn('[SteamBridge] Failed to unlock Steam achievement:', e);
-        }
+        if (window.SteamBridge && window.SteamBridge !== SteamBridge && window.SteamBridge.unlockAchievement) return window.SteamBridge.unlockAchievement(id);
+        return false;
     }
 };
 
@@ -1446,10 +1560,20 @@ const ACHIEVEMENTS = [
     { id: "matrix_anomaly", title: "MATRIX ANOMALY", desc: "Recover back to safety after dropping below void threshold", icon: "👾", category: "SECRET" }
 ];
 
+// Achievements earned at the same moment are shown one after another instead of overwriting each other
+const _achToastQueue = [];
+let _achToastBusy = false;
 function showAchievementToast(ach) {
     if (typeof game !== 'undefined' && game && game.isCreditsRoll) return;
+    _achToastQueue.push(ach);
+    if (!_achToastBusy) _showNextAchievementToast();
+}
+function _showNextAchievementToast() {
+    const ach = _achToastQueue.shift();
+    if (!ach) { _achToastBusy = false; return; }
+    _achToastBusy = true;
     const toast = document.getElementById('toast-achievement');
-    if (!toast) return;
+    if (!toast) { _achToastBusy = false; return; }
     const icon = document.getElementById('toast-ach-icon');
     const title = document.getElementById('toast-ach-title');
     const desc = document.getElementById('toast-ach-desc');
@@ -1462,10 +1586,14 @@ function showAchievementToast(ach) {
     toast.classList.add('opacity-100', 'translate-y-0');
 
     if (toast._timer) clearTimeout(toast._timer);
+    if (toast._hideTimer) clearTimeout(toast._hideTimer);
     toast._timer = setTimeout(() => {
         toast.classList.add('opacity-0', 'translate-y-3');
-        setTimeout(() => toast.classList.add('hidden'), 350);
-    }, 4500);
+        toast._hideTimer = setTimeout(() => {
+            toast.classList.add('hidden');
+            _showNextAchievementToast();
+        }, 350);
+    }, _achToastQueue.length ? 2600 : 4500);
 }
 
 const achievementSystem = {
@@ -1556,8 +1684,8 @@ const achievementSystem = {
             if (topSpeed >= 500) this.unlock('mach_500', false);
             if (topSpeed >= 600) this.unlock('mach_600', false);
 
-            if (typeof dailySystem !== 'undefined' && dailySystem.streak >= 3) this.unlock('daily_streak_3', false);
-            if (typeof dailySystem !== 'undefined' && dailySystem.streak >= 7) this.unlock('daily_streak_7', false);
+            if (typeof dailySystem !== 'undefined' && dailySystem.streak >= 4) this.unlock('daily_streak_3', false);
+            if (typeof dailySystem !== 'undefined' && dailySystem.streak >= 8) this.unlock('daily_streak_7', false);
         } catch(e) {}
     },
 
@@ -1570,11 +1698,11 @@ const achievementSystem = {
         this.unlocked.add(id);
         this.save();
         this.updateHeaderProgress();
+        SteamBridge.unlockAchievement(id); // always mirror to Steam, even for silent unlocks
 
         if (notify) {
             if (typeof audio !== 'undefined' && typeof audio.playAchievement === 'function') audio.playAchievement();
             showAchievementToast(ach);
-            SteamBridge.unlockAchievement(id);
         }
 
         const modal = document.getElementById('modal-achievements');
@@ -2038,8 +2166,8 @@ const gamepadSystem = {
     },
 
     cycleLockerTab() {
-        const skinBtn = document.getElementById('tab-locker-skins');
-        const trailBtn = document.getElementById('tab-locker-trails');
+        const skinBtn = document.getElementById('locker-tab-skins');
+        const trailBtn = document.getElementById('locker-tab-trails');
         if (typeof lockerSystem !== 'undefined') {
             const nextTab = (lockerSystem.activeTab === 'skins') ? 'trails' : 'skins';
             if (nextTab === 'trails' && trailBtn) {
@@ -2499,7 +2627,7 @@ const dailySystem = {
         this.credits += b.reward;
         this.save();
         this.updateCreditsDisplay();
-        if (typeof audio !== 'undefined' && typeof audio.playCoin === 'function') audio.playCoin();
+        if (typeof audio !== 'undefined' && typeof audio.playShard === 'function') audio.playShard();
         if (typeof showNotification === 'function') showNotification(`🪙 CLAIMED +${b.reward} CREDITS!`);
 
         if (this.bounties.every(item => item.claimed)) {
@@ -2529,7 +2657,14 @@ const dailySystem = {
             }
         }
 
-        const streakMultiplier = Math.min(this.streak, 5);
+        // Streak only continues if the previous claim was yesterday (local time); otherwise it restarts
+        const y = new Date(); y.setDate(y.getDate() - 1);
+        const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+        if (this.lastClaimDateStr && this.lastClaimDateStr !== yStr && this.lastClaimDateStr !== 'simulated_past') {
+            this.streak = 1;
+        }
+        const claimedDays = Math.max(1, this.streak || 1);
+        const streakMultiplier = Math.min(claimedDays, 5);
         const totalBonus = (drop.bonusCredits || 500) * streakMultiplier;
         this.credits += totalBonus;
 
@@ -2541,8 +2676,8 @@ const dailySystem = {
         this.updateCreditsDisplay();
 
         if (achievementSystem) {
-            if (this.streak >= 3) achievementSystem.unlock('daily_streak_3');
-            if (this.streak >= 7) achievementSystem.unlock('daily_streak_7');
+            if (claimedDays >= 3) achievementSystem.unlock('daily_streak_3');
+            if (claimedDays >= 7) achievementSystem.unlock('daily_streak_7');
         }
 
         if (typeof audio !== 'undefined' && typeof audio.playAchievement === 'function') audio.playAchievement();
@@ -2735,10 +2870,10 @@ const settingsSystem = {
     load() {
         try {
             const ss = localStorage.getItem('neon_pulse_setting_screenshake');
-            if (ss !== null) this.screenShake = parseInt(ss, 10) || 100;
+            if (ss !== null) { const n = parseInt(ss, 10); this.screenShake = isNaN(n) ? 100 : n; }
 
             const vi = localStorage.getItem('neon_pulse_setting_vibration');
-            if (vi !== null) this.vibrationIntensity = parseInt(vi, 10) || 100;
+            if (vi !== null) { const n = parseInt(vi, 10); this.vibrationIntensity = isNaN(n) ? 100 : n; }
 
             const cs = localStorage.getItem('neon_pulse_setting_ctrl_sens');
             if (cs !== null) this.controllerSensitivity = parseFloat(cs) || 1.0;
@@ -3147,6 +3282,11 @@ const settingsSystem = {
     open() {
         const modal = document.getElementById('modal-settings');
         if (!modal) return;
+        this._pausedRun = false;
+        if (typeof game !== 'undefined' && !game.inMainMenu && !game.victory && !game.isCreditsRoll && !game.isCountingDown) {
+            if (!game.isPaused) setPause(true, false);
+            this._pausedRun = true;
+        }
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
         this.updateUI();
@@ -3166,6 +3306,8 @@ const settingsSystem = {
         if (ind1) ind1.classList.add('hidden');
         const ind2 = document.getElementById('gamepad-listen-indicator');
         if (ind2) ind2.classList.add('hidden');
+        if (this._pausedRun && typeof game !== 'undefined' && !game.inMainMenu && game.isPaused) setPause(true);
+        this._pausedRun = false;
     },
 
     toggleModal() {
@@ -4110,7 +4252,7 @@ const editorSystem = {
 
         // 4. Spikes (Vibrant 4-way rotation)
         this.customLevel.spikes.forEach(s => {
-            drawSpike(s.x, s.y, s.w, s.h, s.inverted, s.rotation);
+            drawSpike(s.x, s.y, s.w, s.h, s.inverted, s.rotation, this.ctx);
         });
 
         // 5. Lasers
@@ -4418,22 +4560,27 @@ const editorSystem = {
     },
 
     exportTrack() {
+        let encoded = '';
         try {
             const jsonStr = JSON.stringify(this.customLevel);
-            const encoded = (typeof btoa === 'function') ? btoa(unescape(encodeURIComponent(jsonStr))) : Buffer.from(jsonStr).toString('base64');
-            if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(encoded);
-            }
-            if (typeof showNotification === 'function') showNotification("📋 TRACK CODE COPIED TO CLIPBOARD!");
+            encoded = btoa(unescape(encodeURIComponent(jsonStr)));
         } catch(e) {
-            if (typeof prompt === 'function') prompt("COPY TRACK CODE:", JSON.stringify(this.customLevel));
+            showNotification("⚠️ FAILED TO ENCODE TRACK");
+            return;
         }
+        copyTextToClipboard(encoded).then((ok) => {
+            if (ok) showNotification("📋 TRACK CODE COPIED TO CLIPBOARD!", true);
+            else showTextPrompt("COPY YOUR TRACK CODE", encoded, { readOnly: true });
+        });
     },
 
     importTrack() {
-        if (typeof prompt !== 'function') return;
-        const code = prompt("PASTE TRACK CODE OR JSON:");
-        if (!code) return;
+        showTextPrompt("PASTE A TRACK CODE (OR JSON)", '').then((code) => {
+            if (code) this.applyImportedTrack(code);
+        });
+    },
+
+    applyImportedTrack(code) {
         try {
             let data;
             if (code.trim().startsWith('{')) {
@@ -4441,7 +4588,12 @@ const editorSystem = {
             } else {
                 data = (typeof atob === 'function') ? JSON.parse(decodeURIComponent(escape(atob(code.trim())))) : JSON.parse(Buffer.from(code.trim(), 'base64').toString('utf8'));
             }
-            if (data && data.platforms) {
+            if (data && Array.isArray(data.platforms) && data.platforms.length > 0) {
+                // Fill in any missing sections so the editor and physics never hit undefined arrays
+                ['platforms','jumpPads','trampolines','rings','spikes','lasers','shards','portals','speedPads','glitchPlatforms','phaseGates','chronoOrbs']
+                    .forEach(k => { if (!Array.isArray(data[k])) data[k] = []; });
+                data.name = String(data.name || 'CUSTOM TRACK').slice(0, 40);
+                data.length = Math.max(800, Math.min(40000, Number(data.length) || 3200));
                 this.customLevel = data;
                 const nameInput = document.getElementById('editor-stage-name');
                 if (nameInput) nameInput.value = data.name || "CUSTOM TRACK";
@@ -4450,8 +4602,11 @@ const editorSystem = {
                 this.renderCanvas();
                 if (typeof showNotification === 'function') showNotification("✓ CUSTOM TRACK LOADED SUCCESSFULLY!");
             }
+            else {
+                showNotification("⚠️ INVALID TRACK CODE — NO PLATFORMS FOUND", true);
+            }
         } catch(e) {
-            if (typeof alert === 'function') alert("Invalid track code! Please check and try again.");
+            showNotification("⚠️ INVALID TRACK CODE! CHECK IT AND TRY AGAIN", true);
         }
     },
 
@@ -4487,16 +4642,23 @@ function startCustomLevel(customLvl) {
     game.attempts = 1;
     game.shardsCollected.clear();
     game.deathsThisRun = 0;
+    // Custom tracks never inherit the previous stage's ghost / rival
+    game.isChallengeMode = false;
+    game.ghostActive = false;
+    game.ghostData = null;
+    game.mpRival = null;
     setPause(false);
 
     // Deep clone custom level object
     const lvl = JSON.parse(JSON.stringify(customLvl || editorSystem.customLevel || {}));
-    lvl.name = lvl.name || "CUSTOM TRACK";
+    lvl.name = String(lvl.name || "CUSTOM TRACK").slice(0, 40);
     lvl.dimension = lvl.dimension || 1;
-    lvl.length = lvl.length || 3200;
-    lvl.color = lvl.color || "#a855f7";
-    lvl.startSpeed = lvl.startSpeed || 320;
-    lvl.bpm = lvl.bpm || 135;
+    lvl.length = Math.max(800, Math.min(40000, Number(lvl.length) || 3200));
+    lvl.color = /^#[0-9a-f]{3,8}$/i.test(String(lvl.color || '')) ? lvl.color : "#a855f7";
+    // Clamp speeds (and give maxSpeed a default — it was undefined, which made the speed NaN every frame)
+    lvl.startSpeed = Math.max(150, Math.min(450, Number(lvl.startSpeed) || 320));
+    lvl.maxSpeed = Math.max(lvl.startSpeed, Math.min(550, Number(lvl.maxSpeed) || lvl.startSpeed + 100));
+    lvl.bpm = Math.max(60, Math.min(200, Number(lvl.bpm) || 135));
 
     // Ensure all required entity arrays exist
     if (!Array.isArray(lvl.platforms)) lvl.platforms = [];
@@ -4637,7 +4799,6 @@ window.GAMEPAD_BUTTON_SHORT = GAMEPAD_BUTTON_SHORT;
 window.settingsSystem = settingsSystem;
 window.editorSystem = editorSystem;
 
-window.SteamBridge = typeof SteamBridge !== 'undefined' ? SteamBridge : null;
 window.ACHIEVEMENTS = ACHIEVEMENTS;
 window.achievementSystem = achievementSystem;
 window.gamepadSystem = gamepadSystem;
@@ -5020,7 +5181,8 @@ const CURATED_LEVELS = [
         portals: [],
         shards: [
             { id: 1, x: 1450, y: 330, taken: false },
-            { id: 2, x: 2800, y: 340, taken: false }
+            { id: 2, x: 2800, y: 340, taken: false },
+            { id: 3, x: 815, y: 310, taken: false }
         ]
     },
 
@@ -6212,6 +6374,7 @@ const LEVELS = CURATED_LEVELS;
 // ============================================================================
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
+window.__mainCtx = ctx;
 const V_WIDTH = 960;
 const V_HEIGHT = 540;
 
@@ -6225,8 +6388,12 @@ let cachedOffsetY = 0;
 function updateCanvasViewport() {
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : { width: canvas.width || 960, height: canvas.height || 540 };
-    const w = Math.floor(rect.width || (typeof window !== 'undefined' ? window.innerWidth : 960));
-    const h = Math.floor(rect.height || (typeof window !== 'undefined' ? window.innerHeight : 540));
+    const cssW = rect.width || (typeof window !== 'undefined' ? window.innerWidth : 960);
+    const cssH = rect.height || (typeof window !== 'undefined' ? window.innerHeight : 540);
+    let dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1;
+    dpr = Math.max(1, Math.min(dpr, 2560 / Math.max(1, cssW), 1600 / Math.max(1, cssH), 3));
+    const w = Math.floor(cssW * dpr);
+    const h = Math.floor(cssH * dpr);
     if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
@@ -6573,17 +6740,18 @@ var DreamloLB = {
                 }
 
                 return {
-                    tag: pilotName,
-                    time: time,
-                    stageIdx: stageIdx,
-                    ability: ability,
-                    shards: shards,
+                    tag: cleanPilotTag(pilotName, 'ANON_PILOT'),
+                    time: (Number.isFinite(time) && time > 0) ? time : 0,
+                    stageIdx: (stageIdx === 99 || (stageIdx >= 0 && stageIdx < 20)) ? stageIdx : 0,
+                    ability: (['DASH', 'THRUST', 'CHRONO', 'DOUBLE_JUMP'].includes(String(ability).toUpperCase()) ? String(ability).toUpperCase() : 'DASH'),
+                    shards: Math.max(0, Math.min(3, shards)),
                     score: parseInt(e.score, 10) || 0,
                     date: e.date || '',
                     isOnline: true
                 };
             });
 
+            this.cachedEntries = this.cachedEntries.filter(e => e.time > 0);
             this.cachedEntries.sort((a, b) => a.time - b.time);
             this.lastFetchTime = now;
             return this.cachedEntries;
@@ -6670,6 +6838,8 @@ function saveRunToLeaderboard(levelIdx, time, shards, ability) {
         stageIdx: levelIdx,
         date: Date.now()
     });
+    // Keep only the fastest 25 runs per stage (this list used to grow forever)
+    localRecords = localRecords.filter(r => r && Number.isFinite(Number(r.time))).sort((a, b) => a.time - b.time).slice(0, 25);
 
     try {
         localStorage.setItem(`neon_pulse_lb_${levelIdx}`, JSON.stringify(localRecords));
@@ -6750,21 +6920,20 @@ function renderLeaderboardRows(onlineScores, levelIdx, currentFilter) {
         });
     }
 
-    // Curated speedrun fallback if no runs recorded yet
+    // No runs yet: show the stage's medal targets (clearly labelled) instead of invented players
     if (displayList.length === 0) {
         if (currentFilter === 'DAILY') {
-            displayList = [
-                { tag: "CHRONO_RUNNER", time: 21.450, ability: "CHRONO", shards: 3, stageIdx: 99 },
-                { tag: "QUANTUM_GHOST", time: 23.120, ability: "DASH", shards: 3, stageIdx: 99 },
-                { tag: "PULSE_PILOT", time: 24.890, ability: "DOUBLE_JUMP", shards: 2, stageIdx: 99 }
-            ];
+            displayList = [];
         } else {
             const fIdx = currentFilter === 'ALL' ? (typeof levelIdx !== 'undefined' ? levelIdx : 0) : parseInt(currentFilter, 10);
-            displayList = [
-                { tag: "CYBER_GHOST", time: 14.820 + (fIdx * 0.5), ability: "DASH", shards: 3, stageIdx: fIdx },
-                { tag: "NEXUS_VIPER", time: 15.640 + (fIdx * 0.5), ability: "DOUBLE_JUMP", shards: 3, stageIdx: fIdx },
-                { tag: "PULSE_RUNNER", time: 16.410 + (fIdx * 0.5), ability: "CHRONO", shards: 2, stageIdx: fIdx }
-            ];
+            const par = getStageParTimes(fIdx);
+            if (par) {
+                displayList = [
+                    { tag: "💎 AUTHOR TARGET", time: par.diamond, ability: "—", shards: 3, stageIdx: fIdx, isTarget: true },
+                    { tag: "🥇 GOLD TARGET", time: par.gold, ability: "—", shards: 0, stageIdx: fIdx, isTarget: true },
+                    { tag: "🥈 SILVER TARGET", time: par.silver, ability: "—", shards: 0, stageIdx: fIdx, isTarget: true }
+                ];
+            }
         }
         if (liveBadge) {
             liveBadge.className = "inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-500/50 text-amber-300 text-[9px] font-cyber";
@@ -6777,8 +6946,13 @@ function renderLeaderboardRows(onlineScores, levelIdx, currentFilter) {
 
     displayList.sort((a, b) => a.time - b.time);
 
-    displayList.forEach((row, idx) => {
-        const rank = idx + 1;
+    if (displayList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-neutral-500 font-cyber text-xs">NO RUNS RECORDED YET — BE THE FIRST!</td></tr>`;
+        return;
+    }
+
+    displayList.slice(0, 100).forEach((row, idx) => {
+        const rank = row.isTarget ? '—' : idx + 1;
         const isPlayer = row.tag === game.pilotTag;
         const stageIdx = (typeof row.stageIdx !== 'undefined') ? row.stageIdx : levelIdx;
         const stageName = row.stageIdx === 99 ? "DAILY" : ((typeof LEVELS !== 'undefined' && LEVELS[stageIdx]) ? LEVELS[stageIdx].name.split('//')[0].trim() : `S${stageIdx + 1}`);
@@ -6788,15 +6962,16 @@ function renderLeaderboardRows(onlineScores, levelIdx, currentFilter) {
         else if (rank === 2) rankBadge = `<span class="text-neutral-300 font-bold">🥈 2</span>`;
         else if (rank === 3) rankBadge = `<span class="text-amber-600 font-bold">🥉 3</span>`;
 
+        const rowShards = Math.max(0, Math.min(3, parseInt(row.shards, 10) || 0));
         const tr = document.createElement('tr');
         tr.className = `border-b border-neutral-800/40 hover:bg-neutral-800/40 transition ${isPlayer ? 'bg-cyan-950/40 text-cyan-300 font-bold' : 'text-neutral-300'}`;
         tr.innerHTML = `
             <td class="py-2 px-2.5 font-cyber">${rankBadge}</td>
-            <td class="py-2 px-2 font-cyber tracking-wider">${row.tag} ${isPlayer ? '<span class="text-[9px] bg-cyan-900/80 px-1 py-0.5 rounded text-cyan-200">YOU</span>' : ''}</td>
-            <td class="py-2 px-2 text-[10px] text-neutral-400 font-cyber truncate max-w-[90px] sm:max-w-[120px]">${stageName}</td>
-            <td class="py-2 px-2 text-amber-400 font-mono font-bold">${formatTime(row.time)}</td>
-            <td class="py-2 px-2 text-[10px] text-neutral-400 font-cyber">${row.ability || 'DASH'}</td>
-            <td class="py-2 px-2 text-pink-400 font-bold">${'◆'.repeat(row.shards || 0)}${'◇'.repeat(Math.max(0, 3 - (row.shards || 0)))}</td>
+            <td class="py-2 px-2 font-cyber tracking-wider">${escapeHTML(row.tag)} ${isPlayer ? '<span class="text-[9px] bg-cyan-900/80 px-1 py-0.5 rounded text-cyan-200">YOU</span>' : ''}</td>
+            <td class="py-2 px-2 text-[10px] text-neutral-400 font-cyber truncate max-w-[90px] sm:max-w-[120px]">${escapeHTML(stageName)}</td>
+            <td class="py-2 px-2 text-amber-400 font-mono font-bold">${formatTime(Number(row.time) || 0)}</td>
+            <td class="py-2 px-2 text-[10px] text-neutral-400 font-cyber">${escapeHTML(row.ability || 'DASH')}</td>
+            <td class="py-2 px-2 text-pink-400 font-bold">${'◆'.repeat(rowShards)}${'◇'.repeat(3 - rowShards)}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -7175,6 +7350,10 @@ function showNotification(text, forceOnMenu = false) {
 // ============================================================================
 function resetPlayerState() {
     const p = game.player;
+    if (game.endlessBestDistance && game.endlessBestDistance > (game._endlessSavedBest || 0)) {
+        game._endlessSavedBest = game.endlessBestDistance;
+        try { localStorage.setItem('neon_pulse_endless_best', game.endlessBestDistance); } catch(e) {}
+    }
     p.x = 80;
     p.y = 356;
     p.prevX = 80;
@@ -7217,6 +7396,13 @@ function resetPlayerState() {
             r.lastHitTime = 0;
         });
     }
+    if (game.level && game.level.speedPads) game.level.speedPads.forEach(pd => { pd._touching = false; });
+    if (game.level && game.level.trampolines) game.level.trampolines.forEach(tp => { tp._touching = false; });
+    p.slideHopChain = 0;
+    game._speedMark = 0;
+    game._paceTargetTime = undefined;
+    game.botUsedThisRun = !!game.botDemo && !game.inMainMenu; // a fresh attempt is clean unless the AI is still flying
+    game.sentinelX = -9999; // hide the Sentinel wall unless this stage uses it (set below)
     game.shockwaves = [];
     game.cameraX = undefined;
     game.shardsCollected.clear();
@@ -7226,7 +7412,9 @@ function resetPlayerState() {
     const lvl = game.level;
     if (lvl && lvl.objective) {
         if (lvl.objective.type === 'CHRONO_COUNTDOWN' || lvl.objective.type === 'THE_OMNI_RIFT') {
-            game.chronoTimer = lvl.objective.timeLimit || 22.0;
+            const lim = lvl.objective.timeLimit || (lvl.objective.target > 0 ? lvl.objective.target : 22.0);
+            game.chronoTimeLimit = lim;
+            game.chronoTimer = lim;
         }
         if (lvl.objective.type === 'SENTINEL_CHASE' || lvl.objective.type === 'THE_OMNI_RIFT') {
             game.sentinelX = -360;
@@ -7298,7 +7486,18 @@ function resetPlayerState() {
 }
 
 function killPlayer(force = false) {
-    if (game.isCreditsRoll) return;
+    if (game.isCreditsRoll) {
+        // Background runner fell into a void during the credits: quietly restart it instead of falling forever
+        if (force && game.isEndless && typeof startEndlessMode === 'function') {
+            startEndlessMode();
+            game.isCreditsRoll = true;
+            game.botDemo = true;
+            game.isCountingDown = false;
+            clearActiveCountdowns();
+            if (game.player) game.player.isInvulnerable = true;
+        }
+        return;
+    }
     if (!force && game.player.isInvulnerable) return;
 
     if (!game.inMainMenu) {
@@ -7456,14 +7655,22 @@ function updatePhysics(rawDt) {
             const totalDist = Math.max(100, game.level.length - startX);
             const progress = Math.max(0, Math.min(1.0, (game.player.x - startX) / totalDist));
             
-            let targetTime = null;
-            try {
-                if (!game.isCustomLevel && game.currentLevelIdx >= 0) {
-                    const savedPb = localStorage.getItem(`neon_pulse_pb_${game.currentLevelIdx}`);
-                    if (savedPb) targetTime = parseFloat(savedPb);
-                }
-                if (!targetTime && game.level.goldTime) targetTime = game.level.goldTime;
-            } catch(e) {}
+            // PB lookup is cached per attempt (this runs every physics step)
+            if (game._paceTargetTime === undefined) {
+                let t = null;
+                try {
+                    if (game.isDailyChallenge) {
+                        const v = localStorage.getItem(`neon_pulse_daily_pb_${game.dailySeedDate || getTodayDateStr()}`);
+                        if (v) t = parseFloat(v);
+                    } else if (!game.isCustomLevel && game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length) {
+                        const savedPb = localStorage.getItem(`neon_pulse_pb_${game.currentLevelIdx}`);
+                        if (savedPb) t = parseFloat(savedPb);
+                        if (!t) { const par = getStageParTimes(game.currentLevelIdx); if (par) t = par.gold; }
+                    }
+                } catch(e) {}
+                game._paceTargetTime = (t && isFinite(t)) ? t : null;
+            }
+            const targetTime = game._paceTargetTime;
 
             if (targetTime && progress > 0.03) {
                 const expected = targetTime * progress;
@@ -7489,7 +7696,7 @@ function updatePhysics(rawDt) {
     if (speedVal) {
         const kmh = Math.round(game.player.vx * 1.05);
         speedVal.innerText = kmh;
-        if (!game.inMainMenu && kmh > (game.topSpeedAchieved || 0)) {
+        if (!game.inMainMenu && !game.isCreditsRoll && !game.botDemo && !game.isCustomLevel && kmh > (game.topSpeedAchieved || 0) + 4) {
             game.topSpeedAchieved = kmh;
             try {
                 const prevTop = parseInt(localStorage.getItem('neon_pulse_top_speed') || '0', 10);
@@ -7624,8 +7831,12 @@ function updatePhysics(rawDt) {
         p.vx = baseSpeed + p.bonusVx;
     }
 
-    if (!game.inMainMenu) {
+    // Speed records: real runs only (no menu demo, credits, AI pilot or custom tracks), and only
+    // every +5 km/h so we don't hit localStorage 120 times a second while accelerating
+    const speedTracked = !game.inMainMenu && !game.isCreditsRoll && !game.botDemo && !game.isCustomLevel;
+    if (speedTracked && Math.round(p.vx) >= (game._speedMark || 0) + 5) {
         const kmh = Math.round(p.vx);
+        game._speedMark = kmh;
         if (typeof achievementSystem !== 'undefined') {
             if (kmh >= 400) achievementSystem.unlock('mach_400');
             if (kmh >= 500) achievementSystem.unlock('mach_500');
@@ -7773,7 +7984,9 @@ function updatePhysics(rawDt) {
             p.h = 20;
             audio.playSlide();
         }
-        if (!p.isGrounded && !p.isJumping && (p.vy * p.gravityDir < AIR_DIVE_IMPULSE)) {
+        // Air-dive works after walking off a ledge AND once a jump's upward momentum is mostly spent
+        // (previously it was blocked for the whole jump, so diving after a jump never worked).
+        if (!p.isGrounded && (!p.isJumping || p.vy * p.gravityDir > -160) && (p.vy * p.gravityDir < AIR_DIVE_IMPULSE)) {
             p.vy = Math.min(AIR_DIVE_IMPULSE, (p.vy * p.gravityDir + 2400 * dt)) * p.gravityDir;
         }
     } else {
@@ -7984,17 +8197,20 @@ function updatePhysics(rawDt) {
         if (pct) pct.innerText = progress + '%';
 
         // Objective Exit Locks
+        // Reaching a locked exit used to pin the runner in place forever with the clock running.
+        // Now the gate rejects the run with a clear message and restarts the attempt.
         if (lvl.objective && lvl.objective.type === 'CORE_HUNTER') {
             if (p.x >= lvl.length - 20 && game.shardsCollected.size < 3) {
-                p.x = lvl.length - 25;
-                p.vx = 0;
+                if (!game.inMainMenu) showNotification(`🔒 EXIT LOCKED — COLLECT ALL 3 CORES (${game.shardsCollected.size}/3)`);
+                killPlayer(true);
                 return;
             }
         }
         if (lvl.objective && lvl.objective.type === 'RING_CHAIN') {
-            if (p.x >= lvl.length - 20 && (game.maxRingStreak || 0) < 8) {
-                p.x = lvl.length - 25;
-                p.vx = 0;
+            const needRings = lvl.objective.target || 8;
+            if (p.x >= lvl.length - 20 && (game.maxRingStreak || 0) < needRings) {
+                if (!game.inMainMenu) showNotification(`🔒 EXIT LOCKED — CHAIN ${needRings} RINGS (${game.maxRingStreak || 0}/${needRings})`);
+                killPlayer(true);
                 return;
             }
         }
@@ -8026,7 +8242,11 @@ function checkInteractions() {
     if (lvl.speedPads) {
         for (let i = 0; i < lvl.speedPads.length; i++) {
             const pad = lvl.speedPads[i];
-            if (p.x + p.w > pad.x && p.x < pad.x + pad.w && Math.abs((p.y + p.h) - pad.y) < 25) {
+            const onPad = p.x + p.w > pad.x && p.x < pad.x + pad.w && Math.abs((p.y + p.h) - pad.y) < 25;
+            if (!onPad) { pad._touching = false; continue; }
+            if (pad._touching) continue; // already boosted on this contact
+            pad._touching = true;
+            {
                 const bAmt = (pad.boostVx !== undefined ? pad.boostVx : 200);
                 p.bonusVx = Math.min(380, (p.bonusVx || 0) + bAmt);
                 p.vx += bAmt;
@@ -8052,7 +8272,11 @@ function checkInteractions() {
     if (lvl.trampolines) {
         for (let i = 0; i < lvl.trampolines.length; i++) {
             const tramp = lvl.trampolines[i];
-            if (p.x + p.w > tramp.x && p.x < tramp.x + tramp.w && Math.abs((p.y + p.h) - tramp.y) < 25) {
+            const onTramp = p.x + p.w > tramp.x && p.x < tramp.x + tramp.w && Math.abs((p.y + p.h) - tramp.y) < 25;
+            if (!onTramp) { tramp._touching = false; continue; }
+            if (tramp._touching) continue;
+            tramp._touching = true;
+            {
                 p.vy = (tramp.launchVy !== undefined ? tramp.launchVy : -640) * p.gravityDir;
                 if (tramp.launchVx) {
                     p.bonusVx = Math.min(400, (p.bonusVx || 0) + tramp.launchVx);
@@ -8299,7 +8523,8 @@ function checkInteractions() {
             const dy = (p.y + p.h / 2) - orb.y;
             if (Math.hypot(dx, dy) < 34) {
                 orb.taken = true;
-                game.chronoTimer = Math.min(10.0, (game.chronoTimer || 0) + 3.5);
+                // +3.5s, capped so time can't be banked — but never cap below the stage's own limit
+                game.chronoTimer = Math.min(Math.max(10.0, game.chronoTimeLimit || 10.0), (game.chronoTimer || 0) + 3.5);
                 audio.playBoostPad();
                 game.screenShake = 4;
                 showNotification("⏳ +3.5s CHRONO EXPANSION!");
@@ -8403,17 +8628,39 @@ function updateShardHUD() {
 // ============================================================================
 // 9. VICTORY & TIME TRIAL RANKING
 // ============================================================================
+// Medal targets are derived from the stage's "natural" time: running it with no boosts or abilities.
+// (The old par used startSpeed only, but speed ramps up during a stage, so every clear was Gold.)
+const _stageParCache = {};
+function getStageParTimes(idxOrLevel) {
+    const lvl = (typeof idxOrLevel === 'object') ? idxOrLevel : ((typeof LEVELS !== 'undefined') ? LEVELS[idxOrLevel] : null);
+    if (!lvl || !lvl.length || !lvl.startSpeed) return null;
+    const key = (lvl.name || '') + '|' + lvl.length + '|' + lvl.startSpeed + '|' + lvl.maxSpeed;
+    if (_stageParCache[key]) return _stageParCache[key];
+    const maxSpeed = lvl.maxSpeed || lvl.startSpeed;
+    let x = 80, t = 0;
+    const dt = 1 / 120;
+    while (x < lvl.length && t < 600) {
+        const r = Math.min(1, x / lvl.length);
+        x += (lvl.startSpeed + (maxSpeed - lvl.startSpeed) * Math.pow(r, 1.2)) * dt;
+        t += dt;
+    }
+    const res = { natural: t, silver: t * 0.93, gold: t * 0.86, diamond: t * 0.80 };
+    _stageParCache[key] = res;
+    return res;
+}
+window.getStageParTimes = getStageParTimes;
+
 function getStageMedal(idx, time, shardsCount) {
     if (!time || time <= 0) return null;
     const lvl = (typeof LEVELS !== 'undefined') ? LEVELS[idx] : null;
     if (!lvl) return null;
-    const targetParTime = (lvl.length / lvl.startSpeed) * 0.95;
+    const par = getStageParTimes(idx);
 
-    if (time <= targetParTime * 0.88 && shardsCount >= 3) {
+    if (time <= par.diamond && shardsCount >= 3) {
         return { tier: 'DIAMOND', icon: '💎', label: 'AUTHOR DIAMOND MEDAL', color: 'text-cyan-300' };
-    } else if (time <= targetParTime) {
+    } else if (time <= par.gold) {
         return { tier: 'GOLD', icon: '🥇', label: 'GOLD SPEEDRUN MEDAL', color: 'text-amber-400' };
-    } else if (time <= targetParTime * 1.15) {
+    } else if (time <= par.silver) {
         return { tier: 'SILVER', icon: '🥈', label: 'SILVER MEDAL', color: 'text-neutral-300' };
     } else {
         return { tier: 'BRONZE', icon: '🥉', label: 'BRONZE MEDAL', color: 'text-amber-600' };
@@ -8438,34 +8685,44 @@ function triggerVictory() {
     const lvl = game.level;
     const finalTime = game.runTime;
     const shardsCount = game.shardsCollected.size;
+    // Runs where the AI pilot took over are shown but never recorded
+    const assisted = !!game.botUsedThisRun;
+    const isCampaign = !game.isCustomLevel && !game.isDailyChallenge && !game.isEndless &&
+        game.currentLevelIdx >= 0 && game.currentLevelIdx < LEVELS.length;
+    if (assisted) showNotification("🤖 AI-ASSISTED RUN — TIME NOT RECORDED");
 
-    const targetParTime = (lvl.length / lvl.startSpeed) * 0.95;
+    const parTimes = getStageParTimes(lvl) || { gold: (lvl.length / lvl.startSpeed) * 0.95 };
+    const targetParTime = parTimes.gold;
     let rank = "C RANK";
     if (shardsCount === 3 && finalTime <= targetParTime) rank = "S RANK";
     else if (shardsCount >= 2 && finalTime <= targetParTime * 1.15) rank = "A RANK";
     else if (shardsCount >= 1) rank = "B RANK";
 
-    if (game.isDailyChallenge) {
-        const todayStr = (typeof getTodayDateStr === 'function') ? getTodayDateStr() : 'daily';
+    if (game.isDailyChallenge && !assisted) {
+        const todayStr = game.dailySeedDate || ((typeof getTodayDateStr === 'function') ? getTodayDateStr() : 'daily');
         try {
             const dailyPbKey = `neon_pulse_daily_pb_${todayStr}`;
             const prevDailyPb = localStorage.getItem(dailyPbKey);
             if (!prevDailyPb || finalTime < parseFloat(prevDailyPb)) {
                 localStorage.setItem(dailyPbKey, finalTime.toString());
+                // Daily PB ghost (read back by startDailyChallenge)
+                localStorage.setItem(`neon_pulse_daily_pb_ghost_${todayStr}`, JSON.stringify({
+                    tag: game.pilotTag, stage: 99, time: finalTime, path: [...game.ghostRecord]
+                }));
             }
         } catch(e) {}
         if (typeof DreamloLB !== 'undefined' && DreamloLB && typeof DreamloLB.submitScore === 'function') {
             DreamloLB.submitScore(99, finalTime, shardsCount, game.selectedAbility);
         }
-        showNotification("🏆 DAILY CHALLENGE CLEAR! VAPORWAVE EXOSUIT UNLOCKED!");
+        showNotification("🏆 DAILY CHALLENGE CLEAR!");
     } else if (game.isCustomLevel) {
         showNotification(`🎉 CUSTOM TRACK COMPLETED IN ${formatTime(finalTime)}!`);
-    } else if (game.currentLevelIdx >= 0) {
+    } else if (isCampaign && !assisted) {
         saveRunToLeaderboard(game.currentLevelIdx, finalTime, shardsCount, game.selectedAbility);
     }
 
     // Save Ghost Run for Challenge Links & Solo PB Ghost
-    if (!game.isCustomLevel && game.currentLevelIdx >= 0) {
+    if (isCampaign && !assisted) {
         game.lastCompletedGhost = {
             tag: game.pilotTag,
             stage: game.currentLevelIdx,
@@ -8477,9 +8734,9 @@ function triggerVictory() {
 
     // Calculate and Save Stage Medal
     let medal = null;
-    if (!game.isCustomLevel && game.currentLevelIdx >= 0) {
+    if (isCampaign) {
         medal = getStageMedal(game.currentLevelIdx, finalTime, shardsCount);
-        if (medal) {
+        if (medal && !assisted) {
             try {
                 const medalKey = `neon_pulse_medal_${game.currentLevelIdx}`;
                 const prevMedal = localStorage.getItem(medalKey);
@@ -8488,7 +8745,8 @@ function triggerVictory() {
                     localStorage.setItem(medalKey, medal.tier);
                 }
             } catch(e) {}
-
+        }
+        if (medal) {
             const medalIcon = document.getElementById('vic-medal-icon');
             const medalTier = document.getElementById('vic-medal-tier');
             const medalDesc = document.getElementById('vic-medal-desc');
@@ -8521,8 +8779,11 @@ function triggerVictory() {
     }
 
     // Achievement & Bounty Evaluations for Stage Victory
-    if (typeof achievementSystem !== 'undefined' && !game.isCustomLevel) {
-        if (!game.isEndless && !game.isDailyChallenge && game.currentLevelIdx >= 0 && game.currentLevelIdx < 20) {
+    if (typeof achievementSystem !== 'undefined' && game.isDailyChallenge && !assisted) {
+        achievementSystem.unlock('daily_challenge_clear');
+    }
+    if (typeof achievementSystem !== 'undefined' && isCampaign && !assisted) {
+        {
             if ((game.deathsThisRun || 0) === 0) {
                 try {
                     localStorage.setItem(`neon_pulse_flawless_${game.currentLevelIdx}`, '1');
@@ -8542,10 +8803,6 @@ function triggerVictory() {
         if (game.currentLevelIdx >= 9) achievementSystem.unlock('sector_clear_5');
         if (game.currentLevelIdx >= 19) achievementSystem.unlock('stage_20_clear');
         if ((game.deathsThisRun || 0) === 0) achievementSystem.unlock('flawless_run');
-
-        if (game.isDailyChallenge) {
-            achievementSystem.unlock('daily_challenge_clear');
-        }
 
         if (medal) {
             if (medal.tier === 'GOLD' || medal.tier === 'DIAMOND') {
@@ -8575,9 +8832,9 @@ function triggerVictory() {
         if (flawlessTotal === 20 && shardTotal >= 60) achievementSystem.unlock('grandmaster_perfection');
     }
 
-    if (typeof dailySystem !== 'undefined' && !game.isCustomLevel) {
+    if (typeof dailySystem !== 'undefined' && !game.isCustomLevel && !assisted) {
         dailySystem.updateBountyProgress('stage_clear', 1);
-        if (game.currentLevelIdx >= 10) dailySystem.updateBountyProgress('stage_clear_dim2', 1);
+        if (isCampaign && game.currentLevelIdx >= 10) dailySystem.updateBountyProgress('stage_clear_dim2', 1);
         if (medal && (medal.tier === 'GOLD' || medal.tier === 'DIAMOND')) {
             dailySystem.updateBountyProgress('gold_medal', 1);
         }
@@ -8591,7 +8848,9 @@ function triggerVictory() {
         MP.broadcastFinish(finalTime);
     }
 
-    if (!game.isCustomLevel && game.currentLevelIdx >= 0) {
+    const pbNotifEl = document.getElementById('vic-pb-notification');
+    if (pbNotifEl && !(isCampaign && !assisted)) pbNotifEl.classList.add('hidden');
+    if (isCampaign && !assisted) {
         try {
             const pbKey = `neon_pulse_pb_${game.currentLevelIdx}`;
             const prevPb = localStorage.getItem(pbKey);
@@ -8709,6 +8968,13 @@ function runBotPilotAI() {
                     mustJump = true;
                 }
             }
+            // Airborne: spend the air jump to rise into a ring we would otherwise pass under
+            if (!p.isGrounded && r.type !== 'BOOST' && p.gravityDir === 1 && p.vy > 0 && p.canDoubleJump &&
+                ((p.airJumpsDone || 0) < (p.maxAirJumps || 1))) {
+                const cy = p.y + p.h / 2;
+                const ahead = r.x - (p.x + p.w / 2);
+                if (ahead > 20 && ahead < 110 && cy - r.y > 45 && cy - r.y < 170) mustJump = true;
+            }
         }
     }
 
@@ -8717,13 +8983,17 @@ function runBotPilotAI() {
         const checkX = p.x + p.w + 24;
         let hasSurface = false;
         let hasFloorBelow = false;
+        let needStepJump = false;
         for (let i = 0; i < lvl.platforms.length; i++) {
             const plat = lvl.platforms[i];
             if (plat.phase && plat.phase !== 'NEUTRAL' && plat.phase !== game.phaseColor) continue;
             if (plat.reappear && plat.vanished) continue;
             if (checkX >= plat.x && checkX <= plat.x + plat.w) {
                 if (p.gravityDir === 1) {
-                    if (Math.abs((p.y + p.h) - plat.y) < 45) {
+                    const rise = (p.y + p.h) - plat.y; // >0 when the next surface is higher than our feet
+                    if (rise > 30 && rise < 150) {
+                        needStepJump = true; // ledge too tall to auto step-up (maxStep 35)
+                    } else if (Math.abs(rise) < 45) {
                         hasSurface = true;
                         break;
                     } else if (plat.y > p.y + p.h && plat.y - (p.y + p.h) <= 150) {
@@ -8746,15 +9016,30 @@ function runBotPilotAI() {
                 const cyclePos = ((nowSec + (gp.offset || 0)) % gp.period) / gp.period;
                 const isSolid = cyclePos < gp.activeRatio;
                 if (isSolid && checkX >= gp.x && checkX <= gp.x + gp.w) {
-                    if (p.gravityDir === 1 && Math.abs((p.y + p.h) - gp.y) < 60) {
+                    const gRise = (p.y + p.h) - gp.y;
+                    if (p.gravityDir === 1 && gRise > 30 && gRise < 150) {
+                        needStepJump = true;
+                    } else if (p.gravityDir === 1 && Math.abs(gRise) < 60) {
                         hasSurface = true;
                         break;
                     }
                 }
             }
         }
-        if (!hasSurface && !hasFloorBelow) {
+        if ((!hasSurface && !hasFloorBelow) || needStepJump) {
             mustJump = true;
+        }
+    }
+
+    // Glitch platform urgency: hop just before the platform we're standing on (or about to reach) blinks out
+    if (p.isGrounded && lvl.glitchPlatforms && p.gravityDir === 1) {
+        const nowSec = game.runTime;
+        for (let i = 0; i < lvl.glitchPlatforms.length; i++) {
+            const gp = lvl.glitchPlatforms[i];
+            if (Math.abs((p.y + p.h) - gp.y) > 6) continue;
+            if (p.x + p.w < gp.x || p.x > gp.x + gp.w) continue;
+            const cyclePos = ((nowSec + (gp.offset || 0)) % gp.period) / gp.period;
+            if (cyclePos < gp.activeRatio && (gp.activeRatio - cyclePos) * gp.period < 0.07) mustJump = true;
         }
     }
 
@@ -8794,7 +9079,16 @@ function runBotPilotAI() {
                     break;
                 }
             }
-            if (!floorBelow && p.y > 390) mustJump = true;
+            if (!floorBelow && lvl.glitchPlatforms) {
+                const nowSec = game.runTime;
+                for (let i = 0; i < lvl.glitchPlatforms.length; i++) {
+                    const gp = lvl.glitchPlatforms[i];
+                    const cyclePos = ((nowSec + (gp.offset || 0)) % gp.period) / gp.period;
+                    if (cyclePos < gp.activeRatio && p.x + p.w > gp.x && p.x < gp.x + gp.w && gp.y >= p.y + p.h - 10) { floorBelow = true; break; }
+                }
+            }
+            // Falling with nothing underneath: spend the air jump while still level with the platform tier
+            if (!floorBelow && (p.y > 390 || (p.y + p.h > 330 && p.vy > 250))) mustJump = true;
         } else if (p.gravityDir === -1 && p.vy < -120) {
             let ceilingAbove = false;
             for (let i = 0; i < lvl.platforms.length; i++) {
@@ -8813,6 +9107,32 @@ function runBotPilotAI() {
     // Never force air-dive sliding into voids unless under a ceiling
     if (!p.isGrounded && !isCeilingOverhead()) {
         mustSlide = false;
+        // ...except to dive under a low laser coming up while there is solid floor beneath it
+        if (p.gravityDir === 1 && lvl.lasers && lvl.platforms) {
+            for (let i = 0; i < lvl.lasers.length; i++) {
+                const l = lvl.lasers[i];
+                if (l.h > 35 || l.x + l.w <= p.x || l.x - p.x > lookahead * 1.1) continue;
+                let floorUnderLaser = false;
+                for (let j = 0; j < lvl.platforms.length; j++) {
+                    const pl = lvl.platforms[j];
+                    if (pl.phase && pl.phase !== 'NEUTRAL' && pl.phase !== game.phaseColor) continue;
+                    if (l.x >= pl.x && l.x <= pl.x + pl.w && pl.y > l.y + l.h && pl.y - (l.y + l.h) < 40) { floorUnderLaser = true; break; }
+                }
+                let spikeInWay = false;
+                if (lvl.spikes) {
+                    for (let k = 0; k < lvl.spikes.length; k++) {
+                        const sp = lvl.spikes[k];
+                        if (!sp.inverted && sp.x + sp.w > p.x && sp.x < p.x + p.w + 12) { spikeInWay = true; break; }
+                    }
+                }
+                // Skip the dive if our current arc already carries us over the laser
+                const g = (lvl.objective && (lvl.objective.type === 'ZERO_G' || lvl.objective.type === 'THE_OMNI_RIFT')) ? 950 : GRAVITY;
+                const tReach = Math.max(0, (l.x + l.w - p.x) / Math.max(1, p.vx));
+                const feetAtLaser = p.y + p.h + p.vy * tReach + 0.5 * g * tReach * tReach;
+                const clearsOver = feetAtLaser < l.y - 4;
+                if (floorUnderLaser && !spikeInWay && !clearsOver) { mustSlide = true; break; }
+            }
+        }
     }
 
     if (mustSlide || isCeilingOverhead()) mustJump = false;
@@ -8833,67 +9153,7 @@ function runBotPilotAI() {
 // DIMENSION 2 VISUAL EFFECTS & ENTITIES
 // ============================================================================
 function drawDimension2Background(cameraX) {
-    ctx.fillStyle = getDim2BgGrad() || '#06020f';
-    ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
-
-    // Parallax Quantum Nebula Dust (Cached Gradients)
-    ctx.save();
-    const t = game.runTime * 0.4;
-    for (let n = 0; n < 3; n++) {
-        const nx = ((n * 380 - cameraX * 0.08 + Math.sin(t + n) * 40) % (V_WIDTH + 400)) - 200;
-        const ny = 120 + n * 110 + Math.cos(t * 0.8 + n) * 30;
-        const rad = getNebulaGrad(n);
-        if (rad) {
-            ctx.save();
-            ctx.translate(nx, ny);
-            ctx.fillStyle = rad;
-            ctx.beginPath();
-            ctx.arc(0, 0, 180, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-    ctx.restore();
-
-    // Starfield Parallax
-    ctx.save();
-    for (let layer = 1; layer <= 2; layer++) {
-        const speed = layer === 1 ? 0.05 : 0.12;
-        const count = layer === 1 ? 40 : 25;
-        for (let i = 0; i < count; i++) {
-            const seed = i * 997 + layer * 31;
-            const sx = ((seed * 43.17 - cameraX * speed) % (V_WIDTH + 50)) - 25;
-            const sy = (seed * 29.83) % (V_HEIGHT - 60);
-            const twinkle = (Math.sin(game.runTime * 3 + seed) + 1) * 0.5;
-            ctx.fillStyle = layer === 1 
-                ? `rgba(192, 132, 252, ${0.3 + twinkle * 0.5})` 
-                : `rgba(255, 255, 255, ${0.4 + twinkle * 0.6})`;
-            ctx.beginPath();
-            ctx.arc(sx, sy, layer === 1 ? 1.2 : 2.0, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-    ctx.restore();
-
-    // Dimensional Fracture Grid
-    ctx.save();
-    ctx.strokeStyle = 'rgba(147, 51, 234, 0.08)';
-    ctx.lineWidth = 1;
-    const gridSpacing = 60;
-    const gridOffset = (-cameraX * 0.18) % gridSpacing;
-    for (let gx = gridOffset; gx < V_WIDTH; gx += gridSpacing) {
-        ctx.beginPath();
-        ctx.moveTo(gx, 0);
-        ctx.lineTo(gx, V_HEIGHT);
-        ctx.stroke();
-    }
-    for (let gy = 0; gy < V_HEIGHT; gy += gridSpacing) {
-        ctx.beginPath();
-        ctx.moveTo(0, gy);
-        ctx.lineTo(V_WIDTH, gy);
-        ctx.stroke();
-    }
-    ctx.restore();
+    drawSynthwaveBackground(cameraX, 'cosmos');
 }
 
 function drawSentinelDeathWall(cameraX) {
@@ -8997,7 +9257,8 @@ function render() {
     const shakeMult = (typeof settingsSystem !== 'undefined' ? settingsSystem.screenShake : 100) / 100;
     if (game.screenShake > 0) {
         const effShake = game.screenShake * shakeMult;
-        ctx.translate((Math.random() - 0.5) * effShake, (Math.random() - 0.5) * effShake);
+        const shakePx = effShake * Math.max(1, cachedScale);
+        ctx.translate((Math.random() - 0.5) * shakePx, (Math.random() - 0.5) * shakePx);
         game.screenShake *= Math.pow(0.88, frameDt * 60);
         if (game.screenShake < 0.3) game.screenShake = 0;
     }
@@ -9163,10 +9424,21 @@ function render() {
                 ctx.fillStyle = '#0f172a';
                 ctx.strokeStyle = lvl.color;
             } else {
+                // dark glassy body + neon rim, styled after the key art
+                const pg = ctx.createLinearGradient(0, plat.y, 0, plat.y + Math.min(plat.h, 140));
+                pg.addColorStop(0, 'rgba(26,16,58,0.97)'); pg.addColorStop(1, 'rgba(7,4,20,0.98)');
+                ctx.fillStyle = pg;
                 ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                ctx.save();
+                ctx.globalAlpha = 0.28; ctx.lineWidth = 6;
+                ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+                ctx.globalAlpha = 1; ctx.lineWidth = 2;
                 ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
                 ctx.fillStyle = lvl.color;
                 ctx.fillRect(plat.x, plat.y, plat.w, 3);
+                ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                ctx.fillRect(plat.x, plat.y, plat.w, 1);
+                ctx.restore();
                 ctx.fillStyle = '#0f172a';
             }
         }
@@ -9461,31 +9733,303 @@ function drawSpeedLines() {
     ctx.restore();
 }
 
-function drawCyberBackground(cameraX) {
-    ctx.fillStyle = getCyberBgGrad() || '#020617';
-    ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+// ============================================================================
+// SYNTHWAVE BACKDROP (matches the store key art): sky, striped sun, neon
+// skyline, perspective grid. Static layers are cached to offscreen canvases
+// at device resolution, so each frame is a handful of drawImage calls.
+// ============================================================================
+const SYNTH_HORIZON = 330;
+const synthCache = { res: 0, theme: null, sky: null, sun: null, far: null, near: null, tileW: 1024 };
 
-    // Parallax City Skyline
-    ctx.fillStyle = '#090d16';
-    const bOffset = (cameraX * 0.15) % 180;
-    for (let x = -bOffset - 180; x < V_WIDTH + 180; x += 90) {
-        const height = 140 + Math.sin(x * 12.3) * 60;
-        ctx.fillRect(x, 400 - height, 75, height);
-    }
+function synthRng(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 
-    // Synth Grid Lines
-    ctx.strokeStyle = 'rgba(6, 182, 212, 0.12)';
-    ctx.lineWidth = 1;
-    const gridOffset = (cameraX * 0.5) % 50;
-    for (let x = -gridOffset; x < V_WIDTH; x += 50) {
-        ctx.beginPath();
-        ctx.moveTo(x, 400);
-        ctx.lineTo(x, V_HEIGHT);
-        ctx.stroke();
-    }
+function makeLayerCanvas(w, h, res) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w * res));
+    c.height = Math.max(1, Math.round(h * res));
+    const g = c.getContext('2d');
+    g.scale(res, res);
+    return { c, g };
 }
 
-function drawSpike(x, y, w, h, inverted, rotation) {
+function buildSynthCache(theme) {
+    const res = Math.max(1, Math.min(2.5, cachedScale || 1));
+    const hz = SYNTH_HORIZON;
+    const cosmos = theme === 'cosmos';
+    // --- sky + stars
+    const sky = makeLayerCanvas(V_WIDTH, hz + 2, res);
+    let g = sky.g;
+    const sg = g.createLinearGradient(0, 0, 0, hz);
+    if (cosmos) { sg.addColorStop(0, '#05010d'); sg.addColorStop(0.6, '#140a35'); sg.addColorStop(1, '#2d0f55'); }
+    else { sg.addColorStop(0, '#04020d'); sg.addColorStop(0.55, '#140630'); sg.addColorStop(1, '#3a0b52'); }
+    g.fillStyle = sg; g.fillRect(0, 0, V_WIDTH, hz + 2);
+    let r = synthRng(cosmos ? 77 : 11);
+    for (let i = 0; i < 140; i++) {
+        const a = 0.15 + r() * 0.7;
+        g.fillStyle = `rgba(255,255,255,${a})`;
+        const s = r() < 0.12 ? 1.6 : 0.9;
+        g.fillRect(r() * V_WIDTH, r() * hz * 0.85, s, s);
+    }
+    // --- sun (city) or ringed planet (cosmos)
+    const sunR = cosmos ? 120 : 150;
+    const sun = makeLayerCanvas(sunR * 2 + 80, sunR + 60, res);
+    g = sun.g;
+    const cx = sunR + 40, cy = sunR + 40;
+    g.save();
+    g.shadowColor = cosmos ? '#a855f7' : '#ff2bd6'; g.shadowBlur = 50;
+    const sunG = g.createLinearGradient(0, cy - sunR, 0, cy);
+    if (cosmos) { sunG.addColorStop(0, '#f0abfc'); sunG.addColorStop(0.5, '#a855f7'); sunG.addColorStop(1, '#4c1d95'); }
+    else { sunG.addColorStop(0, '#ffe46b'); sunG.addColorStop(0.45, '#ff9e3d'); sunG.addColorStop(1, '#ff2bd6'); }
+    g.fillStyle = sunG;
+    g.beginPath(); g.arc(cx, cy, sunR, Math.PI, 2 * Math.PI); g.fill();
+    g.restore();
+    g.save(); g.globalCompositeOperation = 'destination-out';
+    for (let k = 0; k < 7; k++) {
+        const t = k / 7;
+        g.fillRect(cx - sunR - 2, cy - sunR * 0.55 + t * sunR * 0.55, sunR * 2 + 4, sunR * (0.015 + 0.035 * t));
+    }
+    g.restore();
+    if (cosmos) {   // planetary ring
+        g.save(); g.strokeStyle = 'rgba(244,114,182,0.75)'; g.lineWidth = 3; g.shadowColor = '#f472b6'; g.shadowBlur = 14;
+        g.beginPath(); g.ellipse(cx, cy - sunR * 0.35, sunR * 1.35, sunR * 0.18, -0.08, Math.PI * 0.98, Math.PI * 2.02); g.stroke(); g.restore();
+    }
+    // --- skyline / ridge tiles (repeat horizontally)
+    const tileW = synthCache.tileW;
+    function skyline(seed, scale, color, lit, alpha) {
+        const L = makeLayerCanvas(tileW, 260, res);
+        const lg = L.g;
+        const rr = synthRng(seed);
+        if (cosmos) {
+            // jagged crystal ridge
+            lg.fillStyle = color; lg.beginPath(); lg.moveTo(0, 260);
+            let x = 0;
+            while (x <= tileW) { lg.lineTo(x, 260 - (30 + rr() * 110) * scale); x += 20 + rr() * 40; }
+            lg.lineTo(tileW, 260 - 60 * scale); lg.lineTo(tileW, 260); lg.closePath(); lg.fill();
+            lg.strokeStyle = `rgba(192,132,252,${0.45 * alpha})`; lg.lineWidth = 1.2; lg.stroke();
+            return L.c;
+        }
+        let x = 0;
+        while (x < tileW) {
+            const bw = Math.min(tileW - x, (26 + rr() * 60) * scale);
+            const bh = (36 + rr() * 150 + (rr() < 0.15 ? 70 : 0)) * scale;
+            lg.fillStyle = color; lg.fillRect(x, 260 - bh, bw, bh);
+            lg.strokeStyle = rr() < 0.5 ? `rgba(34,228,255,${0.4 * alpha})` : `rgba(255,43,214,${0.35 * alpha})`;
+            lg.lineWidth = 1; lg.strokeRect(x + 0.5, 260 - bh + 0.5, bw - 1, bh);
+            if (lit) {
+                for (let wy = 260 - bh + 7 * scale; wy < 254; wy += 8 * scale)
+                    for (let wx = x + 4 * scale; wx < x + bw - 4 * scale; wx += 7 * scale)
+                        if (rr() < 0.2) { lg.fillStyle = rr() < 0.6 ? `rgba(34,228,255,${0.55 * alpha})` : `rgba(255,170,240,${0.5 * alpha})`; lg.fillRect(wx, wy, 2 * scale, 2.5 * scale); }
+            }
+            x += bw + (2 + rr() * 8) * scale;
+        }
+        return L.c;
+    }
+    const far = skyline(cosmos ? 5 : 3, 1.1, cosmos ? '#1a0b3a' : '#24093f', true, 0.55);
+    const near = skyline(cosmos ? 9 : 9, 0.8, cosmos ? '#0e0624' : '#0b0320', true, 1);
+    Object.assign(synthCache, { res, theme, sky: sky.c, sun: sun.c, sunR, far, near });
+}
+
+function drawSynthwaveBackground(cameraX, theme) {
+    const want = Math.max(1, Math.min(2.5, cachedScale || 1));
+    if (synthCache.theme !== theme || Math.abs(synthCache.res - want) > 0.25) buildSynthCache(theme);
+    const hz = SYNTH_HORIZON;
+    const cosmos = theme === 'cosmos';
+    const c = ctx;
+    c.drawImage(synthCache.sky, 0, 0, V_WIDTH, hz + 2);
+
+    // cosmos keeps the drifting nebula clouds from the original Dimension β look
+    if (cosmos) {
+        const t = game.runTime * 0.4;
+        for (let n = 0; n < 3; n++) {
+            const rad = getNebulaGrad(n);
+            if (!rad) continue;
+            c.save();
+            c.translate(((n * 380 - cameraX * 0.08 + Math.sin(t + n) * 40) % (V_WIDTH + 400)) - 200, 90 + n * 70 + Math.cos(t * 0.8 + n) * 20);
+            c.fillStyle = rad; c.beginPath(); c.arc(0, 0, 180, 0, Math.PI * 2); c.fill(); c.restore();
+        }
+    }
+
+    // sun / planet (very slow parallax)
+    const sR = synthCache.sunR;
+    const sunX = 640 - ((cameraX * 0.012) % 1400);
+    const sw = sR * 2 + 80, sh = sR + 60;
+    c.drawImage(synthCache.sun, sunX - sw / 2, hz - sh + 20, sw, sh);
+    if (sunX - sw / 2 < 0) c.drawImage(synthCache.sun, sunX - sw / 2 + 1400, hz - sh + 20, sw, sh);
+
+    // skyline layers
+    const tw = synthCache.tileW;
+    const drawTiles = (img, speed, yOff) => {
+        let ox = -((cameraX * speed) % tw);
+        if (ox > 0) ox -= tw;
+        for (let x = ox; x < V_WIDTH; x += tw) c.drawImage(img, x, hz - 260 + yOff, tw, 260);
+    };
+    drawTiles(synthCache.far, 0.06, 0);
+    drawTiles(synthCache.near, 0.16, 2);
+
+    // grid floor
+    const fg = c.createLinearGradient(0, hz, 0, V_HEIGHT);
+    fg.addColorStop(0, cosmos ? '#22104a' : '#2a0740'); fg.addColorStop(1, '#05010b');
+    c.fillStyle = fg; c.fillRect(0, hz, V_WIDTH, V_HEIGHT - hz);
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    const hCol = cosmos ? '168,85,247' : '255,43,214';
+    for (let i = 1; i < 16; i++) {
+        const t = Math.pow(i / 16, 2.1);
+        const y = hz + t * (V_HEIGHT - hz) * 1.05;
+        const a = 0.42 * (1 - t * 0.75);
+        c.strokeStyle = `rgba(${hCol},${a * 0.35})`; c.lineWidth = 4;
+        c.beginPath(); c.moveTo(0, y); c.lineTo(V_WIDTH, y); c.stroke();
+        c.strokeStyle = `rgba(${hCol},${a})`; c.lineWidth = 1.2;
+        c.beginPath(); c.moveTo(0, y); c.lineTo(V_WIDTH, y); c.stroke();
+    }
+    const vpX = V_WIDTH / 2, spacing = 70;
+    const scroll = (cameraX * 0.9) % spacing;
+    c.strokeStyle = 'rgba(34,228,255,0.22)'; c.lineWidth = 1.2;
+    c.beginPath();
+    for (let bx = -spacing * 12 - scroll; bx < V_WIDTH + spacing * 12; bx += spacing) {
+        c.moveTo(vpX + (bx - vpX) * 0.08, hz);
+        c.lineTo(bx, V_HEIGHT);
+    }
+    c.stroke();
+    c.restore();
+
+    // horizon glow
+    const hg = c.createLinearGradient(0, hz - 26, 0, hz + 26);
+    hg.addColorStop(0, 'rgba(255,43,214,0)');
+    hg.addColorStop(0.5, cosmos ? 'rgba(192,132,252,0.45)' : 'rgba(255,120,230,0.5)');
+    hg.addColorStop(1, 'rgba(255,43,214,0)');
+    c.fillStyle = hg; c.fillRect(0, hz - 26, V_WIDTH, 52);
+
+    // abyss fog: keeps pits reading as a deadly drop
+    const ab = c.createLinearGradient(0, 420, 0, V_HEIGHT);
+    ab.addColorStop(0, 'rgba(3,1,10,0)'); ab.addColorStop(1, 'rgba(3,1,10,0.88)');
+    c.fillStyle = ab; c.fillRect(0, 420, V_WIDTH, V_HEIGHT - 420);
+}
+
+// ============================================================================
+// LIGHT-RIBBON TRAILS (the long streaming trail from the key art)
+// Sampled every rendered frame so the ribbon is smooth at any frame rate.
+// ============================================================================
+const RIBBON_STYLES = {
+    pulse_dash: ['#22e4ff', '#8b5cf6', '#ff2bd6'],
+    rainbow_hyper: ['#22e4ff', '#7c5cff', '#ff2bd6', '#ff9e3d', '#ffe46b'],
+    laser_ribbon: null, // uses skin colour, single band
+};
+function drawLightRibbon(trailStyle, skin) {
+    const p = game.player;
+    const pts = game.ribbonPts || (game.ribbonPts = []);
+    const now = game.renderClock = (game.renderClock || 0) + (game.lastFrameDelta || 0.016);
+    const cx = p.renderX + 11, cy = p.renderY + p.h / 2 + (p.isSliding ? 2 : -2);
+    const last = pts[0];
+    if (last && (Math.abs(last.x - cx) > 260 || Math.abs(last.y - cy) > 260)) pts.length = 0; // respawn / teleport
+    pts.unshift({ x: cx, y: cy, t: now });
+    const life = 0.32;
+    while (pts.length && now - pts[pts.length - 1].t > life) pts.pop();
+    if (pts.length < 3) return;
+    const cols = RIBBON_STYLES[trailStyle] || [skin.color];
+    const faint = (trailStyle in RIBBON_STYLES) ? 1 : 0.5;
+    const bandGap = cols.length > 3 ? 2.6 : 3.2;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    for (let b = 0; b < cols.length; b++) {
+        const off = (b - (cols.length - 1) / 2) * bandGap;
+        ctx.strokeStyle = cols[b];
+        for (let i = 1; i < pts.length; i++) {
+            const k = 1 - (now - pts[i].t) / life;           // 1 at the runner -> 0 at the tail
+            if (k <= 0) break;
+            const spread = off * (0.6 + 0.8 * (1 - k));
+            ctx.globalAlpha = 0.16 * k * faint;
+            ctx.lineWidth = 7 * k + 1;
+            ctx.beginPath(); ctx.moveTo(pts[i - 1].x, pts[i - 1].y + spread); ctx.lineTo(pts[i].x, pts[i].y + spread); ctx.stroke();
+            ctx.globalAlpha = 0.55 * k * faint;
+            ctx.lineWidth = 2.6 * k + 0.6;
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+}
+
+// ============================================================================
+// RUNNER BODY (jointed limbs, chromatic neon edge) — coordinates are local to
+// the runner centre, same frame the exosuit accessories use.
+// ============================================================================
+function runnerPose(p) {
+    if (p.isSliding) {
+        return { head: [9, -1, 5.6], segs: [[[6, 2], [-6, 6]], [[-6, 6], [4, 9], [15, 9]], [[-6, 6], [-1, 10], [10, 11]], [[4, 3], [12, -3], [18, 0]], [[4, 3], [-4, -1], [-10, 3]]] };
+    }
+    if (!p.isGrounded) {
+        // key-art leap: lead leg forward, trailing leg kicked back, arms driving
+        const rise = Math.max(-1, Math.min(1, -p.vy * p.gravityDir / 500));
+        const kick = 2 * rise;
+        return { head: [5.6, -16.4, 5.8], segs: [
+            [[3.2, -10], [-3.2, 8.4]],
+            [[2.4, -7.6], [-5.6, -1.2], [-14.4, -5.2 - kick]],
+            [[-3.2, 8.4], [-12, 15.6], [-20, 7.6 - kick]],
+            [[-3.2, 8.4], [9.6, 12.4 - kick], [17.6, 18.8]],
+            [[2.4, -7.6], [12, -4.4], [18.4, -10 + kick]],
+        ] };
+    }
+    const ph = p.runCycle || 0;
+    const leg = (o) => {
+        const th = Math.sin(ph + o) * 0.75;                 // thigh swing
+        const bend = 0.25 + 0.95 * Math.max(0, Math.cos(ph + o)); // knee flex on the recovery stroke
+        const hip = [-1, 3];
+        const knee = [hip[0] + Math.sin(th) * 8.5, hip[1] + Math.cos(th) * 8.5];
+        const foot = [knee[0] + Math.sin(th - bend) * 8.5, knee[1] + Math.cos(th - bend) * 8.5];
+        return [hip, knee, foot];
+    };
+    const arm = (o) => {
+        const a = -Math.sin(ph + o) * 0.85;
+        const sh = [2, -7];
+        const el = [sh[0] + Math.sin(a) * 6, sh[1] + Math.cos(a) * 6];
+        const ha = [el[0] + Math.sin(a + 1.35) * 5.5, el[1] + Math.cos(a + 1.35) * 5.5];
+        return [sh, el, ha];
+    };
+    return { head: [4, -16.5, 5.8], segs: [[[3, -10], [-1, 3]], arm(Math.PI), leg(0), leg(Math.PI), arm(0)] };
+}
+
+function strokeRunnerPose(pose, color, width, dx) {
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width;
+    for (const seg of pose.segs) {
+        ctx.beginPath(); ctx.moveTo(seg[0][0] + dx, seg[0][1]);
+        for (let i = 1; i < seg.length; i++) ctx.lineTo(seg[i][0] + dx, seg[i][1]);
+        ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(pose.head[0] + dx, pose.head[1], pose.head[2], 0, Math.PI * 2); ctx.fill();
+}
+
+function drawRunnerBody(p, mainColor, glow) {
+    const pose = runnerPose(p);
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // chromatic edge (magenta left, cyan right) like the key art
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.55;
+    strokeRunnerPose(pose, '#ff2bd6', 4.2, -1.3);
+    strokeRunnerPose(pose, '#22e4ff', 4.2, 1.3);
+    ctx.globalAlpha = 1;
+    ctx.shadowColor = glow; ctx.shadowBlur = 14;
+    strokeRunnerPose(pose, mainColor, 4.4, 0);
+    // hot inner core
+    ctx.shadowBlur = 0; ctx.globalAlpha = 0.75;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+    for (const seg of pose.segs) {
+        ctx.beginPath(); ctx.moveTo(seg[0][0], seg[0][1]);
+        for (let i = 1; i < seg.length; i++) ctx.lineTo(seg[i][0], seg[i][1]);
+        ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.beginPath(); ctx.arc(pose.head[0] - 1, pose.head[1] - 1, pose.head[2] * 0.45, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
+function drawCyberBackground(cameraX) {
+    drawSynthwaveBackground(cameraX, 'city');
+}
+
+function drawSpike(x, y, w, h, inverted, rotation, targetCtx) {
+    const ctx = targetCtx || window.__mainCtx;
     const rot = (rotation !== undefined) ? rotation : (inverted ? 180 : 0);
     ctx.save();
 
@@ -9799,6 +10343,16 @@ function drawPlayerTrail() {
     const trailStyle = (typeof getActiveTrailData === 'function') ? getActiveTrailData().id : 'pulse_dash';
     const skin = (typeof getActiveSkinData === 'function') ? getActiveSkinData() : { color: '#06b6d4', glow: '#06b6d4' };
 
+    // Light-ribbon trails (default, Hyperdrive Rainbow, Laser Ribbon) draw a long smooth streamer.
+    // Every other trail keeps its own particles on top of a faint ribbon in the suit colour.
+    drawLightRibbon(trailStyle, skin);
+    if (trailStyle === 'pulse_dash' || trailStyle === 'rainbow_hyper' || trailStyle === 'laser_ribbon') {
+        for (let i = game.player.trail.length - 1; i >= 0; i--) {
+            game.player.trail[i].alpha -= dt * 2.6;
+            if (game.player.trail[i].alpha <= 0) game.player.trail.splice(i, 1);
+        }
+        return;
+    }
     if (trailStyle === 'laser_ribbon') {
         if (game.player.trail.length > 1) {
             ctx.save();
@@ -10440,54 +10994,7 @@ function drawAcrobaticHuman(p) {
         ctx.restore();
     }
 
-    if (p.isSliding) {
-        ctx.beginPath();
-        ctx.arc(8, -2, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(4, 0);
-        ctx.lineTo(-8, 5);
-        ctx.lineTo(14, 8);
-        ctx.stroke();
-    } else if (!p.isGrounded) {
-        ctx.beginPath();
-        ctx.arc(0, -16, 5.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(0, -10);
-        ctx.lineTo(-2, 4);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(-1, -6);
-        ctx.lineTo(8, -12);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(-2, 4);
-        ctx.lineTo(-10, 14);
-        ctx.stroke();
-    } else {
-        const legSwing = Math.sin(p.runCycle) * 12;
-        const armSwing = Math.cos(p.runCycle) * 10;
-        ctx.beginPath();
-        ctx.arc(3, -16, 5.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(2, -10);
-        ctx.lineTo(-2, 4);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(1, -6);
-        ctx.lineTo(1 + armSwing, 1);
-        ctx.moveTo(1, -6);
-        ctx.lineTo(1 - armSwing, 1);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(-2, 4);
-        ctx.lineTo(-2 + legSwing, 18);
-        ctx.moveTo(-2, 4);
-        ctx.lineTo(-2 - legSwing, 18);
-        ctx.stroke();
-    }
+    drawRunnerBody(p, mainColor, skin.glow);
 
     // 1. Plasma Exhaust Flames on Back Thrusters & Boots (Thruster Burst Active)
     if (game.abilities && game.abilities.thrust && game.abilities.thrust.activeTimer > 0) {
@@ -11228,14 +11735,18 @@ function startEndlessMode() {
 
 function updateEndlessMode(dt) {
     const p = game.player;
+    const prevDistance = game.endlessDistance;
     game.endlessDistance = Math.max(0, Math.floor(p.x / 10));
+    const distanceChanged = game.endlessDistance !== prevDistance;
 
-    if (!game.isCreditsRoll) {
+    if (!game.isCreditsRoll && !game.botDemo && distanceChanged) {
         if (game.endlessDistance > game.endlessBestDistance) {
             game.endlessBestDistance = game.endlessDistance;
-            try {
-                localStorage.setItem('neon_pulse_endless_best', game.endlessBestDistance);
-            } catch(e) {}
+            // Persist every 25m (and on every reset/death) instead of on every physics step
+            if (game.endlessBestDistance - (game._endlessSavedBest || 0) >= 25) {
+                game._endlessSavedBest = game.endlessBestDistance;
+                try { localStorage.setItem('neon_pulse_endless_best', game.endlessBestDistance); } catch(e) {}
+            }
         }
 
         if (typeof achievementSystem !== 'undefined') {
@@ -11252,10 +11763,12 @@ function updateEndlessMode(dt) {
 
     p.vx = endlessBaseSpeed(game.endlessDistance);
 
-    const distText = document.getElementById('hud-endless-dist');
-    const hudPct = document.getElementById('hud-pct-text');
-    if (distText) distText.innerText = `${game.endlessDistance}m`;
-    if (hudPct) hudPct.innerText = `${game.endlessDistance}m (PB: ${game.endlessBestDistance}m)`;
+    if (distanceChanged) {
+        const distText = document.getElementById('hud-endless-dist');
+        const hudPct = document.getElementById('hud-pct-text');
+        if (distText) distText.innerText = `${game.endlessDistance}m`;
+        if (hudPct) hudPct.innerText = `${game.endlessDistance}m (PB: ${game.endlessBestDistance}m)`;
+    }
 
     while (game.endlessLastSpawnX < p.x + Math.max(2200, p.vx * 3.2)) {
         spawnNextEndlessChunk();
@@ -11505,19 +12018,13 @@ function exportGhostRun() {
     try {
         const payload = JSON.stringify(game.lastCompletedGhost);
         const encoded = btoa(encodeURIComponent(payload));
-        const url = `${window.location.origin}${window.location.pathname}#challenge=${encoded}`;
+        const share = isWebShareable() ? `${window.location.origin}${window.location.pathname}#challenge=${encoded}` : encoded;
         const stageName = (typeof LEVELS !== 'undefined' && LEVELS[game.currentLevelIdx]) ? LEVELS[game.currentLevelIdx].name : `Stage ${game.currentLevelIdx + 1}`;
         const timeStr = formatTime(game.lastCompletedGhost.time);
-        
-        if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(() => {
-                showNotification(`🔗 COPIED! "Beat my ${timeStr} on ${stageName}!"`);
-            }).catch(() => {
-                prompt("Copy your Challenge URL to share:", url);
-            });
-        } else {
-            prompt("Copy your Challenge URL to share:", url);
-        }
+        copyTextToClipboard(share).then((ok) => {
+            if (ok) showNotification(`🔗 ${isWebShareable() ? 'LINK' : 'GHOST CODE'} COPIED! "Beat my ${timeStr} on ${stageName}!"`, true);
+            else showTextPrompt("COPY YOUR GHOST CHALLENGE CODE", share, { readOnly: true });
+        });
     } catch(e) {
         showNotification("⚠️ FAILED TO ENCODE GHOST RUN");
     }
@@ -11535,10 +12042,21 @@ function loadGhostChallenge(raw) {
         } else if (encoded.includes('challenge=')) {
             encoded = encoded.split('challenge=')[1];
         }
+        if (encoded.length > 2000000) throw new Error("Too large");
         const decoded = JSON.parse(decodeURIComponent(atob(encoded)));
         if (!decoded || !decoded.path || !Array.isArray(decoded.path)) {
             throw new Error("Invalid structure");
         }
+        const stage = Number(decoded.stage === undefined ? 0 : decoded.stage);
+        if (!Number.isInteger(stage) || stage < 0 || stage >= LEVELS.length) throw new Error("Invalid stage");
+        const path = decoded.path.slice(0, 20000).filter(pt => pt && Number.isFinite(Number(pt.t)) && Number.isFinite(Number(pt.x)) && Number.isFinite(Number(pt.y)))
+            .map(pt => ({ ...pt, t: Number(pt.t), x: Number(pt.x), y: Number(pt.y) }));
+        if (path.length < 2) throw new Error("Empty path");
+        decoded.stage = stage;
+        decoded.path = path;
+        decoded.tag = cleanPilotTag(decoded.tag, 'GHOST');
+        decoded.time = Number(decoded.time);
+        if (!Number.isFinite(decoded.time) || decoded.time <= 0) decoded.time = path[path.length - 1].t;
         game.ghostData = decoded;
         game.ghostData.isPB = false;
         game.ghostActive = true;
@@ -11748,7 +12266,7 @@ function startVisualRaceCountdown(config = {}) {
                 if (roulettePickBy) {
                     roulettePickBy.innerHTML = (config.chosenBy === 'BOTH')
                         ? `<span><span class="text-emerald-400 font-bold">BOTH PLAYERS PICKED THIS MAP!</span></span>`
-                        : `<span>SELECTED BY 50/50 FLIP: <span class="text-amber-400 font-bold">${(config.chosenBy || 'HOST').toUpperCase()}'S CHOICE</span></span>`;
+                        : `<span>SELECTED BY 50/50 FLIP: <span class="text-amber-400 font-bold">${escapeHTML(String(config.chosenBy || 'HOST').toUpperCase())}'S CHOICE</span></span>`;
                 }
                 if (subHint) subHint.innerText = "TRACK LOCKED! PREPARE TO RACE!";
                 const timerId = setTimeout(() => runCountdownSequence(), 400);
@@ -11994,10 +12512,10 @@ const MP = {
         const rivalTrack = document.getElementById('mp-rival-track-display');
 
         if (codeDisplay) {
-            codeDisplay.innerHTML = `<span class="line-through text-neutral-600">${oldCode || '----'}</span> <span class="text-rose-400 text-xs font-cyber">(EXPIRED)</span>`;
+            codeDisplay.innerHTML = `<span class="line-through text-neutral-600">${escapeHTML(oldCode || '----')}</span> <span class="text-rose-400 text-xs font-cyber">(EXPIRED)</span>`;
         }
         if (hostStatus) {
-            hostStatus.innerHTML = `<span class="text-rose-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>SESSION EXPIRED (${reason})</span>`;
+            hostStatus.innerHTML = `<span class="text-rose-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>SESSION EXPIRED (${escapeHTML(reason)})</span>`;
         }
         if (btnStart) {
             btnStart.disabled = true;
@@ -12017,7 +12535,7 @@ const MP = {
         const joinBanner = document.getElementById('mp-join-expiry-banner');
         const guestLobby = document.getElementById('mp-guest-lobby-view');
         if (joinStatus && notify) {
-            joinStatus.innerHTML = `<span class="text-rose-400 font-bold">⚠️ SESSION EXPIRED — ${reason}</span>`;
+            joinStatus.innerHTML = `<span class="text-rose-400 font-bold">⚠️ SESSION EXPIRED — ${escapeHTML(reason)}</span>`;
         }
         if (joinBanner && notify) {
             joinBanner.classList.remove('hidden');
@@ -12482,8 +13000,12 @@ const MP = {
         }
     },
 
-    handleBroadcastMessage(data) {
-        if (!data || !data.roomCode || data.roomCode !== this.roomCode) return;
+    handleBroadcastMessage(rawData) {
+        if (!rawData || !rawData.roomCode || rawData.roomCode !== this.roomCode) return;
+        const data = this.sanitizeIncoming(rawData);
+        if (!data) return;
+        data.roomCode = rawData.roomCode;
+        data.sender = rawData.sender;
         if (data.sender === this.clientId) return; // ignore own broadcast
 
         if (data.type === 'JOIN_REQUEST' && this.isHost) {
@@ -12528,7 +13050,7 @@ const MP = {
                 expiryBanner.innerText = '';
             }
             if (hostStatus) {
-                hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● ${data.tag || 'RIVAL'} CONNECTED!</span>`;
+                hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● ${escapeHTML(data.tag || 'RIVAL')} CONNECTED!</span>`;
             }
             if (btnStart) {
                 btnStart.disabled = false;
@@ -12573,7 +13095,7 @@ const MP = {
                 joinBanner.innerText = '';
             }
             if (joinStatus) {
-                joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST (${data.tag || 'HOST'})!</span> Ready for Best of 3...`;
+                joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST (${escapeHTML(data.tag || 'HOST')})!</span> Ready for Best of 3...`;
             }
             if (guestLobby) guestLobby.classList.remove('hidden');
             showNotification(`⚔️ CONNECTED TO ROOM ${this.roomCode}!`);
@@ -12606,6 +13128,18 @@ const MP = {
     },
 
     createRoom(forceFresh = false) {
+        if (typeof Peer === 'undefined' && (!this._peerLoadTried || Date.now() - this._peerLoadTried > 30000)) {
+            this._peerLoadTried = Date.now();
+            const codeDisplay0 = document.getElementById('mp-room-code');
+            const hostStatus0 = document.getElementById('mp-opponent-status');
+            if (codeDisplay0) codeDisplay0.innerText = '....';
+            if (hostStatus0) hostStatus0.innerText = 'CONNECTING TO MATCH SERVER...';
+            ensurePeerJS().then((ok) => {
+                if (!ok) showNotification('📡 ONLINE RACES NEED AN INTERNET CONNECTION', true);
+                this.createRoom(true);
+            });
+            return;
+        }
         this.sessionExpired = false;
         this.stopHeartbeat();
         if (this.joinRetryTimer) {
@@ -12677,6 +13211,10 @@ const MP = {
 
                 currentPeer.on('connection', (c) => {
                     if (this.peer !== currentPeer) return;
+                    if (this.connected && this.conn && this.conn !== c && this.conn.open) {
+                        try { c.on('open', () => { try { c.close(); } catch(e) {} }); } catch(e) {}
+                        return;
+                    }
                     this.conn = c;
                     this.sessionExpired = false;
                     this.setupConnection();
@@ -12713,6 +13251,16 @@ const MP = {
     joinRoom(code, attempt = 1) {
         if (!code) {
             showNotification("⚠️ ENTER A ROOM CODE");
+            return;
+        }
+        if (typeof Peer === 'undefined' && (!this._peerLoadTried || Date.now() - this._peerLoadTried > 30000)) {
+            this._peerLoadTried = Date.now();
+            const js = document.getElementById('mp-join-status');
+            if (js) js.innerText = 'CONNECTING TO MATCH SERVER...';
+            ensurePeerJS().then((ok) => {
+                if (!ok) showNotification('📡 ONLINE RACES NEED AN INTERNET CONNECTION', true);
+                this.joinRoom(code, attempt);
+            });
             return;
         }
         if (this.joinRetryTimer) {
@@ -12870,16 +13418,11 @@ const MP = {
 
     copyInviteLink() {
         if (!this.roomCode) return;
-        const url = `${window.location.origin}${window.location.pathname}#race=${this.roomCode}`;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(() => {
-                showNotification(`📋 INVITE LINK COPIED! SHARE WITH YOUR FRIEND`);
-            }).catch(() => {
-                prompt("Copy invite link:", url);
-            });
-        } else {
-            prompt("Copy invite link:", url);
-        }
+        const share = isWebShareable() ? `${window.location.origin}${window.location.pathname}#race=${this.roomCode}` : this.roomCode;
+        copyTextToClipboard(share).then((ok) => {
+            if (ok) showNotification(isWebShareable() ? `📋 INVITE LINK COPIED! SHARE WITH YOUR FRIEND` : `📋 ROOM CODE ${this.roomCode} COPIED! SHARE IT WITH YOUR FRIEND`, true);
+            else showTextPrompt("SHARE THIS WITH YOUR FRIEND", share, { readOnly: true });
+        });
     },
 
     spawnPracticeBot() {
@@ -12971,6 +13514,11 @@ const MP = {
     },
 
     beginPickPhase() {
+        // Ignore duplicate starts (both players pressing "next round", double clicks) while a pick is open
+        const pickModal = document.getElementById('modal-mp-pick');
+        const pickOpen = pickModal && !pickModal.classList.contains('hidden') && pickModal.style.display !== 'none';
+        if (this.pick && this.pick.timer && pickOpen) return;
+        if (this.pick && this.pick.timer) { clearInterval(this.pick.timer); }
         this.pick = { mine: null, rival: null, timer: null, left: 20 };
         const modal = document.getElementById('modal-mp-pick');
         const sel = document.getElementById('mp-pick-select');
@@ -13003,15 +13551,18 @@ const MP = {
             if (t) t.innerText = `${this.pick.left}s`;
         };
         tick();
-        this.pick.timer = setInterval(() => {
-            this.pick.left--;
+        const myPick = this.pick;
+        const timerId = setInterval(() => {
+            if (this.pick !== myPick) { clearInterval(timerId); return; } // superseded by a newer pick phase
+            myPick.left--;
             tick();
-            if (this.pick.left <= 0) {
-                if (this.pick.mine === null) this.lockPick(true);
-                clearInterval(this.pick.timer);
-                this.pick.timer = null;
+            if (myPick.left <= 0) {
+                clearInterval(timerId);
+                myPick.timer = null;
+                if (myPick.mine === null) this.lockPick(true);
             }
         }, 1000);
+        myPick.timer = timerId;
 
         // AI rival locks in after a short "thinking" delay
         if (game.mpRival && game.mpRival.isAI) {
@@ -13035,7 +13586,7 @@ const MP = {
             tile.type = 'button';
             tile.dataset.value = opt.value;
             tile.className = 'mp-pick-tile relative text-[10px] sm:text-[11px] font-cyber font-bold text-neutral-200 bg-neutral-950 border-2 border-neutral-700 rounded px-1.5 py-2 min-h-[44px] flex items-center justify-center text-center leading-tight transition cursor-pointer hover:border-cyan-400';
-            tile.innerHTML = `<span class="pointer-events-none">${opt.textContent}</span><span class="mp-tag-me hidden absolute -top-1.5 left-0.5 bg-cyan-500 text-black text-[8px] px-1 rounded">P1</span><span class="mp-tag-rival hidden absolute -top-1.5 right-0.5 bg-rose-500 text-black text-[8px] px-1 rounded">P2</span>`;
+            tile.innerHTML = `<span class="pointer-events-none">${escapeHTML(opt.textContent)}</span><span class="mp-tag-me hidden absolute -top-1.5 left-0.5 bg-cyan-500 text-black text-[8px] px-1 rounded">P1</span><span class="mp-tag-rival hidden absolute -top-1.5 right-0.5 bg-rose-500 text-black text-[8px] px-1 rounded">P2</span>`;
             const hover = () => this.setPickHover(opt.value, true);
             tile.addEventListener('mouseenter', hover);
             tile.addEventListener('focus', hover);
@@ -13213,7 +13764,37 @@ const MP = {
         this.playPickReveal(hostActualTrack, guestActualTrack, chosenTrack, () => this.playVisualCountdown(chosenTrack, chosenBy));
     },
 
-    handleMessage(data) {
+    sanitizeIncoming(raw) {
+        if (!raw || typeof raw !== 'object' || typeof raw.type !== 'string') return null;
+        const d = Object.assign({}, raw);
+        d.type = raw.type.slice(0, 32);
+        if ('tag' in d) d.tag = cleanPilotTag(d.tag);
+        if ('reason' in d) d.reason = cleanShortText(d.reason, 'RIVAL LEFT');
+        if ('chosenBy' in d) d.chosenBy = cleanShortText(d.chosenBy, 'HOST');
+        if ('skin' in d) d.skin = String(d.skin || '').replace(/[^a-z0-9_]/gi, '').slice(0, 32);
+        const nLevels = (typeof LEVELS !== 'undefined') ? LEVELS.length : 20;
+        const cleanTrack = (v) => {
+            if (v === 'RANDOM_ALL' || v === 'RANDOM') return v;
+            const n = Number(v);
+            return (Number.isInteger(n) && n >= 0 && n < nLevels) ? n : 'RANDOM_ALL';
+        };
+        ['trackIdx', 'trackChoice', 'hostTrack', 'guestTrack', 'choice'].forEach(k => { if (k in d) d[k] = cleanTrack(d[k]); });
+        if ('chosenTrack' in d) {
+            const n = Number(d.chosenTrack);
+            d.chosenTrack = (Number.isInteger(n) && n >= 0 && n < nLevels) ? n : 0;
+        }
+        ['x', 'y', 'vx', 'vy', 'time', 't', 'round', 'hostScore', 'guestScore'].forEach(k => {
+            if (k in d) { const n = Number(d[k]); if (Number.isFinite(n)) d[k] = n; else delete d[k]; }
+        });
+        if ('round' in d) d.round = Math.max(1, Math.min(5, Math.round(d.round)));
+        if ('vote' in d) d.vote = d.vote === true;
+        if ('s' in d) d.s = !!d.s;
+        if ('g' in d) d.g = (d.g === -1 || d.g === 1) ? d.g : 1;
+        return d;
+    },
+
+    handleMessage(rawData) {
+        const data = this.sanitizeIncoming(rawData);
         if (!data || !data.type) return;
 
         this.lastRivalSeen = Date.now();
@@ -13310,11 +13891,11 @@ const MP = {
                 if (game.mpRival) game.mpRival.tag = data.tag;
                 const hostStatus = document.getElementById('mp-opponent-status');
                 if (hostStatus && this.isHost) {
-                    hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● ${data.tag} CONNECTED!</span>`;
+                    hostStatus.innerHTML = `<span class="text-emerald-400 font-bold">● ${escapeHTML(data.tag)} CONNECTED!</span>`;
                 }
                 const joinStatus = document.getElementById('mp-join-status');
                 if (joinStatus && !this.isHost) {
-                    joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST (${data.tag})!</span>`;
+                    joinStatus.innerHTML = `<span class="text-emerald-400 font-bold">● CONNECTED TO HOST (${escapeHTML(data.tag)})!</span>`;
                 }
                 showNotification(`👤 RIVAL CALLSIGN UPDATED: ${data.tag}`);
             }
@@ -13980,11 +14561,18 @@ function startDailyChallenge() {
     game.mpRival = null;
 
     game.level = generateDailyLevel();
+    game.dailySeedDate = getTodayDateStr(); // PB is filed under the seed that was actually played
     game.attempts = 1;
     game.victory = false;
     game.shardsCollected.clear();
+    game.deathsThisRun = 0;
+    game.isChallengeMode = false;
     setPause(false);
     resetPlayerState();
+    ['hud-endless-badge', 'hud-race-badge', 'hud-series-badge'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
 
     if (game.ghostEnabled && !game.isMultiplayer && !game.isEndless) {
         const todayStr = getTodayDateStr();
@@ -14030,6 +14618,7 @@ function startDailyChallenge() {
 
     audio.init();
     audio.playStartCountdown();
+    if (game.level && game.level.bpm) audio.startMusic(game.level.bpm);
     showNotification(`📅 DAILY CHALLENGE STARTED: ${getTodayDisplayDate()}`);
 }
 window.startDailyChallenge = startDailyChallenge;
@@ -14737,6 +15326,11 @@ function startLevel(idx, skipCountdown = false) {
     game.victory = false;
     game.shardsCollected.clear();
     game.deathsThisRun = 0;
+    if (game.isChallengeMode && (!game.ghostData || game.ghostData.stage !== idx)) {
+        game.isChallengeMode = false;
+        game.ghostData = null;
+        game.ghostActive = false;
+    }
     setPause(false);
     resetPlayerState();
 
@@ -14832,6 +15426,10 @@ function startLevel(idx, skipCountdown = false) {
 
 function returnToMainMenu() {
     clearActiveCountdowns();
+    const wasMultiplayer = !!game.isMultiplayer;
+    if (game.botDemo && typeof toggleBotDemo === 'function') toggleBotDemo(false);
+    game.isChallengeMode = false;
+    if (typeof editorSystem !== 'undefined' && editorSystem.isOpen) editorSystem.close();
     game.inMainMenu = true;
     game.isPaused = false;
     game.isCountingDown = false;
@@ -14844,8 +15442,12 @@ function returnToMainMenu() {
     game.victory = false;
     game.openedLeaderboardFrom = null;
     game.mpRival = null;
-    if (typeof MP !== 'undefined' && (game.isMultiplayer || MP.connected)) {
-        MP.expireSession('RETURNED TO MENU');
+    if (typeof MP !== 'undefined') {
+        if (wasMultiplayer || MP.connected) {
+            MP.expireSession('RETURNED TO MENU');
+        } else if (MP.peer || MP.roomCode) {
+            try { MP.disconnectSession(false); } catch(e) {}
+        }
     }
     audio.stopMusic();
 
@@ -14940,7 +15542,7 @@ function setPause(paused, showModal = true) {
                 updateGhostToggleUI();
                 const pauseFsBtn = document.getElementById('btn-pause-fullscreen');
                 if (pauseFsBtn) {
-                    const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+                    const isFS = isGameFullscreen();
                     pauseFsBtn.innerHTML = isFS ? '<span>⛶</span> EXIT FULLSCREEN [G]' : '<span>⛶</span> FULLSCREEN [G]';
                 }
                 if (typeof adminSystem !== 'undefined') adminSystem.updateUI();
@@ -15150,6 +15752,7 @@ window.populateDailyModal = populateDailyModal;
 function toggleBotDemo(forceState) {
     if (game.isCreditsRoll) return;
     game.botDemo = forceState !== undefined ? forceState : !game.botDemo;
+    if (game.botDemo && !game.inMainMenu) game.botUsedThisRun = true;
     const btn = document.getElementById('btn-bot');
     const banner = document.getElementById('bot-active-banner');
     if (game.botDemo) {
@@ -15266,8 +15869,10 @@ function startEndCredits(fromStage20 = false) {
     const elMedals = document.getElementById('credits-total-medals');
     if (elMedals) elMedals.innerText = `${topMedalsCount} / 20`;
 
-    // 4. Award Grand Finale Unlocks
-    try {
+    // 4. Award Grand Finale Unlocks — only for actually clearing Stage 20 (not "Roll Credits" from the menu)
+    let stage20Cleared = false;
+    try { stage20Cleared = !!localStorage.getItem('neon_pulse_pb_19'); } catch(e) {}
+    if (fromStage20 && stage20Cleared) try {
         if (typeof lockerSystem !== 'undefined') {
             lockerSystem.unlockedSkins.add('void_shadow');
             lockerSystem.unlockedTrails.add('chroma_glitch');
@@ -15381,7 +15986,20 @@ window.toggleCreditsSpeed = toggleCreditsSpeed;
 // ============================================================================
 
 // Fullscreen toggle — removes size caps so game fills the screen
+function isGameFullscreen() {
+    if (window.neonDesktop && window.neonDesktop.isFullscreen) {
+        try { return !!window.neonDesktop.isFullscreen(); } catch(e) {}
+    }
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+}
+window.isGameFullscreen = isGameFullscreen;
+
 function toggleFullscreen() {
+    if (window.neonDesktop && window.neonDesktop.toggleFullscreen) {
+        try { window.neonDesktop.toggleFullscreen(); } catch(e) {}
+        setTimeout(handleFullscreenChange, 120);
+        return;
+    }
     const wrapper = document.getElementById('game-wrapper') || document.documentElement;
     if (!wrapper) return;
 
@@ -15426,6 +16044,13 @@ window.toggleFullscreen = toggleFullscreen;
 // Listen for fullscreen changes to toggle size constraints and lock/unlock Escape key
 document.addEventListener('fullscreenchange', handleFullscreenChange);
 document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+if (window.neonDesktop && window.neonDesktop.onFullscreenChange) {
+    window.neonDesktop.onFullscreenChange(() => handleFullscreenChange());
+}
+// Browser fullscreen dropped (e.g. ESC without keyboard lock) mid-run: pause instead of silently continuing
+document.addEventListener('fullscreenchange', () => {
+    if (!isGameFullscreen() && !game.inMainMenu && !game.isPaused && !game.victory && !game.isMultiplayer && !game.isCreditsRoll) setPause(true);
+});
 
 function handleFullscreenChange() {
     const wrapper = document.getElementById('game-wrapper');
@@ -15434,11 +16059,12 @@ function handleFullscreenChange() {
     const pauseFsBtn = document.getElementById('btn-pause-fullscreen');
     const menuFsBtn = document.getElementById('btn-menu-fullscreen');
     const menuFsText = document.getElementById('btn-menu-fullscreen-text');
-    const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    const isFS = isGameFullscreen();
+    const isDesktop = !!window.neonDesktop;
 
     if (isFS) {
         // In fullscreen — lock Escape so ESC pauses the game smoothly without browser exiting fullscreen
-        if (navigator.keyboard && navigator.keyboard.lock) {
+        if (!isDesktop && navigator.keyboard && navigator.keyboard.lock) {
             try {
                 navigator.keyboard.lock(['Escape']).catch(() => {});
             } catch(e) {}
@@ -15570,37 +16196,43 @@ window.addEventListener('keydown', (e) => {
         }
     }
 
+    // Key checks use the player's (re)bindings only — DEFAULT_KEYBINDS already holds the default keys.
     const isAction = (act) => typeof settingsSystem !== 'undefined' ? settingsSystem.isAction(act, e) : false;
+    const GAMEPLAY_ACTIONS = ['jump', 'slide', 'dash', 'thrust', 'chrono', 'restart'];
+    const isGameplayKey = GAMEPLAY_ACTIONS.some(a => isAction(a));
+    const inRun = !game.inMainMenu && !game.isPaused && !game.isCountingDown;
+    // While running, a key bound to a gameplay action is never stolen by a menu hotkey
+    const hotkeyOk = !(inRun && isGameplayKey);
 
     // 2. Global Hotkeys: Settings [O], Fullscreen [G], Ghost [H], Matrix [M], Pause [ESC / P]
-    if (isAction('settings') || e.code === 'KeyO' || e.key === 'o' || e.key === 'O') {
+    if (hotkeyOk && isAction('settings')) {
         e.preventDefault();
         if (typeof settingsSystem !== 'undefined') settingsSystem.toggleModal();
         return;
     }
 
-    if (isAction('fullscreen') || e.code === 'KeyG' || e.key === 'g' || e.key === 'G') {
+    if (hotkeyOk && isAction('fullscreen')) {
         e.preventDefault();
         toggleFullscreen();
         return;
     }
 
-    if (isAction('ghost') || e.code === 'KeyH' || e.key === 'h' || e.key === 'H') {
+    if (hotkeyOk && isAction('ghost')) {
         e.preventDefault();
         toggleGhostSetting();
         return;
     }
 
-    if (e.code === 'KeyM' || e.key === 'm' || e.key === 'M') {
+    if (hotkeyOk && e.code === 'KeyM' && !isGameplayKey && !game.isMultiplayer) {
         e.preventDefault();
         populateStageMenu();
+        if (!game.inMainMenu) setPause(true, false);
         const menuModal = document.getElementById('modal-menu');
-        if (menuModal) menuModal.classList.remove('hidden');
-        if (!game.inMainMenu) setPause(true);
+        if (menuModal) { menuModal.classList.remove('hidden'); menuModal.style.display = ''; }
         return;
     }
 
-    if (isAction('pause') || e.code === 'Escape' || e.code === 'KeyP' || e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+    if (e.code === 'Escape' || (hotkeyOk && isAction('pause'))) {
         if (game.isCountingDown) return;
         e.preventDefault();
         const menuModal = document.getElementById('modal-menu');
@@ -15626,17 +16258,22 @@ window.addEventListener('keydown', (e) => {
                         (adminModal && !adminModal.classList.contains('hidden'));
 
         if (anyOpen) {
-            if (menuModal) { menuModal.classList.add('hidden'); menuModal.style.display = 'none'; }
-            if (lbModal) { closeLeaderboardModal(); }
-            if (dailyModal) { dailyModal.classList.add('hidden'); dailyModal.style.display = 'none'; }
-            if (achModal) { achModal.classList.add('hidden'); achModal.style.display = 'none'; }
-            if (howModal) { howModal.classList.add('hidden'); howModal.style.display = 'none'; }
-            if (mpModal) { mpModal.classList.add('hidden'); mpModal.style.display = 'none'; }
-            if (lockerModal) { lockerModal.classList.add('hidden'); }
-            if (settingsModal) { settingsModal.classList.add('hidden'); }
-            if (editorModal) { editorModal.classList.add('hidden'); }
-            if (adminModal) { adminModal.classList.add('hidden'); adminModal.style.display = 'none'; }
-            if (!game.inMainMenu && !game.victory) setPause(false);
+            const isVisible = (m) => m && !m.classList.contains('hidden') && m.style.display !== 'none';
+            // Close only the top-most layer so ESC steps back one screen at a time
+            if (isVisible(adminModal)) { adminModal.classList.add('hidden'); adminModal.style.display = 'none'; return; }
+            if (isVisible(settingsModal)) { if (typeof settingsSystem !== 'undefined') settingsSystem.close(); else { settingsModal.classList.add('hidden'); settingsModal.style.display = 'none'; } return; }
+            if (isVisible(editorModal)) { if (typeof editorSystem !== 'undefined') editorSystem.close(); else { editorModal.classList.add('hidden'); editorModal.style.display = 'none'; } if (game.inMainMenu) returnToMainMenu(); return; }
+            if (isVisible(lbModal)) { closeLeaderboardModal(); return; }
+            if (isVisible(mpModal)) { closeMultiplayerModal(); return; }
+            if (isVisible(lockerModal)) { closeLockerModal(); return; }
+            if (isVisible(menuModal)) { closeMenuModal(); return; }
+            [dailyModal, achModal, howModal].forEach(m => { if (m) { m.classList.add('hidden'); m.style.display = 'none'; } });
+            if (game.inMainMenu) {
+                const mainMenu = document.getElementById('screen-main-menu');
+                if (mainMenu) { mainMenu.classList.remove('hidden'); mainMenu.style.display = ''; }
+            } else if (!game.victory) {
+                setPause(false);
+            }
             return;
         }
 
@@ -15649,21 +16286,17 @@ window.addEventListener('keydown', (e) => {
     if (game.inMainMenu) return;
     if (game.isPaused || game.isCountingDown) return;
 
-    if (e.code === 'KeyB' || e.key === 'b' || e.key === 'B') {
+    if (e.code === 'KeyB' && !isGameplayKey && !game.isMultiplayer) {
         toggleBotDemo();
         return;
     }
 
-    if (isAction('restart') || e.code === 'KeyR' || e.key === 'r' || e.key === 'R') {
-        if (game.isEndless) {
-            startEndlessMode();
-        } else {
-            resetPlayerState();
-        }
+    if (isAction('restart')) {
+        quickRestart();
         return;
     }
 
-    if (isAction('jump') || e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
+    if (isAction('jump')) {
         e.preventDefault();
         if (e.repeat) return;
         game.inputs.jumpHeld = true;
@@ -15676,7 +16309,7 @@ window.addEventListener('keydown', (e) => {
         if (game.botDemo) toggleBotDemo(false);
     }
 
-    if (isAction('slide') || e.code === 'KeyS' || e.code === 'ArrowDown') {
+    if (isAction('slide')) {
         e.preventDefault();
         game.inputs.slideHeld = true;
         if (typeof settingsSystem !== 'undefined') {
@@ -15686,7 +16319,7 @@ window.addEventListener('keydown', (e) => {
         if (game.botDemo) toggleBotDemo(false);
     }
 
-    if (isAction('dash') || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    if (isAction('dash') && !(e.shiftKey && e.code === 'Tab')) {
         e.preventDefault();
         if (typeof settingsSystem !== 'undefined') {
             settingsSystem.activeInputs.dash = true;
@@ -15694,7 +16327,7 @@ window.addEventListener('keydown', (e) => {
             setTimeout(() => { settingsSystem.activeInputs.dash = false; settingsSystem.updateStreamerHUD(); }, 200);
         }
         triggerPhaseDash();
-    } else if (isAction('thrust') || e.code === 'KeyE' || e.key === 'e' || e.key === 'E') {
+    } else if (isAction('thrust')) {
         e.preventDefault();
         if (typeof settingsSystem !== 'undefined') {
             settingsSystem.activeInputs.thrust = true;
@@ -15702,7 +16335,7 @@ window.addEventListener('keydown', (e) => {
             setTimeout(() => { settingsSystem.activeInputs.thrust = false; settingsSystem.updateStreamerHUD(); }, 200);
         }
         triggerThrusterBurst();
-    } else if (isAction('chrono') || e.code === 'KeyQ' || e.key === 'q' || e.key === 'Q' || e.code === 'KeyF' || e.key === 'f' || e.key === 'F') {
+    } else if (isAction('chrono')) {
         e.preventDefault();
         if (typeof settingsSystem !== 'undefined') {
             settingsSystem.activeInputs.chrono = true;
@@ -15728,14 +16361,14 @@ window.addEventListener('keyup', (e) => {
     if (game.inMainMenu) return;
     const isAction = (act) => typeof settingsSystem !== 'undefined' ? settingsSystem.isAction(act, e) : false;
 
-    if (isAction('jump') || e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
+    if (isAction('jump')) {
         game.inputs.jumpHeld = false;
         if (typeof settingsSystem !== 'undefined') {
             settingsSystem.activeInputs.jump = false;
             settingsSystem.updateStreamerHUD();
         }
     }
-    if (isAction('slide') || e.code === 'KeyS' || e.code === 'ArrowDown') {
+    if (isAction('slide')) {
         game.inputs.slideHeld = false;
         if (typeof settingsSystem !== 'undefined') {
             settingsSystem.activeInputs.slide = false;
@@ -15744,7 +16377,33 @@ window.addEventListener('keyup', (e) => {
     }
 });
 
-canvas.addEventListener('pointerdown', () => {
+function releaseAllInputs() {
+    if (!game.inputs) return;
+    game.inputs.jumpHeld = false;
+    game.inputs.slideHeld = false;
+    game.inputs.jumpPressedThisFrame = false;
+    game.inputs.jumpBufferTime = 0;
+    if (typeof settingsSystem !== 'undefined' && settingsSystem.activeInputs) {
+        Object.keys(settingsSystem.activeInputs).forEach(k => { settingsSystem.activeInputs[k] = false; });
+        if (settingsSystem.updateStreamerHUD) settingsSystem.updateStreamerHUD();
+    }
+}
+function handleFocusLoss() {
+    releaseAllInputs();
+    if (!game.inMainMenu && !game.isPaused && !game.victory && !game.isCreditsRoll && !game.isCountingDown && !game.isMultiplayer && !game.botDemo) {
+        setPause(true);
+    }
+}
+window.addEventListener('blur', handleFocusLoss);
+// Touch buttons: a system gesture (Steam Deck / mobile) can cancel a press without a pointerup
+['touch-jump', 'touch-slide', 'touch-dash', 'touch-thrust', 'touch-chrono'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('pointercancel', () => releaseAllInputs());
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) handleFocusLoss(); });
+
+canvas.addEventListener('pointerdown', (ev) => {
+    if (ev && typeof ev.button === 'number' && ev.button !== 0) return;
     audio.init();
     if (game.inMainMenu) {
         // Do NOT start level on canvas background click when in main menu
@@ -15844,18 +16503,32 @@ if (touchAbility) {
 const bindClick = (id, fn) => {
     const el = document.getElementById(id);
     if (el) {
+        // The JS handler is authoritative: drop any duplicate inline onclick so one press = one action
+        if (el.hasAttribute('onclick')) { el.removeAttribute('onclick'); el.onclick = null; }
         let lastFired = 0;
         const handler = (e) => {
             if (e && e.stopPropagation) e.stopPropagation();
+            if (e && typeof e.button === 'number' && e.button !== 0) return;
             const now = Date.now();
-            if (now - lastFired < 180) return;
+            if (now - lastFired < 250) return;
             lastFired = now;
             fn(e);
         };
-        el.addEventListener('pointerdown', handler);
         el.addEventListener('click', handler);
     }
 };
+
+// Restart the current run (R key / quick-restart buttons)
+function quickRestart() {
+    if (game.inMainMenu || game.isCreditsRoll || game.victory) return;
+    if (game.isMultiplayer) {
+        showNotification("⚔️ RESTART IS DISABLED DURING A LIVE RACE");
+        return;
+    }
+    if (game.isEndless) startEndlessMode();
+    else resetPlayerState();
+}
+window.quickRestart = quickRestart;
 
 bindClick('btn-main-play', () => {
     audio.init();
@@ -15927,6 +16600,7 @@ bindClick('btn-main-locker', () => {
 });
 
 bindClick('btn-locker-open', () => {
+    if (!game.inMainMenu && !game.victory && !game.isPaused) setPause(true, false);
     populateLockerModal();
     const lockerModal = document.getElementById('modal-locker');
     if (lockerModal) {
@@ -16039,13 +16713,17 @@ bindClick('btn-editor-sens-inc', () => {
     }
 });
 
-bindClick('btn-close-locker', () => {
+function closeLockerModal() {
     const lockerModal = document.getElementById('modal-locker');
     if (lockerModal) {
         lockerModal.classList.add('hidden');
         lockerModal.style.display = 'none';
     }
-});
+    // Back to the pause menu if the locker was opened mid-run
+    if (!game.inMainMenu && !game.victory && game.isPaused) setPause(true);
+}
+window.closeLockerModal = closeLockerModal;
+bindClick('btn-close-locker', closeLockerModal);
 
 bindClick('btn-locker-back-main', () => {
     const lockerModal = document.getElementById('modal-locker');
@@ -16238,7 +16916,12 @@ function closeMenuModal() {
         menuModal.classList.add('hidden');
         menuModal.style.display = 'none';
     }
-    if (!game.inMainMenu) setPause(false);
+    if (game.inMainMenu) {
+        const mainMenu = document.getElementById('screen-main-menu');
+        if (mainMenu) { mainMenu.classList.remove('hidden'); mainMenu.style.display = ''; }
+    } else {
+        setPause(false);
+    }
 }
 window.closeMenuModal = closeMenuModal;
 
@@ -16373,8 +17056,20 @@ if (pauseBtn) {
 }
 bindClick('btn-pause-resume', () => setPause(false));
 bindClick('btn-pause-restart', () => {
+    if (game.isMultiplayer) { showNotification("⚔️ RESTART IS DISABLED DURING A LIVE RACE"); return; }
     setPause(false);
-    resetPlayerState();
+    quickRestart();
+});
+bindClick('btn-quick-restart', () => quickRestart());
+bindClick('btn-fullscreen', () => toggleFullscreen());
+bindClick('btn-menu-fullscreen', () => toggleFullscreen());
+bindClick('btn-menu-quit', () => {
+    if (window.SteamBridge && window.SteamBridge.quit && window.neonDesktop) window.SteamBridge.quit();
+});
+bindClick('btn-settings-reset-progress', () => {
+    if (!confirm('RESET SAVE DATA?\n\nThis erases your personal bests, medals, ghosts, unlocked cosmetics and credits on this computer. Settings and keybinds are kept.')) return;
+    if (!confirm('Are you absolutely sure? This cannot be undone.')) return;
+    if (typeof window.resetAllProgress === 'function') window.resetAllProgress();
 });
 
 bindClick('btn-pause-stages', () => {
@@ -16391,7 +17086,12 @@ bindClick('btn-pause-stages', () => {
     }
 });
 
-bindClick('btn-pause-main-menu', () => returnToMainMenu());
+bindClick('btn-pause-main-menu', () => {
+    const pm = document.getElementById('modal-pause');
+    if (pm) { pm.classList.add('hidden'); pm.style.display = 'none'; }
+    if (typeof MP !== 'undefined' && MP.connected) MP.expireSession('ABANDONED BY PLAYER');
+    returnToMainMenu();
+});
 bindClick('btn-bot', () => toggleBotDemo());
 
 bindClick('btn-audio', () => {
@@ -16569,7 +17269,8 @@ const openMultiplayerModal = (asHost = true) => {
     }
     if (asHost && typeof MP !== 'undefined') {
         try {
-            if (MP.sessionExpired || !MP.connected || !MP.roomCode || !MP.peer) {
+            const peerDead = !MP.peer || MP.peer.destroyed || MP.peer.disconnected;
+            if (MP.sessionExpired || !MP.roomCode || (peerDead && !MP.connected) || !MP.isHost) {
                 MP.createRoom(true);
             }
         } catch(e) {
@@ -16585,6 +17286,9 @@ function closeMultiplayerModal() {
         mpModal.classList.add('hidden');
         mpModal.style.display = 'none';
     }
+    if (typeof MP !== 'undefined' && !MP.connected && !game.isMultiplayer && (MP.peer || MP.roomCode)) {
+        try { MP.disconnectSession(false); } catch(e) {}
+    }
     if (!game.inMainMenu) setPause(false);
 }
 window.closeMultiplayerModal = closeMultiplayerModal;
@@ -16592,26 +17296,7 @@ window.closeMultiplayerModal = closeMultiplayerModal;
 bindClick('btn-main-multiplayer', () => openMultiplayerModal(true));
 bindClick('btn-multiplayer-open', () => openMultiplayerModal(true));
 
-const mainMpBtn = document.getElementById('btn-main-multiplayer');
-if (mainMpBtn) {
-    mainMpBtn.addEventListener('click', (e) => {
-        if (e && e.stopPropagation) e.stopPropagation();
-        openMultiplayerModal(true);
-    });
-}
-const headerMpBtn = document.getElementById('btn-multiplayer-open');
-if (headerMpBtn) {
-    headerMpBtn.addEventListener('click', (e) => {
-        if (e && e.stopPropagation) e.stopPropagation();
-        openMultiplayerModal(true);
-    });
-}
-
 bindClick('btn-close-multiplayer', closeMultiplayerModal);
-const closeMpBtn = document.getElementById('btn-close-multiplayer');
-if (closeMpBtn) {
-    closeMpBtn.addEventListener('click', closeMultiplayerModal);
-}
 
 const mpModalBackdrop = document.getElementById('modal-multiplayer');
 if (mpModalBackdrop) {
@@ -16675,13 +17360,11 @@ bindClick('btn-mp-join-mode', () => {
 bindClick('btn-copy-room-code', () => {
     const code = document.getElementById('mp-room-code');
     if (code && code.innerText && code.innerText !== 'GENERATING...') {
-        if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(code.innerText).then(() => {
-                showNotification(`📋 ROOM CODE ${code.innerText} COPIED!`);
-            });
-        } else {
-            prompt("Room Code:", code.innerText);
-        }
+        const roomCode = code.innerText;
+        copyTextToClipboard(roomCode).then((ok) => {
+            if (ok) showNotification(`📋 ROOM CODE ${roomCode} COPIED!`, true);
+            else showTextPrompt("ROOM CODE", roomCode, { readOnly: true });
+        });
     }
 });
 
@@ -16921,7 +17604,23 @@ window.addEventListener('pagehide', () => {
 // 14. GAME LOOP & BOOTSTRAP
 // ============================================================================
 const FIXED_DT = 1 / 120;
+let mainLoopErrorCount = 0;
 function mainLoop(timestamp) {
+    requestAnimationFrame(mainLoop); // schedule first so an exception can't stop the loop
+    try {
+        mainLoopStep(timestamp);
+        mainLoopErrorCount = 0;
+    } catch (err) {
+        mainLoopErrorCount++;
+        if (mainLoopErrorCount <= 3) console.error('[NeonPulse] Frame error:', err);
+        if (mainLoopErrorCount === 120) {
+            // Persistent failure: recover to the main menu instead of a frozen screen
+            try { returnToMainMenu(); showNotification('⚠️ SOMETHING WENT WRONG — RETURNED TO MENU', true); } catch(e) {}
+        }
+    }
+}
+
+function mainLoopStep(timestamp) {
     if (typeof gamepadSystem !== 'undefined') {
         gamepadSystem.update();
     }
@@ -16943,12 +17642,15 @@ function mainLoop(timestamp) {
     }
 
     render();
-    requestAnimationFrame(mainLoop);
 }
 
 window.onload = function() {
     if (typeof SteamBridge !== 'undefined') SteamBridge.init();
-    if (typeof achievementSystem !== 'undefined') achievementSystem.load();
+    if (typeof achievementSystem !== 'undefined') {
+        achievementSystem.load();
+        // Push any achievements earned offline / before Steam was available
+        if (window.SteamBridge && window.SteamBridge.syncAchievements) window.SteamBridge.syncAchievements(achievementSystem.unlocked);
+    }
     if (typeof dailySystem !== 'undefined') dailySystem.load();
     if (typeof gamepadSystem !== 'undefined') gamepadSystem.init();
     if (typeof adminSystem !== 'undefined') adminSystem.init();
@@ -16957,7 +17659,8 @@ window.onload = function() {
         const shakeSlider = document.getElementById('slider-screenshake');
         if (shakeSlider) {
             shakeSlider.addEventListener('input', (e) => {
-                settingsSystem.screenShake = parseInt(e.target.value, 10) || 100;
+                const n = parseInt(e.target.value, 10);
+                settingsSystem.screenShake = isNaN(n) ? 100 : n;
                 settingsSystem.save();
                 const label = document.getElementById('label-screenshake');
                 if (label) label.innerText = `${settingsSystem.screenShake}%`;

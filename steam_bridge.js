@@ -1,152 +1,165 @@
 /**
  * Neon Pulse: Precision Speedrun Edition
  * Steamworks & Desktop Runtime Bridge (steam_bridge.js)
- * 
- * Provides seamless integration between Neon Pulse and the Steamworks SDK
- * when packaged with Electron, Tauri, or NW.js via steamworks.js or greenworks.
- * Operates gracefully as a no-op fallback when running in a standard web browser.
+ *
+ * In the Electron/Steam build, preload.js exposes window.neonDesktop and all Steam calls are
+ * forwarded to the main process (steamworks.js). In a normal web browser this is a no-op and
+ * the in-game achievement toasts are used instead.
+ *
+ * Achievement IDs are sent exactly as defined in game.js ACHIEVEMENTS (e.g. "first_steps").
+ * Create achievements with the same API names in the Steamworks partner site.
  */
 
-(function(global) {
+(function (global) {
     'use strict';
 
+    const desktop = () => (typeof global.neonDesktop === 'object' && global.neonDesktop) ? global.neonDesktop : null;
+
+    // Mark the document as a desktop build ASAP so CSS can fill the window
+    try {
+        if (desktop() && global.document && global.document.documentElement) {
+            global.document.documentElement.classList.add('desktop-build');
+        }
+    } catch (e) { /* ignore */ }
+
     const SteamBridge = {
+        isDesktop: !!desktop(),
         isAvailable: false,
-        client: null,
+        isSteamDeck: false,
         appId: 0,
         steamUser: null,
+        _inited: false,
+        _sent: new Set(),
 
         init() {
-            // Check for Node.js / Electron / Tauri environment
+            if (this._inited) return this.isAvailable;
+            this._inited = true;
+            const d = desktop();
+            if (!d) {
+                console.log('[SteamBridge] Browser build — Steam features disabled.');
+                return false;
+            }
             try {
-                if (typeof window !== 'undefined' && window.steamworks) {
-                    this.client = window.steamworks;
-                    this.isAvailable = true;
-                    console.log('[SteamBridge] Initialized via window.steamworks');
-                } else if (typeof require === 'function') {
-                    // Try require steamworks.js or greenworks
-                    try {
-                        const steamworks = require('steamworks.js');
-                        if (steamworks && typeof steamworks.init === 'function') {
-                            this.client = steamworks.init();
-                            this.isAvailable = true;
-                            console.log('[SteamBridge] Initialized via steamworks.js');
-                        }
-                    } catch(e) {
-                        try {
-                            const greenworks = require('greenworks');
-                            if (greenworks && greenworks.init()) {
-                                this.client = greenworks;
-                                this.isAvailable = true;
-                                console.log('[SteamBridge] Initialized via greenworks');
-                            }
-                        } catch(e2) {}
-                    }
-                }
-            } catch(err) {
-                console.warn('[SteamBridge] Desktop Steamworks SDK not detected, falling back to Web Mode:', err.message);
+                const info = d.steamInfo() || {};
+                this.isAvailable = !!info.available;
+                this.appId = info.appId || 0;
+                this.steamUser = info.name || null;
+                this.isSteamDeck = !!info.isSteamDeck;
+            } catch (e) {
+                this.isAvailable = false;
             }
 
-            if (this.isAvailable && this.client) {
+            if (this.isAvailable && this.steamUser) {
+                console.log('[SteamBridge] Connected to Steam as', this.steamUser);
+                // Use the Steam persona as the pilot tag if the player never set one
                 try {
-                    if (this.client.localplayer) {
-                        this.steamUser = this.client.localplayer.getName ? this.client.localplayer.getName() : 'Steam Runner';
-                        console.log('[SteamBridge] Connected to Steam Account:', this.steamUser);
-                        // Auto-sync Pilot Tag to Steam persona name if default
-                        if (typeof global.setPilotTag === 'function') {
-                            const saved = localStorage.getItem('neon_pulse_pilot_tag');
-                            if (!saved || saved === 'PULSE_PILOT') {
-                                global.setPilotTag(this.steamUser.toUpperCase(), true);
-                            }
-                        }
+                    const saved = localStorage.getItem('neon_pulse_pilot_tag');
+                    if ((!saved || saved === 'PULSE_PILOT') && typeof global.setPilotTag === 'function') {
+                        global.setPilotTag(String(this.steamUser).toUpperCase(), true);
                     }
-                } catch(e) {}
+                } catch (e) { /* ignore */ }
             } else {
-                console.log('[SteamBridge] Running in Pure Web Browser Mode (Zero Dependencies). Steam hooks active.');
+                console.log('[SteamBridge] Desktop build without Steam (DRM-free mode).');
             }
-
             return this.isAvailable;
         },
 
         unlockAchievement(achId) {
             if (!achId) return false;
-            if (typeof global.game !== 'undefined' && global.game && global.game.isCreditsRoll) return false;
-            console.log(`[SteamBridge] Achievement Triggered: ${achId}`);
-
-            if (this.isAvailable && this.client) {
-                try {
-                    // steamworks.js format
-                    if (this.client.achievement && typeof this.client.achievement.activate === 'function') {
-                        const success = this.client.achievement.activate(achId);
-                        console.log(`[SteamBridge] steamworks.js activate(${achId}):`, success);
-                        return success;
+            if (global.game && global.game.isCreditsRoll) return false;
+            if (!this._inited) this.init();
+            if (!this.isAvailable) return false;
+            if (this._sent.has(achId)) return true;
+            const d = desktop();
+            if (!d) return false;
+            this._sent.add(achId);
+            try {
+                Promise.resolve(d.activateAchievement(achId)).then((ok) => {
+                    if (!ok) {
+                        this._sent.delete(achId); // allow a retry later (e.g. API name not configured yet)
+                        console.warn('[SteamBridge] Steam rejected achievement', achId);
                     }
-                    // greenworks format
-                    if (typeof this.client.activateAchievement === 'function') {
-                        this.client.activateAchievement(achId, () => {
-                            console.log(`[SteamBridge] greenworks activateAchievement(${achId}) success`);
-                        }, (err) => {
-                            console.warn(`[SteamBridge] greenworks error:`, err);
-                        });
-                        return true;
-                    }
-                } catch(err) {
-                    console.warn(`[SteamBridge] Failed to activate Steam achievement:`, err);
-                }
+                }).catch(() => this._sent.delete(achId));
+            } catch (e) {
+                this._sent.delete(achId);
+                return false;
             }
+            return true;
+        },
 
-            // In browser mode, in-game toasts handle the achievement notification
-            return false;
+        // Re-send every locally unlocked achievement (safe — Steam ignores repeats)
+        syncAchievements(ids) {
+            if (!this._inited) this.init();
+            if (!this.isAvailable || !ids) return;
+            Array.from(ids).forEach(id => this.unlockAchievement(id));
         },
 
         setRichPresence(statusText) {
-            if (!this.isAvailable || !this.client) return;
+            const d = desktop();
+            if (!this.isAvailable || !d) return;
             try {
-                if (this.client.friends && typeof this.client.friends.setRichPresence === 'function') {
-                    this.client.friends.setRichPresence('status', statusText);
-                    this.client.friends.setRichPresence('steam_display', '#StatusFull');
-                }
-            } catch(e) {}
+                d.setRichPresence('status', String(statusText || '').slice(0, 255));
+                d.setRichPresence('steam_display', '#StatusFull');
+            } catch (e) { /* ignore */ }
         },
 
-        // Steam Cloud saves synchronization helpers
         saveCloud(key, value) {
-            try {
-                localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-            } catch(e) {}
-
-            if (this.isAvailable && this.client && this.client.cloud) {
-                try {
-                    const str = typeof value === 'string' ? value : JSON.stringify(value);
-                    this.client.cloud.writeFile(`${key}.json`, str);
-                } catch(e) {}
+            const str = typeof value === 'string' ? value : JSON.stringify(value);
+            try { localStorage.setItem(key, str); } catch (e) { /* ignore */ }
+            const d = desktop();
+            if (this.isAvailable && d) {
+                try { d.cloudWrite(`${key}.json`, str); } catch (e) { /* ignore */ }
             }
         },
 
         loadCloud(key) {
-            if (this.isAvailable && this.client && this.client.cloud) {
+            const d = desktop();
+            if (this.isAvailable && d) {
                 try {
-                    if (this.client.cloud.isFile(key + '.json')) {
-                        return this.client.cloud.readFile(key + '.json');
-                    }
-                } catch(e) {}
+                    const v = d.cloudRead(`${key}.json`);
+                    if (v != null) return v;
+                } catch (e) { /* ignore */ }
             }
-            try {
-                return localStorage.getItem(key);
-            } catch(e) {
-                return null;
+            try { return localStorage.getItem(key); } catch (e) { return null; }
+        },
+
+        // Desktop helpers (fall back to browser behaviour)
+        toggleFullscreen() {
+            const d = desktop();
+            if (d) { try { return d.toggleFullscreen(); } catch (e) { /* ignore */ } }
+            return null;
+        },
+        isFullscreen() {
+            const d = desktop();
+            if (d) { try { return !!d.isFullscreen(); } catch (e) { /* ignore */ } }
+            return !!(global.document && (global.document.fullscreenElement || global.document.webkitFullscreenElement));
+        },
+        copyText(text) {
+            const d = desktop();
+            if (d) { try { d.clipboardWrite(String(text)); return Promise.resolve(true); } catch (e) { /* ignore */ } }
+            if (global.navigator && global.navigator.clipboard && global.navigator.clipboard.writeText) {
+                return global.navigator.clipboard.writeText(String(text)).then(() => true).catch(() => false);
             }
+            return Promise.resolve(false);
+        },
+        readText() {
+            const d = desktop();
+            if (d) { try { return Promise.resolve(d.clipboardRead() || ''); } catch (e) { /* ignore */ } }
+            if (global.navigator && global.navigator.clipboard && global.navigator.clipboard.readText) {
+                return global.navigator.clipboard.readText().catch(() => '');
+            }
+            return Promise.resolve('');
+        },
+        quit() {
+            const d = desktop();
+            if (d) d.quit();
         }
     };
 
-    // Auto-init on load
     if (typeof window !== 'undefined') {
         window.SteamBridge = SteamBridge;
-        window.addEventListener('load', () => {
-            SteamBridge.init();
-        });
+        window.addEventListener('load', () => SteamBridge.init());
     }
-
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = SteamBridge;
     }

@@ -1,11 +1,15 @@
 {
   "name": "neon-pulse-speedrun",
   "version": "1.0.0",
-  "description": "Neon Pulse: Precision Speedrun Edition - Steam Ready Desktop Build",
+  "description": "Neon Pulse: Precision Speedrun Edition - desktop (Electron/Steam) build",
   "main": "main.js",
+  "steamAppId": "",
   "scripts": {
     "start": "electron .",
+    "start:dev": "electron . --dev",
     "serve": "npx serve .",
+    "build:css": "npx tailwindcss@3.4.17 -c tailwind.config.js -i tailwind.input.css -o vendor/tailwind.css --minify",
+    "build:steam": "electron-builder --win dir",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"
@@ -19,21 +23,22 @@
   ],
   "author": "Mighty Skull",
   "license": "MIT",
+  "dependencies": {
+    "peerjs": "1.5.4"
+  },
+  "optionalDependencies": {
+    "steamworks.js": "^0.4.0"
+  },
   "devDependencies": {
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8"
   },
-  "optionalDependencies": {
-    "steamworks.js": "^0.3.0"
-  },
   "build": {
     "appId": "com.mightyskull.neonpulsespeedrun",
     "productName": "Neon Pulse Speedrun",
-    "win": {
-      "target": "nsis"
-    },
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     },
     "files": [
       "index.html",
@@ -41,7 +46,30 @@
       "style.css",
       "steam_bridge.js",
       "main.js",
-      "package.json"
-    ]
+      "preload.js",
+      "package.json",
+      "LICENSE",
+      "vendor/**/*",
+      "build/icon.png"
+    ],
+    "asarUnpack": [
+      "node_modules/steamworks.js/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "dir"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "dir"
+      ],
+      "category": "Game"
+    },
+    "mac": {
+      "category": "public.app-category.games"
+    }
   }
 }
