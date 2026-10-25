@@ -1434,11 +1434,11 @@ const SKINS = [
 
 const TRAILS = [
     // --- STARTER & ACHIEVEMENT / PROGRESSION TRAILS (Unlocked via feats) ---
-    { id: "pulse_dash", name: "PULSE DASH", desc: "Classic after-image exosuit ghost frames", color: "#06b6d4", icon: "⚡", unlockDesc: "Default unlocked" },
-    { id: "laser_ribbon", name: "LASER RIBBON", desc: "Continuous luminous neon laser streamer line", color: "#38bdf8", icon: "🎗️", unlockDesc: "Clear Stage 03" },
+    { id: "pulse_dash", name: "PULSE DASH", desc: "Cyan, violet and pink neon light ribbon", color: "#06b6d4", icon: "⚡", unlockDesc: "Default unlocked" },
+    { id: "laser_ribbon", name: "LASER RIBBON", desc: "Single luminous streamer in your suit colour", color: "#38bdf8", icon: "🎗️", unlockDesc: "Clear Stage 03" },
     { id: "stardust", name: "STARDUST SPARKLES", desc: "Glittering diamond star sparkles & trail", color: "#fef08a", icon: "✨", unlockDesc: "Collect 20 total shards" },
     { id: "fire_ember", name: "AFTERBURNER EMBER", desc: "Blazing rocket flame exhaust & ember sparks", color: "#f97316", icon: "🔥", unlockDesc: "Reach 350+ km/h speed" },
-    { id: "rainbow_hyper", name: "HYPERDRIVE RAINBOW", desc: "Prismatic RGB chroma cycle stream", color: "#a855f7", icon: "🌈", unlockDesc: "Earn 5 Gold Medals" },
+    { id: "rainbow_hyper", name: "HYPERDRIVE RAINBOW", desc: "Five-band prismatic light ribbon", color: "#a855f7", icon: "🌈", unlockDesc: "Earn 5 Gold Medals" },
     { id: "matrix_rain", name: "MATRIX BINARY RAIN", desc: "Cascading digital binary code glyphs", color: "#22c55e", icon: "👾", unlockDesc: "Clear today's Daily Challenge" },
     { id: "plasma_flame", name: "PLASMA FLAME", desc: "Intense searing white-hot plasma fire", color: "#ffffff", icon: "🔥", unlockDesc: "Rotating Supply Drop or Mach 400" },
     { id: "quantum_dust", name: "QUANTUM DUST", desc: "Swirling luminous golden antimatter particles", color: "#f59e0b", icon: "✨", unlockDesc: "Rotating Supply Drop or 5 Author Medals" },
@@ -9153,67 +9153,7 @@ function runBotPilotAI() {
 // DIMENSION 2 VISUAL EFFECTS & ENTITIES
 // ============================================================================
 function drawDimension2Background(cameraX) {
-    ctx.fillStyle = getDim2BgGrad() || '#06020f';
-    ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
-
-    // Parallax Quantum Nebula Dust (Cached Gradients)
-    ctx.save();
-    const t = game.runTime * 0.4;
-    for (let n = 0; n < 3; n++) {
-        const nx = ((n * 380 - cameraX * 0.08 + Math.sin(t + n) * 40) % (V_WIDTH + 400)) - 200;
-        const ny = 120 + n * 110 + Math.cos(t * 0.8 + n) * 30;
-        const rad = getNebulaGrad(n);
-        if (rad) {
-            ctx.save();
-            ctx.translate(nx, ny);
-            ctx.fillStyle = rad;
-            ctx.beginPath();
-            ctx.arc(0, 0, 180, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-    ctx.restore();
-
-    // Starfield Parallax
-    ctx.save();
-    for (let layer = 1; layer <= 2; layer++) {
-        const speed = layer === 1 ? 0.05 : 0.12;
-        const count = layer === 1 ? 40 : 25;
-        for (let i = 0; i < count; i++) {
-            const seed = i * 997 + layer * 31;
-            const sx = ((seed * 43.17 - cameraX * speed) % (V_WIDTH + 50)) - 25;
-            const sy = (seed * 29.83) % (V_HEIGHT - 60);
-            const twinkle = (Math.sin(game.runTime * 3 + seed) + 1) * 0.5;
-            ctx.fillStyle = layer === 1 
-                ? `rgba(192, 132, 252, ${0.3 + twinkle * 0.5})` 
-                : `rgba(255, 255, 255, ${0.4 + twinkle * 0.6})`;
-            ctx.beginPath();
-            ctx.arc(sx, sy, layer === 1 ? 1.2 : 2.0, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-    ctx.restore();
-
-    // Dimensional Fracture Grid
-    ctx.save();
-    ctx.strokeStyle = 'rgba(147, 51, 234, 0.08)';
-    ctx.lineWidth = 1;
-    const gridSpacing = 60;
-    const gridOffset = (-cameraX * 0.18) % gridSpacing;
-    for (let gx = gridOffset; gx < V_WIDTH; gx += gridSpacing) {
-        ctx.beginPath();
-        ctx.moveTo(gx, 0);
-        ctx.lineTo(gx, V_HEIGHT);
-        ctx.stroke();
-    }
-    for (let gy = 0; gy < V_HEIGHT; gy += gridSpacing) {
-        ctx.beginPath();
-        ctx.moveTo(0, gy);
-        ctx.lineTo(V_WIDTH, gy);
-        ctx.stroke();
-    }
-    ctx.restore();
+    drawSynthwaveBackground(cameraX, 'cosmos');
 }
 
 function drawSentinelDeathWall(cameraX) {
@@ -9484,10 +9424,21 @@ function render() {
                 ctx.fillStyle = '#0f172a';
                 ctx.strokeStyle = lvl.color;
             } else {
+                // dark glassy body + neon rim, styled after the key art
+                const pg = ctx.createLinearGradient(0, plat.y, 0, plat.y + Math.min(plat.h, 140));
+                pg.addColorStop(0, 'rgba(26,16,58,0.97)'); pg.addColorStop(1, 'rgba(7,4,20,0.98)');
+                ctx.fillStyle = pg;
                 ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                ctx.save();
+                ctx.globalAlpha = 0.28; ctx.lineWidth = 6;
+                ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+                ctx.globalAlpha = 1; ctx.lineWidth = 2;
                 ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
                 ctx.fillStyle = lvl.color;
                 ctx.fillRect(plat.x, plat.y, plat.w, 3);
+                ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                ctx.fillRect(plat.x, plat.y, plat.w, 1);
+                ctx.restore();
                 ctx.fillStyle = '#0f172a';
             }
         }
@@ -9782,28 +9733,299 @@ function drawSpeedLines() {
     ctx.restore();
 }
 
-function drawCyberBackground(cameraX) {
-    ctx.fillStyle = getCyberBgGrad() || '#020617';
-    ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+// ============================================================================
+// SYNTHWAVE BACKDROP (matches the store key art): sky, striped sun, neon
+// skyline, perspective grid. Static layers are cached to offscreen canvases
+// at device resolution, so each frame is a handful of drawImage calls.
+// ============================================================================
+const SYNTH_HORIZON = 330;
+const synthCache = { res: 0, theme: null, sky: null, sun: null, far: null, near: null, tileW: 1024 };
 
-    // Parallax City Skyline
-    ctx.fillStyle = '#090d16';
-    const bOffset = (cameraX * 0.15) % 180;
-    for (let x = -bOffset - 180; x < V_WIDTH + 180; x += 90) {
-        const height = 140 + Math.sin(x * 12.3) * 60;
-        ctx.fillRect(x, 400 - height, 75, height);
+function synthRng(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+
+function makeLayerCanvas(w, h, res) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w * res));
+    c.height = Math.max(1, Math.round(h * res));
+    const g = c.getContext('2d');
+    g.scale(res, res);
+    return { c, g };
+}
+
+function buildSynthCache(theme) {
+    const res = Math.max(1, Math.min(2.5, cachedScale || 1));
+    const hz = SYNTH_HORIZON;
+    const cosmos = theme === 'cosmos';
+    // --- sky + stars
+    const sky = makeLayerCanvas(V_WIDTH, hz + 2, res);
+    let g = sky.g;
+    const sg = g.createLinearGradient(0, 0, 0, hz);
+    if (cosmos) { sg.addColorStop(0, '#05010d'); sg.addColorStop(0.6, '#140a35'); sg.addColorStop(1, '#2d0f55'); }
+    else { sg.addColorStop(0, '#04020d'); sg.addColorStop(0.55, '#140630'); sg.addColorStop(1, '#3a0b52'); }
+    g.fillStyle = sg; g.fillRect(0, 0, V_WIDTH, hz + 2);
+    let r = synthRng(cosmos ? 77 : 11);
+    for (let i = 0; i < 140; i++) {
+        const a = 0.15 + r() * 0.7;
+        g.fillStyle = `rgba(255,255,255,${a})`;
+        const s = r() < 0.12 ? 1.6 : 0.9;
+        g.fillRect(r() * V_WIDTH, r() * hz * 0.85, s, s);
+    }
+    // --- sun (city) or ringed planet (cosmos)
+    const sunR = cosmos ? 120 : 150;
+    const sun = makeLayerCanvas(sunR * 2 + 80, sunR + 60, res);
+    g = sun.g;
+    const cx = sunR + 40, cy = sunR + 40;
+    g.save();
+    g.shadowColor = cosmos ? '#a855f7' : '#ff2bd6'; g.shadowBlur = 50;
+    const sunG = g.createLinearGradient(0, cy - sunR, 0, cy);
+    if (cosmos) { sunG.addColorStop(0, '#f0abfc'); sunG.addColorStop(0.5, '#a855f7'); sunG.addColorStop(1, '#4c1d95'); }
+    else { sunG.addColorStop(0, '#ffe46b'); sunG.addColorStop(0.45, '#ff9e3d'); sunG.addColorStop(1, '#ff2bd6'); }
+    g.fillStyle = sunG;
+    g.beginPath(); g.arc(cx, cy, sunR, Math.PI, 2 * Math.PI); g.fill();
+    g.restore();
+    g.save(); g.globalCompositeOperation = 'destination-out';
+    for (let k = 0; k < 7; k++) {
+        const t = k / 7;
+        g.fillRect(cx - sunR - 2, cy - sunR * 0.55 + t * sunR * 0.55, sunR * 2 + 4, sunR * (0.015 + 0.035 * t));
+    }
+    g.restore();
+    if (cosmos) {   // planetary ring
+        g.save(); g.strokeStyle = 'rgba(244,114,182,0.75)'; g.lineWidth = 3; g.shadowColor = '#f472b6'; g.shadowBlur = 14;
+        g.beginPath(); g.ellipse(cx, cy - sunR * 0.35, sunR * 1.35, sunR * 0.18, -0.08, Math.PI * 0.98, Math.PI * 2.02); g.stroke(); g.restore();
+    }
+    // --- skyline / ridge tiles (repeat horizontally)
+    const tileW = synthCache.tileW;
+    function skyline(seed, scale, color, lit, alpha) {
+        const L = makeLayerCanvas(tileW, 260, res);
+        const lg = L.g;
+        const rr = synthRng(seed);
+        if (cosmos) {
+            // jagged crystal ridge
+            lg.fillStyle = color; lg.beginPath(); lg.moveTo(0, 260);
+            let x = 0;
+            while (x <= tileW) { lg.lineTo(x, 260 - (30 + rr() * 110) * scale); x += 20 + rr() * 40; }
+            lg.lineTo(tileW, 260 - 60 * scale); lg.lineTo(tileW, 260); lg.closePath(); lg.fill();
+            lg.strokeStyle = `rgba(192,132,252,${0.45 * alpha})`; lg.lineWidth = 1.2; lg.stroke();
+            return L.c;
+        }
+        let x = 0;
+        while (x < tileW) {
+            const bw = Math.min(tileW - x, (26 + rr() * 60) * scale);
+            const bh = (36 + rr() * 150 + (rr() < 0.15 ? 70 : 0)) * scale;
+            lg.fillStyle = color; lg.fillRect(x, 260 - bh, bw, bh);
+            lg.strokeStyle = rr() < 0.5 ? `rgba(34,228,255,${0.4 * alpha})` : `rgba(255,43,214,${0.35 * alpha})`;
+            lg.lineWidth = 1; lg.strokeRect(x + 0.5, 260 - bh + 0.5, bw - 1, bh);
+            if (lit) {
+                for (let wy = 260 - bh + 7 * scale; wy < 254; wy += 8 * scale)
+                    for (let wx = x + 4 * scale; wx < x + bw - 4 * scale; wx += 7 * scale)
+                        if (rr() < 0.2) { lg.fillStyle = rr() < 0.6 ? `rgba(34,228,255,${0.55 * alpha})` : `rgba(255,170,240,${0.5 * alpha})`; lg.fillRect(wx, wy, 2 * scale, 2.5 * scale); }
+            }
+            x += bw + (2 + rr() * 8) * scale;
+        }
+        return L.c;
+    }
+    const far = skyline(cosmos ? 5 : 3, 1.1, cosmos ? '#1a0b3a' : '#24093f', true, 0.55);
+    const near = skyline(cosmos ? 9 : 9, 0.8, cosmos ? '#0e0624' : '#0b0320', true, 1);
+    Object.assign(synthCache, { res, theme, sky: sky.c, sun: sun.c, sunR, far, near });
+}
+
+function drawSynthwaveBackground(cameraX, theme) {
+    const want = Math.max(1, Math.min(2.5, cachedScale || 1));
+    if (synthCache.theme !== theme || Math.abs(synthCache.res - want) > 0.25) buildSynthCache(theme);
+    const hz = SYNTH_HORIZON;
+    const cosmos = theme === 'cosmos';
+    const c = ctx;
+    c.drawImage(synthCache.sky, 0, 0, V_WIDTH, hz + 2);
+
+    // cosmos keeps the drifting nebula clouds from the original Dimension β look
+    if (cosmos) {
+        const t = game.runTime * 0.4;
+        for (let n = 0; n < 3; n++) {
+            const rad = getNebulaGrad(n);
+            if (!rad) continue;
+            c.save();
+            c.translate(((n * 380 - cameraX * 0.08 + Math.sin(t + n) * 40) % (V_WIDTH + 400)) - 200, 90 + n * 70 + Math.cos(t * 0.8 + n) * 20);
+            c.fillStyle = rad; c.beginPath(); c.arc(0, 0, 180, 0, Math.PI * 2); c.fill(); c.restore();
+        }
     }
 
-    // Synth Grid Lines
-    ctx.strokeStyle = 'rgba(6, 182, 212, 0.12)';
-    ctx.lineWidth = 1;
-    const gridOffset = (cameraX * 0.5) % 50;
-    for (let x = -gridOffset; x < V_WIDTH; x += 50) {
-        ctx.beginPath();
-        ctx.moveTo(x, 400);
-        ctx.lineTo(x, V_HEIGHT);
+    // sun / planet (very slow parallax)
+    const sR = synthCache.sunR;
+    const sunX = 640 - ((cameraX * 0.012) % 1400);
+    const sw = sR * 2 + 80, sh = sR + 60;
+    c.drawImage(synthCache.sun, sunX - sw / 2, hz - sh + 20, sw, sh);
+    if (sunX - sw / 2 < 0) c.drawImage(synthCache.sun, sunX - sw / 2 + 1400, hz - sh + 20, sw, sh);
+
+    // skyline layers
+    const tw = synthCache.tileW;
+    const drawTiles = (img, speed, yOff) => {
+        let ox = -((cameraX * speed) % tw);
+        if (ox > 0) ox -= tw;
+        for (let x = ox; x < V_WIDTH; x += tw) c.drawImage(img, x, hz - 260 + yOff, tw, 260);
+    };
+    drawTiles(synthCache.far, 0.06, 0);
+    drawTiles(synthCache.near, 0.16, 2);
+
+    // grid floor
+    const fg = c.createLinearGradient(0, hz, 0, V_HEIGHT);
+    fg.addColorStop(0, cosmos ? '#22104a' : '#2a0740'); fg.addColorStop(1, '#05010b');
+    c.fillStyle = fg; c.fillRect(0, hz, V_WIDTH, V_HEIGHT - hz);
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    const hCol = cosmos ? '168,85,247' : '255,43,214';
+    for (let i = 1; i < 16; i++) {
+        const t = Math.pow(i / 16, 2.1);
+        const y = hz + t * (V_HEIGHT - hz) * 1.05;
+        const a = 0.42 * (1 - t * 0.75);
+        c.strokeStyle = `rgba(${hCol},${a * 0.35})`; c.lineWidth = 4;
+        c.beginPath(); c.moveTo(0, y); c.lineTo(V_WIDTH, y); c.stroke();
+        c.strokeStyle = `rgba(${hCol},${a})`; c.lineWidth = 1.2;
+        c.beginPath(); c.moveTo(0, y); c.lineTo(V_WIDTH, y); c.stroke();
+    }
+    const vpX = V_WIDTH / 2, spacing = 70;
+    const scroll = (cameraX * 0.9) % spacing;
+    c.strokeStyle = 'rgba(34,228,255,0.22)'; c.lineWidth = 1.2;
+    c.beginPath();
+    for (let bx = -spacing * 12 - scroll; bx < V_WIDTH + spacing * 12; bx += spacing) {
+        c.moveTo(vpX + (bx - vpX) * 0.08, hz);
+        c.lineTo(bx, V_HEIGHT);
+    }
+    c.stroke();
+    c.restore();
+
+    // horizon glow
+    const hg = c.createLinearGradient(0, hz - 26, 0, hz + 26);
+    hg.addColorStop(0, 'rgba(255,43,214,0)');
+    hg.addColorStop(0.5, cosmos ? 'rgba(192,132,252,0.45)' : 'rgba(255,120,230,0.5)');
+    hg.addColorStop(1, 'rgba(255,43,214,0)');
+    c.fillStyle = hg; c.fillRect(0, hz - 26, V_WIDTH, 52);
+
+    // abyss fog: keeps pits reading as a deadly drop
+    const ab = c.createLinearGradient(0, 420, 0, V_HEIGHT);
+    ab.addColorStop(0, 'rgba(3,1,10,0)'); ab.addColorStop(1, 'rgba(3,1,10,0.88)');
+    c.fillStyle = ab; c.fillRect(0, 420, V_WIDTH, V_HEIGHT - 420);
+}
+
+// ============================================================================
+// LIGHT-RIBBON TRAILS (the long streaming trail from the key art)
+// Sampled every rendered frame so the ribbon is smooth at any frame rate.
+// ============================================================================
+const RIBBON_STYLES = {
+    pulse_dash: ['#22e4ff', '#8b5cf6', '#ff2bd6'],
+    rainbow_hyper: ['#22e4ff', '#7c5cff', '#ff2bd6', '#ff9e3d', '#ffe46b'],
+    laser_ribbon: null, // uses skin colour, single band
+};
+function drawLightRibbon(trailStyle, skin) {
+    const p = game.player;
+    const pts = game.ribbonPts || (game.ribbonPts = []);
+    const now = game.renderClock = (game.renderClock || 0) + (game.lastFrameDelta || 0.016);
+    const cx = p.renderX + 11, cy = p.renderY + p.h / 2 + (p.isSliding ? 2 : -2);
+    const last = pts[0];
+    if (last && (Math.abs(last.x - cx) > 260 || Math.abs(last.y - cy) > 260)) pts.length = 0; // respawn / teleport
+    pts.unshift({ x: cx, y: cy, t: now });
+    const life = 0.32;
+    while (pts.length && now - pts[pts.length - 1].t > life) pts.pop();
+    if (pts.length < 3) return;
+    const cols = RIBBON_STYLES[trailStyle] || [skin.color];
+    const faint = (trailStyle in RIBBON_STYLES) ? 1 : 0.5;
+    const bandGap = cols.length > 3 ? 2.6 : 3.2;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    for (let b = 0; b < cols.length; b++) {
+        const off = (b - (cols.length - 1) / 2) * bandGap;
+        ctx.strokeStyle = cols[b];
+        for (let i = 1; i < pts.length; i++) {
+            const k = 1 - (now - pts[i].t) / life;           // 1 at the runner -> 0 at the tail
+            if (k <= 0) break;
+            const spread = off * (0.6 + 0.8 * (1 - k));
+            ctx.globalAlpha = 0.16 * k * faint;
+            ctx.lineWidth = 7 * k + 1;
+            ctx.beginPath(); ctx.moveTo(pts[i - 1].x, pts[i - 1].y + spread); ctx.lineTo(pts[i].x, pts[i].y + spread); ctx.stroke();
+            ctx.globalAlpha = 0.55 * k * faint;
+            ctx.lineWidth = 2.6 * k + 0.6;
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+}
+
+// ============================================================================
+// RUNNER BODY (jointed limbs, chromatic neon edge) — coordinates are local to
+// the runner centre, same frame the exosuit accessories use.
+// ============================================================================
+function runnerPose(p) {
+    if (p.isSliding) {
+        return { head: [9, -1, 5.6], segs: [[[6, 2], [-6, 6]], [[-6, 6], [4, 9], [15, 9]], [[-6, 6], [-1, 10], [10, 11]], [[4, 3], [12, -3], [18, 0]], [[4, 3], [-4, -1], [-10, 3]]] };
+    }
+    if (!p.isGrounded) {
+        // key-art leap: lead leg forward, trailing leg kicked back, arms driving
+        const rise = Math.max(-1, Math.min(1, -p.vy * p.gravityDir / 500));
+        const kick = 2 * rise;
+        return { head: [5.6, -16.4, 5.8], segs: [
+            [[3.2, -10], [-3.2, 8.4]],
+            [[2.4, -7.6], [-5.6, -1.2], [-14.4, -5.2 - kick]],
+            [[-3.2, 8.4], [-12, 15.6], [-20, 7.6 - kick]],
+            [[-3.2, 8.4], [9.6, 12.4 - kick], [17.6, 18.8]],
+            [[2.4, -7.6], [12, -4.4], [18.4, -10 + kick]],
+        ] };
+    }
+    const ph = p.runCycle || 0;
+    const leg = (o) => {
+        const th = Math.sin(ph + o) * 0.75;                 // thigh swing
+        const bend = 0.25 + 0.95 * Math.max(0, Math.cos(ph + o)); // knee flex on the recovery stroke
+        const hip = [-1, 3];
+        const knee = [hip[0] + Math.sin(th) * 8.5, hip[1] + Math.cos(th) * 8.5];
+        const foot = [knee[0] + Math.sin(th - bend) * 8.5, knee[1] + Math.cos(th - bend) * 8.5];
+        return [hip, knee, foot];
+    };
+    const arm = (o) => {
+        const a = -Math.sin(ph + o) * 0.85;
+        const sh = [2, -7];
+        const el = [sh[0] + Math.sin(a) * 6, sh[1] + Math.cos(a) * 6];
+        const ha = [el[0] + Math.sin(a + 1.35) * 5.5, el[1] + Math.cos(a + 1.35) * 5.5];
+        return [sh, el, ha];
+    };
+    return { head: [4, -16.5, 5.8], segs: [[[3, -10], [-1, 3]], arm(Math.PI), leg(0), leg(Math.PI), arm(0)] };
+}
+
+function strokeRunnerPose(pose, color, width, dx) {
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width;
+    for (const seg of pose.segs) {
+        ctx.beginPath(); ctx.moveTo(seg[0][0] + dx, seg[0][1]);
+        for (let i = 1; i < seg.length; i++) ctx.lineTo(seg[i][0] + dx, seg[i][1]);
         ctx.stroke();
     }
+    ctx.beginPath(); ctx.arc(pose.head[0] + dx, pose.head[1], pose.head[2], 0, Math.PI * 2); ctx.fill();
+}
+
+function drawRunnerBody(p, mainColor, glow) {
+    const pose = runnerPose(p);
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // chromatic edge (magenta left, cyan right) like the key art
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.55;
+    strokeRunnerPose(pose, '#ff2bd6', 4.2, -1.3);
+    strokeRunnerPose(pose, '#22e4ff', 4.2, 1.3);
+    ctx.globalAlpha = 1;
+    ctx.shadowColor = glow; ctx.shadowBlur = 14;
+    strokeRunnerPose(pose, mainColor, 4.4, 0);
+    // hot inner core
+    ctx.shadowBlur = 0; ctx.globalAlpha = 0.75;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+    for (const seg of pose.segs) {
+        ctx.beginPath(); ctx.moveTo(seg[0][0], seg[0][1]);
+        for (let i = 1; i < seg.length; i++) ctx.lineTo(seg[i][0], seg[i][1]);
+        ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.beginPath(); ctx.arc(pose.head[0] - 1, pose.head[1] - 1, pose.head[2] * 0.45, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
+function drawCyberBackground(cameraX) {
+    drawSynthwaveBackground(cameraX, 'city');
 }
 
 function drawSpike(x, y, w, h, inverted, rotation, targetCtx) {
@@ -10121,6 +10343,16 @@ function drawPlayerTrail() {
     const trailStyle = (typeof getActiveTrailData === 'function') ? getActiveTrailData().id : 'pulse_dash';
     const skin = (typeof getActiveSkinData === 'function') ? getActiveSkinData() : { color: '#06b6d4', glow: '#06b6d4' };
 
+    // Light-ribbon trails (default, Hyperdrive Rainbow, Laser Ribbon) draw a long smooth streamer.
+    // Every other trail keeps its own particles on top of a faint ribbon in the suit colour.
+    drawLightRibbon(trailStyle, skin);
+    if (trailStyle === 'pulse_dash' || trailStyle === 'rainbow_hyper' || trailStyle === 'laser_ribbon') {
+        for (let i = game.player.trail.length - 1; i >= 0; i--) {
+            game.player.trail[i].alpha -= dt * 2.6;
+            if (game.player.trail[i].alpha <= 0) game.player.trail.splice(i, 1);
+        }
+        return;
+    }
     if (trailStyle === 'laser_ribbon') {
         if (game.player.trail.length > 1) {
             ctx.save();
@@ -10762,54 +10994,7 @@ function drawAcrobaticHuman(p) {
         ctx.restore();
     }
 
-    if (p.isSliding) {
-        ctx.beginPath();
-        ctx.arc(8, -2, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(4, 0);
-        ctx.lineTo(-8, 5);
-        ctx.lineTo(14, 8);
-        ctx.stroke();
-    } else if (!p.isGrounded) {
-        ctx.beginPath();
-        ctx.arc(0, -16, 5.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(0, -10);
-        ctx.lineTo(-2, 4);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(-1, -6);
-        ctx.lineTo(8, -12);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(-2, 4);
-        ctx.lineTo(-10, 14);
-        ctx.stroke();
-    } else {
-        const legSwing = Math.sin(p.runCycle) * 12;
-        const armSwing = Math.cos(p.runCycle) * 10;
-        ctx.beginPath();
-        ctx.arc(3, -16, 5.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(2, -10);
-        ctx.lineTo(-2, 4);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(1, -6);
-        ctx.lineTo(1 + armSwing, 1);
-        ctx.moveTo(1, -6);
-        ctx.lineTo(1 - armSwing, 1);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(-2, 4);
-        ctx.lineTo(-2 + legSwing, 18);
-        ctx.moveTo(-2, 4);
-        ctx.lineTo(-2 - legSwing, 18);
-        ctx.stroke();
-    }
+    drawRunnerBody(p, mainColor, skin.glow);
 
     // 1. Plasma Exhaust Flames on Back Thrusters & Boots (Thruster Burst Active)
     if (game.abilities && game.abilities.thrust && game.abilities.thrust.activeTimer > 0) {

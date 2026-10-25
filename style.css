@@ -357,3 +357,35 @@ html.desktop-build #game-wrapper {
     border: none !important;
     box-shadow: none !important;
 }
+
+/* ------------------------------------------------------------------
+   Key-art styling: main menu scrim lets the synthwave scene show through,
+   and the title matches the store logo (chrome italic + pulse line + tag).
+   ------------------------------------------------------------------ */
+.menu-scrim {
+    background: radial-gradient(ellipse at 50% 35%, rgba(4, 1, 14, 0.25) 0%, rgba(4, 1, 14, 0.62) 70%, rgba(2, 0, 8, 0.85) 100%);
+}
+.neon-logo { position: relative; display: flex; flex-direction: column; align-items: center; padding: 0 2.5rem; }
+.neon-logo-pulse {
+    position: absolute; left: -10%; right: -10%; top: 0.35em; width: 120%; height: 3.4rem;
+    fill: none; stroke: #ff2bd6; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round;
+    filter: drop-shadow(0 0 6px #ff2bd6) drop-shadow(0 0 14px rgba(255, 43, 214, 0.6));
+    opacity: 0.9; pointer-events: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+            mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+.neon-logo-title {
+    position: relative; margin: 0; font-family: 'Chakra Petch', sans-serif; font-style: italic; font-weight: 700;
+    font-size: clamp(2.6rem, 6.2vw, 4.6rem); line-height: 1; letter-spacing: 0.02em;
+    background: linear-gradient(180deg, #ffffff 0%, #d9fbff 45%, #5ee9ff 52%, #22c7ff 75%, #a855f7 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-text-stroke: 1px rgba(255, 255, 255, 0.55);
+    filter: drop-shadow(0 0 2px rgba(6, 2, 20, 1)) drop-shadow(0 0 14px rgba(34, 228, 255, 0.75)) drop-shadow(0 0 32px rgba(34, 228, 255, 0.35));
+}
+.neon-logo-sub {
+    position: relative; margin-top: 0.45rem; padding: 0.12rem 1.1rem; font-family: 'Chakra Petch', sans-serif; font-weight: 700;
+    font-size: 0.8rem; letter-spacing: 0.55em; text-indent: 0.55em; color: #ffd1ec;
+    background: rgba(6, 2, 20, 0.85); border: 1.5px solid #ff4fa3; border-radius: 3px;
+    box-shadow: 0 0 10px rgba(255, 79, 163, 0.55), inset 0 0 8px rgba(255, 79, 163, 0.25);
+    text-shadow: 0 0 8px rgba(255, 43, 214, 0.8);
+}

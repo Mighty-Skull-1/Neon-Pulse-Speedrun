@@ -56,11 +56,11 @@ Personalize your runner with unlocks earned through medals, shard collection, da
   - 💾 *Matrix Overdrive* — Binary code matrix headband & cyber aura
   - 🌑 *Void Shadow* — Quantum dark-matter halo & stealth horns
 - **6 Energy Particle Trails**:
-  - ⚡ *Pulse Dash* (Classic after-image ghost frames)
-  - 🎗️ *Laser Ribbon* (Continuous glowing ribbon streamer)
+  - ⚡ *Pulse Dash* (Cyan, violet & pink neon light ribbon)
+  - 🎗️ *Laser Ribbon* (Single luminous streamer in your suit colour)
   - ✨ *Stardust Sparkles* (Radiant neon star particle burst)
   - 🔥 *Afterburner Ember* (High-thrust rocket fire & smoke)
-  - 🌈 *Hyperdrive Rainbow* (Multi-colored chromatic speed spectrum)
+  - 🌈 *Hyperdrive Rainbow* (Five-band prismatic light ribbon)
   - 0️⃣1️⃣ *Matrix Binary Rain* (Cascading cyber code glyphs)
 - **1-Click Equip**: Click any owned suit or trail card in the Locker to immediately equip it for your runs.
 
@@ -248,7 +248,7 @@ The web build has **no build step**: serve the folder and open it in a modern br
 
 ## 🧪 Architecture & Tech Stack
 
-- **Graphics**: Hardware-accelerated HTML5 2D Canvas with sub-frame render interpolation (`renderX`, `renderY`) and device-pixel-ratio scaling for crisp output on high-DPI screens.
+- **Graphics**: Synthwave art direction matching the store key art (cached parallax sky, striped sun, neon skyline and perspective grid; jointed chromatic runner with light-ribbon trails). Hardware-accelerated HTML5 2D Canvas with sub-frame render interpolation (`renderX`, `renderY`) and device-pixel-ratio scaling for crisp output on high-DPI screens.
 - **Physics**: Fixed-timestep integrator (120Hz) with 120ms coyote time, 160ms jump buffering, and +15% slide-hop velocity chaining. The main loop recovers from frame errors instead of freezing.
 - **Audio Engine**: Pure Web Audio API master bus architecture with independent `musicGainNode` and `sfxGainNode` routing.
 - **Networking**: WebRTC DataChannels via PeerJS (loaded on demand). All incoming messages are validated and sanitised.
