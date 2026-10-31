@@ -155,7 +155,11 @@ window.ensurePeerJS = ensurePeerJS;
 
 // Share links only make sense for the web build; desktop players share the raw code
 function isWebShareable() {
-    return !window.neonDesktop && typeof location !== 'undefined' && /^https?:$/.test(location.protocol);
+    // Embedded players (itch.io, game portals) host the game inside an iframe on a CDN domain,
+    // so a link to our own URL would bypass the store page. Share the plain code there instead.
+    let embedded = false;
+    try { embedded = window.self !== window.top; } catch (e) { embedded = true; }
+    return !embedded && !window.neonDesktop && typeof location !== 'undefined' && /^https?:$/.test(location.protocol);
 }
 
 // ============================================================================
