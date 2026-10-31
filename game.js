@@ -155,7 +155,11 @@ window.ensurePeerJS = ensurePeerJS;
 
 // Share links only make sense for the web build; desktop players share the raw code
 function isWebShareable() {
-    return !window.neonDesktop && typeof location !== 'undefined' && /^https?:$/.test(location.protocol);
+    // Embedded players (itch.io, game portals) host the game inside an iframe on a CDN domain,
+    // so a link to our own URL would bypass the store page. Share the plain code there instead.
+    let embedded = false;
+    try { embedded = window.self !== window.top; } catch (e) { embedded = true; }
+    return !embedded && !window.neonDesktop && typeof location !== 'undefined' && /^https?:$/.test(location.protocol);
 }
 
 // ============================================================================
@@ -166,9 +170,10 @@ function isWebShareable() {
 const ADMIN_HASH_SALT = 'NeonPulse_AdminSalt_v1';
 const ADMIN_TARGET_HASH = '9c52122c87bba11fa64924155ed101ab6d8c01219c1d3ac136aee105c8632c2c';
 const ADMIN_STORAGE_KEY = 'neon_pulse_admin_token';
-// Developer tools only exist in dev builds: unpackaged Electron (npm start) or a local web server.
-// Shipped Steam builds and the public web build never show the admin panel.
-const ADMIN_ENABLED = (function() {
+// Developer tools: dev builds (unpackaged Electron or a local web server) show the admin badge.
+// The public web build (itch.io etc.) keeps a HIDDEN, password-locked login for the developer:
+// Ctrl+Shift+A, or tap the Daily Challenge calendar icon 5 times. Shipped Steam builds have none.
+const ADMIN_IS_DEV = (function() {
     try {
         if (typeof window === 'undefined') return false;
         if (window.neonDesktop && window.neonDesktop.steamInfo) return !!(window.neonDesktop.steamInfo() || {}).isDev;
@@ -176,6 +181,11 @@ const ADMIN_ENABLED = (function() {
         return h === 'localhost' || h === '127.0.0.1';
     } catch (e) { return false; }
 })();
+const ADMIN_ENABLED = ADMIN_IS_DEV || (typeof window !== 'undefined' && !window.neonDesktop);
+// Dev builds remember the login; on the public web it lasts only until the tab is closed.
+function adminStore() {
+    try { return ADMIN_IS_DEV ? window.localStorage : window.sessionStorage; } catch (e) { return null; }
+}
 
 function sha256PureSync(ascii) {
     function rightRotate(value, amount) {
@@ -283,7 +293,9 @@ class AdminSecuritySystem {
             return;
         }
         try {
-            const storedToken = localStorage.getItem(ADMIN_STORAGE_KEY);
+            try { if (!ADMIN_IS_DEV) localStorage.removeItem(ADMIN_STORAGE_KEY); } catch (e) {}
+            const store = adminStore();
+            const storedToken = store && store.getItem(ADMIN_STORAGE_KEY);
             if (storedToken && storedToken === ADMIN_TARGET_HASH) {
                 this.authenticated = true;
             }
@@ -296,7 +308,7 @@ class AdminSecuritySystem {
         if (typeof window !== 'undefined' && window.location) {
             const searchStr = window.location.search || '';
             const hashStr = window.location.hash || '';
-            const hasParam = searchStr.includes('admin') || hashStr.includes('admin');
+            const hasParam = ADMIN_IS_DEV && (searchStr.includes('admin') || hashStr.includes('admin'));
             if (hasParam) {
                 setTimeout(() => {
                     if (!this.authenticated) this.openAuthModal();
@@ -499,7 +511,8 @@ class AdminSecuritySystem {
         if (computedHash === ADMIN_TARGET_HASH) {
             this.authenticated = true;
             try {
-                localStorage.setItem(ADMIN_STORAGE_KEY, ADMIN_TARGET_HASH);
+                const store = adminStore();
+                if (store) store.setItem(ADMIN_STORAGE_KEY, ADMIN_TARGET_HASH);
             } catch(e) {}
 
             if (msg) {
@@ -539,7 +552,8 @@ class AdminSecuritySystem {
     logout() {
         this.authenticated = false;
         try {
-            localStorage.removeItem(ADMIN_STORAGE_KEY);
+            const store = adminStore();
+            if (store) store.removeItem(ADMIN_STORAGE_KEY);
         } catch(e) {}
         this.updateUI();
         if (typeof showNotification === 'function') {
@@ -556,7 +570,8 @@ class AdminSecuritySystem {
         const menuAdminBtn = document.getElementById('btn-menu-admin-badge');
         const adminIcon = document.getElementById('menu-admin-icon');
         const adminText = document.getElementById('menu-admin-text');
-        if (menuAdminBtn && !ADMIN_ENABLED) {
+        // Public web build: the badge only appears once the developer has logged in.
+        if (menuAdminBtn && (!ADMIN_ENABLED || (!ADMIN_IS_DEV && !this.authenticated))) {
             menuAdminBtn.classList.add('hidden');
             menuAdminBtn.style.display = 'none';
         } else if (menuAdminBtn) {
